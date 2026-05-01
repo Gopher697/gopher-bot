@@ -1,0 +1,108 @@
+# gopher-workbench-mcp
+
+A minimal local MCP server for giving AI coding assistants conservative access to
+project SOPs, notes, git status/diff, and named preapproved commands.
+
+## Safety Model
+
+- No general shell execution tool is exposed.
+- Projects are never discovered from the home directory.
+- All project roots come from `config/projects.yaml`.
+- All runnable commands come from `config/allowed_commands.yaml`.
+- Default behavior is read-only.
+- The only write tool is `save_session_note(project, note)`, which appends a new
+  timestamped Markdown file under the configured `session_notes_dir`.
+- Path handling uses `pathlib.Path.resolve()` and rejects paths that escape the
+  configured project root.
+- Tool calls are logged to `logs/tool-calls.jsonl`.
+- Session note bodies and note-search query text are not written to the log.
+
+## MCP Resources
+
+- `sop://ai-coding-loop`
+- `sop://modding-workflow`
+- `sop://troubleshooting`
+- `sop://assistant-style`
+
+## MCP Tools
+
+- `list_projects()`
+- `read_project_summary(project)`
+- `search_project_notes(project, query)`
+- `git_status(project)`
+- `git_diff(project)`
+- `run_allowed_command(project, command_name)`
+- `save_session_note(project, note)`
+
+## Setup
+
+Install in editable mode from this folder:
+
+```powershell
+python -m pip install -e ".[dev]"
+```
+
+Run tests:
+
+```powershell
+python -m pytest
+```
+
+Run the server manually:
+
+```powershell
+python -m gopher_workbench_mcp.server
+```
+
+## Configure Projects
+
+Edit `config/projects.yaml` and add only project folders you want the assistant
+to access:
+
+```yaml
+projects:
+  - name: my-project
+    root: "D:/path/to/my-project"
+    summary_file: "PROJECT.md"
+    notes_dir: "notes"
+    session_notes_dir: "notes/sessions"
+```
+
+## Configure Commands
+
+Edit `config/allowed_commands.yaml` and add only commands you are comfortable
+letting an assistant run by name:
+
+```yaml
+commands:
+  - name: test
+    description: "Run the project test suite."
+    argv: ["python", "-m", "pytest"]
+```
+
+Commands run with `cwd` set to the selected project's configured root.
+
+## Example Codex MCP Config
+
+Review and adapt this snippet for your Codex CLI/IDE MCP configuration. This
+README does not edit your real `~/.codex/config.toml`.
+
+```toml
+[mcp_servers.gopher-workbench]
+command = "python"
+args = ["-m", "gopher_workbench_mcp.server"]
+cwd = "D:/gopher-workbench-mcp"
+```
+
+If your Codex setup does not inherit the editable install environment, use an
+absolute Python path or install the package into the same Python environment
+Codex uses.
+
+## Review Before Connecting
+
+1. Confirm every root in `config/projects.yaml` is intentionally exposed.
+2. Confirm every command in `config/allowed_commands.yaml` is safe for repeated
+   assistant use.
+3. Decide whether `git_diff` output may include sensitive local changes before
+   enabling this server for broader assistants.
+4. Inspect `logs/tool-calls.jsonl` periodically.

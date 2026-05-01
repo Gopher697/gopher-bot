@@ -1,0 +1,9 @@
+# Commands are invoked by name only. There is no arbitrary shell tool.
+commands:
+  - name: pytest
+    description: "Run the Python test suite for this project."
+    argv: ["python", "-m", "pytest"]
+  - name: git-status
+    description: "Show short git status. Prefer the dedicated git_status tool."
+    argv: ["git", "status", "--short"]
+

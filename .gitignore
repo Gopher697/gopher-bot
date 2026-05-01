@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+.venv/
+.pytest_cache/
+.tmp/
+pytest_tmp/
+test_workspaces/
+pytest-cache-files-*/
+logs/
+config/projects.yaml
+config/allowed_commands.yaml
+*.egg-info/

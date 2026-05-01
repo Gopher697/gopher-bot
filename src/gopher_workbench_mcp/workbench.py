@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -122,14 +123,28 @@ class Workbench:
         return self._run_readonly_git(entry, ["git", "diff", "--"])
 
     def _run_readonly_git(self, project: Project, argv: list[str]) -> str:
+        env = os.environ.copy()
+        env.update(
+            {
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": "safe.directory",
+                "GIT_CONFIG_VALUE_0": str(project.root),
+                "GIT_TERMINAL_PROMPT": "0",
+                "GIT_PAGER": "cat",
+                "PAGER": "cat",
+            }
+        )
         result = subprocess.run(
             argv,
             cwd=project.root,
             check=False,
-            capture_output=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             shell=False,
             text=True,
             timeout=30,
+            env=env,
         )
         output = result.stdout + result.stderr
         if result.returncode != 0:
@@ -144,7 +159,9 @@ class Workbench:
             list(command.argv),
             cwd=entry.root,
             check=False,
-            capture_output=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             shell=False,
             text=True,
             timeout=120,

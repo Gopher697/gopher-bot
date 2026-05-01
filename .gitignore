@@ -9,6 +9,7 @@ pytest_tmp/
 test_workspaces/
 pytest-cache-files-*/
 logs/
+notes/sessions/*.md
 config/projects.yaml
 config/allowed_commands.yaml
 *.egg-info/

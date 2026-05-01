@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -111,3 +112,61 @@ def test_search_notes_logs_query_length_not_query_text() -> None:
 
     assert '"query_length": 4' in log_text
     assert '"query":' not in log_text
+
+
+def test_git_status_uses_noninteractive_subprocess(monkeypatch: pytest.MonkeyPatch) -> None:
+    workspace = make_workspace("git-subprocess")
+    config_dir = workspace / "config"
+    project_root = workspace / "project"
+    project_root.mkdir()
+    write_config(config_dir, project_root)
+    workbench = Workbench(config_dir=config_dir, logs_dir=workspace / "logs")
+    captured: dict[str, object] = {}
+
+    def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured["argv"] = argv
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(argv, 0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert workbench.git_status("demo") == "ok"
+    assert captured["argv"] == ["git", "status", "--short"]
+    assert captured["cwd"] == project_root.resolve()
+    assert captured["stdin"] is subprocess.DEVNULL
+    assert captured["stdout"] is subprocess.PIPE
+    assert captured["stderr"] is subprocess.PIPE
+    assert captured["shell"] is False
+    assert captured["timeout"] == 30
+    assert captured["env"]["GIT_TERMINAL_PROMPT"] == "0"  # type: ignore[index]
+    assert captured["env"]["GIT_PAGER"] == "cat"  # type: ignore[index]
+    assert captured["env"]["GIT_CONFIG_KEY_0"] == "safe.directory"  # type: ignore[index]
+    assert captured["env"]["GIT_CONFIG_VALUE_0"] == str(project_root.resolve())  # type: ignore[index]
+
+
+def test_allowed_command_uses_noninteractive_subprocess(monkeypatch: pytest.MonkeyPatch) -> None:
+    workspace = make_workspace("allowed-subprocess")
+    config_dir = workspace / "config"
+    project_root = workspace / "project"
+    project_root.mkdir()
+    write_config(config_dir, project_root)
+    workbench = Workbench(config_dir=config_dir, logs_dir=workspace / "logs")
+    captured: dict[str, object] = {}
+
+    def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured["argv"] = argv
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(argv, 0, stdout="Python 3", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = workbench.run_allowed_command("demo", "ok")
+
+    assert result["stdout"] == "Python 3"
+    assert captured["argv"] == ["python", "--version"]
+    assert captured["cwd"] == project_root.resolve()
+    assert captured["stdin"] is subprocess.DEVNULL
+    assert captured["stdout"] is subprocess.PIPE
+    assert captured["stderr"] is subprocess.PIPE
+    assert captured["shell"] is False
+    assert captured["timeout"] == 120

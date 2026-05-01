@@ -24,6 +24,7 @@ projects:
         """
 commands:
   - name: ok
+    projects: ["demo"]
     argv: ["python", "--version"]
 """,
         encoding="utf-8",
@@ -170,3 +171,82 @@ def test_allowed_command_uses_noninteractive_subprocess(monkeypatch: pytest.Monk
     assert captured["stderr"] is subprocess.PIPE
     assert captured["shell"] is False
     assert captured["timeout"] == 120
+
+
+def test_pytest_command_works_for_gopher_workbench_mcp(monkeypatch: pytest.MonkeyPatch) -> None:
+    workspace = make_workspace("project-scoped-pytest")
+    config_dir = workspace / "config"
+    project_root = workspace / "project"
+    project_root.mkdir()
+    config_dir.mkdir()
+    (config_dir / "projects.yaml").write_text(
+        f"""
+projects:
+  - name: gopher-workbench-mcp
+    root: "{project_root.as_posix()}"
+""",
+        encoding="utf-8",
+    )
+    (config_dir / "allowed_commands.yaml").write_text(
+        """
+commands:
+  - name: pytest
+    projects: ["gopher-workbench-mcp"]
+    argv: ["python", "-m", "pytest"]
+""",
+        encoding="utf-8",
+    )
+    workbench = Workbench(config_dir=config_dir, logs_dir=workspace / "logs")
+    captured: dict[str, object] = {}
+
+    def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured["argv"] = argv
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(argv, 0, stdout="passed", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = workbench.run_allowed_command("gopher-workbench-mcp", "pytest")
+
+    assert result["returncode"] == 0
+    assert result["stdout"] == "passed"
+    assert captured["argv"] == ["python", "-m", "pytest"]
+    assert captured["cwd"] == project_root.resolve()
+
+
+def test_allowed_command_rejects_project_outside_command_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    workspace = make_workspace("project-scoped-rejection")
+    config_dir = workspace / "config"
+    allowed_root = workspace / "allowed"
+    other_root = workspace / "other"
+    allowed_root.mkdir()
+    other_root.mkdir()
+    config_dir.mkdir()
+    (config_dir / "projects.yaml").write_text(
+        f"""
+projects:
+  - name: gopher-workbench-mcp
+    root: "{allowed_root.as_posix()}"
+  - name: other-project
+    root: "{other_root.as_posix()}"
+""",
+        encoding="utf-8",
+    )
+    (config_dir / "allowed_commands.yaml").write_text(
+        """
+commands:
+  - name: pytest
+    projects: ["gopher-workbench-mcp"]
+    argv: ["python", "-m", "pytest"]
+""",
+        encoding="utf-8",
+    )
+    workbench = Workbench(config_dir=config_dir, logs_dir=workspace / "logs")
+
+    def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        raise AssertionError("subprocess.run should not be called")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    with pytest.raises(WorkbenchError, match="not allowlisted for project"):
+        workbench.run_allowed_command("other-project", "pytest")

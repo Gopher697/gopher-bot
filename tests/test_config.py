@@ -23,6 +23,7 @@ projects:
         """
 commands:
   - name: test
+    projects: ["demo"]
     argv: ["python", "-m", "pytest"]
 """,
         encoding="utf-8",
@@ -33,6 +34,7 @@ commands:
     assert config.projects["demo"].root == project_root.resolve()
     assert config.projects["demo"].summary_file == "README.md"
     assert config.commands["test"].argv == ("python", "-m", "pytest")
+    assert config.commands["test"].projects == ("demo",)
 
 
 def test_load_allowed_commands_requires_argv_list() -> None:
@@ -48,4 +50,37 @@ commands:
     )
 
     with pytest.raises(ConfigError, match="non-empty argv"):
+        load_allowed_commands(path)
+
+
+def test_load_allowed_commands_requires_project_scope() -> None:
+    workspace = make_workspace("missing-command-projects")
+    path = workspace / "allowed_commands.yaml"
+    path.write_text(
+        """
+commands:
+  - name: unsafe
+    argv: ["python", "--version"]
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="non-empty projects"):
+        load_allowed_commands(path)
+
+
+def test_load_allowed_commands_rejects_invalid_project_scope() -> None:
+    workspace = make_workspace("invalid-command-projects")
+    path = workspace / "allowed_commands.yaml"
+    path.write_text(
+        """
+commands:
+  - name: unsafe
+    projects: "demo"
+    argv: ["python", "--version"]
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="non-empty projects"):
         load_allowed_commands(path)

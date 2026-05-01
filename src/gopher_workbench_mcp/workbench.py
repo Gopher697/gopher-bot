@@ -155,6 +155,8 @@ class Workbench:
         self.log_call("run_allowed_command", {"project": project, "command_name": command_name})
         entry = self._project(project)
         command = self._command(command_name)
+        if entry.name not in command.projects:
+            raise WorkbenchError(f"Command {command.name!r} is not allowlisted for project: {entry.name}")
         result = subprocess.run(
             list(command.argv),
             cwd=entry.root,

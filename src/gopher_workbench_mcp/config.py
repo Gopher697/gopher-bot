@@ -34,6 +34,7 @@ class AllowedCommand:
 
     name: str
     argv: tuple[str, ...]
+    projects: tuple[str, ...]
     description: str = ""
 
 
@@ -103,17 +104,29 @@ def load_allowed_commands(path: Path) -> dict[str, AllowedCommand]:
             raise ConfigError("Each command entry must be a mapping")
         name = item.get("name")
         argv = item.get("argv")
+        projects = item.get("projects")
         description = item.get("description", "")
         if not isinstance(name, str) or not name.strip():
             raise ConfigError("Command entry is missing a non-empty name")
         if not isinstance(argv, list) or not argv or not all(isinstance(part, str) for part in argv):
             raise ConfigError(f"Command {name!r} must define a non-empty argv string list")
+        if (
+            not isinstance(projects, list)
+            or not projects
+            or not all(isinstance(project, str) and project.strip() for project in projects)
+        ):
+            raise ConfigError(f"Command {name!r} must define a non-empty projects string list")
         if not isinstance(description, str):
             raise ConfigError(f"Command {name!r} description must be a string")
         if name in commands:
             raise ConfigError(f"Duplicate command name: {name}")
 
-        commands[name] = AllowedCommand(name=name, argv=tuple(argv), description=description)
+        commands[name] = AllowedCommand(
+            name=name,
+            argv=tuple(argv),
+            projects=tuple(projects),
+            description=description,
+        )
 
     return commands
 
@@ -126,4 +139,3 @@ def load_config(config_dir: Path) -> WorkbenchConfig:
         projects=load_projects(config_dir / "projects.yaml"),
         commands=load_allowed_commands(config_dir / "allowed_commands.yaml"),
     )
-

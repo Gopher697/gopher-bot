@@ -2,8 +2,9 @@
 commands:
   - name: pytest
     description: "Run the Python test suite for this project."
+    projects: ["gopher-workbench-mcp"]
     argv: ["python", "-m", "pytest"]
   - name: git-status
     description: "Show short git status. Prefer the dedicated git_status tool."
+    projects: ["gopher-workbench-mcp"]
     argv: ["git", "status", "--short"]
-

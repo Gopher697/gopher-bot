@@ -8,7 +8,8 @@ project SOPs, notes, git status/diff, and named preapproved commands.
 - No general shell execution tool is exposed.
 - Projects are never discovered from the home directory.
 - All project roots come from `config/projects.yaml`.
-- All runnable commands come from `config/allowed_commands.yaml`.
+- All runnable commands come from `config/allowed_commands.yaml`, and each
+  command must explicitly list the project names where it may run.
 - Default behavior is read-only.
 - The only write tool is `save_session_note(project, note)`, which appends a new
   timestamped Markdown file under the configured `session_notes_dir`.
@@ -71,16 +72,21 @@ projects:
 ## Configure Commands
 
 Edit `config/allowed_commands.yaml` and add only commands you are comfortable
-letting an assistant run by name:
+letting an assistant run by name. Commands are project-scoped: adding a project
+to `config/projects.yaml` does not allow any command there unless that command's
+`projects` list names the project.
 
 ```yaml
 commands:
   - name: test
     description: "Run the project test suite."
+    projects: ["my-project"]
     argv: ["python", "-m", "pytest"]
 ```
 
-Commands run with `cwd` set to the selected project's configured root.
+Commands run with `cwd` set to the selected project's configured root. If a
+command omits `projects`, has an invalid project scope, or does not include the
+selected project, the server refuses to run it.
 
 ## Example Codex MCP Config
 
@@ -102,7 +108,7 @@ Codex uses.
 
 1. Confirm every root in `config/projects.yaml` is intentionally exposed.
 2. Confirm every command in `config/allowed_commands.yaml` is safe for repeated
-   assistant use.
+   assistant use in each project listed under that command.
 3. Decide whether `git_diff` output may include sensitive local changes before
    enabling this server for broader assistants.
 4. Inspect `logs/tool-calls.jsonl` periodically.

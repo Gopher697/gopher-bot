@@ -25,8 +25,15 @@ project SOPs, notes, git status/diff, and named preapproved commands.
 - `sop://troubleshooting`
 - `sop://assistant-style`
 
+Some MCP clients, including current Claude Desktop builds, may expose tools but
+not resources in their chat UI. The bundled SOPs are therefore also available
+through the read-only `list_sops()` and `read_sop(name)` tools. `read_sop` only
+accepts bundled SOP names and does not accept paths.
+
 ## MCP Tools
 
+- `list_sops()`
+- `read_sop(name)`
 - `list_projects()`
 - `read_project_summary(project)`
 - `search_project_notes(project, query)`

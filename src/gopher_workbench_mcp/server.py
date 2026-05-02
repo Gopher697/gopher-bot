@@ -8,7 +8,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from .workbench import Workbench, validate_startup_config
+from .workbench import Workbench, WorkbenchError, validate_startup_config
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -16,12 +16,26 @@ DEFAULT_CONFIG_DIR = ROOT / "config"
 DEFAULT_LOGS_DIR = ROOT / "logs"
 
 
-SOPS = {
-    "sop://ai-coding-loop": ROOT / "sops" / "ai-coding-loop.md",
-    "sop://modding-workflow": ROOT / "sops" / "modding-workflow.md",
-    "sop://troubleshooting": ROOT / "sops" / "troubleshooting.md",
-    "sop://assistant-style": ROOT / "sops" / "assistant-style.md",
+SOP_FILES = {
+    "ai-coding-loop": ROOT / "sops" / "ai-coding-loop.md",
+    "modding-workflow": ROOT / "sops" / "modding-workflow.md",
+    "troubleshooting": ROOT / "sops" / "troubleshooting.md",
+    "assistant-style": ROOT / "sops" / "assistant-style.md",
 }
+
+
+def list_sop_names() -> list[str]:
+    """Return bundled SOP names exposed by resource and tool APIs."""
+
+    return list(SOP_FILES)
+
+
+def read_sop_content(name: str) -> str:
+    """Read a bundled SOP by allowlisted name only."""
+
+    if name not in SOP_FILES:
+        raise WorkbenchError(f"Unknown SOP: {name}")
+    return SOP_FILES[name].read_text(encoding="utf-8")
 
 
 def create_server(config_dir: Path = DEFAULT_CONFIG_DIR, logs_dir: Path = DEFAULT_LOGS_DIR) -> FastMCP:
@@ -33,19 +47,31 @@ def create_server(config_dir: Path = DEFAULT_CONFIG_DIR, logs_dir: Path = DEFAUL
 
     @mcp.resource("sop://ai-coding-loop")
     def ai_coding_loop() -> str:
-        return SOPS["sop://ai-coding-loop"].read_text(encoding="utf-8")
+        return read_sop_content("ai-coding-loop")
 
     @mcp.resource("sop://modding-workflow")
     def modding_workflow() -> str:
-        return SOPS["sop://modding-workflow"].read_text(encoding="utf-8")
+        return read_sop_content("modding-workflow")
 
     @mcp.resource("sop://troubleshooting")
     def troubleshooting() -> str:
-        return SOPS["sop://troubleshooting"].read_text(encoding="utf-8")
+        return read_sop_content("troubleshooting")
 
     @mcp.resource("sop://assistant-style")
     def assistant_style() -> str:
-        return SOPS["sop://assistant-style"].read_text(encoding="utf-8")
+        return read_sop_content("assistant-style")
+
+    @mcp.tool()
+    def list_sops() -> list[str]:
+        """List bundled SOP names available through read_sop."""
+
+        return list_sop_names()
+
+    @mcp.tool()
+    def read_sop(name: str) -> str:
+        """Read a bundled SOP by allowlisted name."""
+
+        return read_sop_content(name)
 
     @mcp.tool()
     def list_projects() -> list[dict[str, str]]:
@@ -102,4 +128,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

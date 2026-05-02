@@ -30,6 +30,12 @@ def list_sop_names() -> list[str]:
     return list(SOP_FILES)
 
 
+def list_sops_payload() -> dict[str, list[str]]:
+    """Return the JSON-serializable payload for the list_sops tool."""
+
+    return {"sops": list_sop_names()}
+
+
 def read_sop_content(name: str) -> str:
     """Read a bundled SOP by allowlisted name only."""
 
@@ -62,10 +68,10 @@ def create_server(config_dir: Path = DEFAULT_CONFIG_DIR, logs_dir: Path = DEFAUL
         return read_sop_content("assistant-style")
 
     @mcp.tool()
-    def list_sops() -> list[str]:
+    def list_sops() -> dict[str, list[str]]:
         """List bundled SOP names available through read_sop."""
 
-        return list_sop_names()
+        return list_sops_payload()
 
     @mcp.tool()
     def read_sop(name: str) -> str:

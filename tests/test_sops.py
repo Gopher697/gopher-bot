@@ -1,6 +1,6 @@
 import pytest
 
-from gopher_workbench_mcp.server import list_sop_names, read_sop_content
+from gopher_workbench_mcp.server import list_sop_names, list_sops_payload, read_sop_content
 from gopher_workbench_mcp.workbench import WorkbenchError
 
 
@@ -11,6 +11,17 @@ def test_list_sops_returns_expected_names() -> None:
         "troubleshooting",
         "assistant-style",
     ]
+
+
+def test_list_sops_tool_shape() -> None:
+    assert list_sops_payload() == {
+        "sops": [
+            "ai-coding-loop",
+            "modding-workflow",
+            "troubleshooting",
+            "assistant-style",
+        ]
+    }
 
 
 def test_read_sop_returns_bundled_markdown() -> None:

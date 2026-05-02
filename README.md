@@ -104,6 +104,46 @@ If your Codex setup does not inherit the editable install environment, use an
 absolute Python path or install the package into the same Python environment
 Codex uses.
 
+## Claude Setup Draft
+
+For Claude Desktop on Windows, the likely config path is
+`%APPDATA%\Claude\claude_desktop_config.json`. Review the existing config before
+applying changes, and do not overwrite an existing Claude config without merging
+the `mcpServers` entry.
+
+```json
+{
+  "mcpServers": {
+    "gopher-workbench": {
+      "command": "python",
+      "args": ["-m", "gopher_workbench_mcp.server"],
+      "cwd": "D:/gopher-workbench-mcp"
+    }
+  }
+}
+```
+
+If Claude cannot launch the server with `"python"`, replace
+`"command": "python"` with the full path to the Python executable where
+`gopher-workbench-mcp` is installed, for example:
+
+```json
+"command": "C:/Path/To/Python/python.exe"
+```
+
+If Claude cannot see the MCP server, first test from `D:\gopher-workbench-mcp`:
+
+```powershell
+python -m gopher_workbench_mcp.server
+```
+
+Restart Claude Desktop after changing its config. This gives Claude access to
+the same MCP tools and configured projects as Codex.
+
+If using Claude Code instead of Claude Desktop, configure the same MCP server
+there using Claude Code's MCP setup method. Prefer local/project-scoped
+configuration before global configuration when possible.
+
 ## Current Local Setup
 
 This server is project-scoped through `D:\gopher-workbench-mcp\.codex\config.toml`.

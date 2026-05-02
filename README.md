@@ -104,6 +104,42 @@ If your Codex setup does not inherit the editable install environment, use an
 absolute Python path or install the package into the same Python environment
 Codex uses.
 
+## Current Local Setup
+
+This server is project-scoped through `D:\gopher-workbench-mcp\.codex\config.toml`.
+Real project and command configs are local-only and ignored:
+
+- `config/projects.yaml`
+- `config/allowed_commands.yaml`
+
+The tracked templates are:
+
+- `config/projects.example.yaml`
+- `config/allowed_commands.example.yaml`
+
+Current private configured projects are:
+
+- `gopher-workbench-mcp`
+- `mcp-sandbox`
+- `5d-chess-tools`
+
+Commands are project-scoped. In the current private command config, `pytest` is
+allowed for `gopher-workbench-mcp` and `5d-chess-tools`, `pytest-nongui` is
+allowed only for `5d-chess-tools`, and `git-status` through
+`run_allowed_command` is allowed only for `gopher-workbench-mcp`. Generated
+`notes/sessions/*.md` files are ignored.
+
+## Known Limitations
+
+- `git_diff` can expose sensitive uncommitted changes and should be used
+  deliberately.
+- `5d-chess-tools` is not currently a Git repo, so dedicated `git_status` is
+  skipped there.
+- Full `pytest` for `5d-chess-tools` currently fails in this environment due to
+  Tk/Tcl `init.tcl` issues.
+- `pytest-nongui` is a temporary workaround until the 5D Chess test suite has
+  proper GUI/Tk markers.
+
 ## Review Before Connecting
 
 1. Confirm every root in `config/projects.yaml` is intentionally exposed.

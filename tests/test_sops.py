@@ -10,6 +10,7 @@ def test_list_sops_returns_expected_names() -> None:
         "modding-workflow",
         "troubleshooting",
         "assistant-style",
+        "workbench-orientation",
     ]
 
 
@@ -20,6 +21,7 @@ def test_list_sops_tool_shape() -> None:
             "modding-workflow",
             "troubleshooting",
             "assistant-style",
+            "workbench-orientation",
         ]
     }
 

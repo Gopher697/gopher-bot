@@ -21,6 +21,7 @@ SOP_FILES = {
     "modding-workflow": ROOT / "sops" / "modding-workflow.md",
     "troubleshooting": ROOT / "sops" / "troubleshooting.md",
     "assistant-style": ROOT / "sops" / "assistant-style.md",
+    "workbench-orientation": ROOT / "sops" / "workbench-orientation.md",
 }
 
 
@@ -66,6 +67,10 @@ def create_server(config_dir: Path = DEFAULT_CONFIG_DIR, logs_dir: Path = DEFAUL
     @mcp.resource("sop://assistant-style")
     def assistant_style() -> str:
         return read_sop_content("assistant-style")
+
+    @mcp.resource("sop://workbench-orientation")
+    def workbench_orientation() -> str:
+        return read_sop_content("workbench-orientation")
 
     @mcp.tool()
     def list_sops() -> dict[str, list[str]]:

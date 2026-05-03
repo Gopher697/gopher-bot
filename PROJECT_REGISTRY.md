@@ -91,6 +91,17 @@
 - Project-specific warnings: Raw memos are evidence, not canon; canon pages are decisions; implementation pages are build truth; archive and staging material are not active instructions by default.
 - Open authority questions: Whether the code repo and wiki repo should remain separate registered projects, and which file should be the primary first-read when a task touches both.
 
+### invading-cultivation-army
+
+- Root: `C:\Users\gophe\AppData\Roaming\coe5\mods\Invading_Cultivation_Army`
+- Configured summary/entry file: `PROJECT_STATUS.md`
+- Actual first file to read: `PROJECT_STATUS.md`, then `README.md` and `docs\design\current-direction.md` when design context is needed.
+- Current authority status: Registered live Conquest of Elysium 5 mod project; `Invading_Cultivation_Army.c5m` is the live source of truth unless explicitly superseded.
+- Related external notes/spaces: `D:\GopherVault\10-Projects\Invading Cultivation Army.md`; intended GitHub remote is `https://github.com/Gopher697/Invading-Cultivation-Army.git`.
+- Historical/reference/staging areas: `archive\` contains old experiments only; `References\coe5\`, `References\ergen\`, and `References\tools\` are source/reference material.
+- Project-specific warnings: Do not replace the live `.c5m` with older assistant-generated test folders; do not delete archive or reference corpus material unless explicitly requested.
+- Open authority questions: GitHub repository creation/push status depends on whether `Gopher697/Invading-Cultivation-Army` exists and local authentication can push.
+
 ## Cross-Project Warnings
 
 - Project-specific assumptions should not leak into unrelated projects just because they appear in a shared vault, archive, or session note.

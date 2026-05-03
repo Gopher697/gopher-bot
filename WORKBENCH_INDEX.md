@@ -6,9 +6,10 @@ New agents should use this reading order:
 
 1. Read this file first.
 2. Read `PROJECT_REGISTRY.md` to understand registered projects, entrypoints, and authority boundaries.
-3. Read the relevant project entrypoint named in `PROJECT_REGISTRY.md`.
-4. Read Workbench-wide SOPs only from `D:\gopher-workbench-mcp\sops\` unless another SOP has been explicitly promoted or mirrored there.
-5. Treat session notes, archives, staging folders, raw imports, pasted reports, and old handoffs as historical/reference unless a current-state file promotes them.
+3. Read `KNOWLEDGE_SPACES.md` when the task needs broader wiki/knowledge-layer orientation.
+4. Read the relevant project entrypoint named in `PROJECT_REGISTRY.md`.
+5. Read Workbench-wide SOPs only from `D:\gopher-workbench-mcp\sops\` unless another SOP has been explicitly promoted or mirrored there.
+6. Treat session notes, archives, staging folders, raw imports, pasted reports, and old handoffs as historical/reference unless a current-state file promotes them.
 
 ## Authority Order
 
@@ -26,6 +27,7 @@ New agents should use this reading order:
 
 - `WORKBENCH_INDEX.md`: First-read orientation file for Workbench authority and navigation.
 - `PROJECT_REGISTRY.md`: Human/agent-readable map of registered projects, entrypoints, and authority boundaries.
+- `KNOWLEDGE_SPACES.md`: Map of broader wiki/knowledge layers, including the Workbench control layer, MCP configured access, project workspaces/repos, project-specific wikis, GopherVault external memory, SOP authority and candidates, and session/staging/archive/reference material. It does not replace `PROJECT_REGISTRY.md`.
 - `README.md`: Workbench setup, safety model, MCP tools/resources, and local operational notes.
 - `PROJECT.md`: Configured project summary for the Workbench repo itself.
 - `sops\`: Workbench-wide SOP authority unless another SOP has been explicitly promoted or mirrored there.

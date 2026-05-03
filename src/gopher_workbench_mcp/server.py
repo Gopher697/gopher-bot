@@ -98,6 +98,12 @@ def create_server(config_dir: Path = DEFAULT_CONFIG_DIR, logs_dir: Path = DEFAUL
         return workbench.search_project_notes(project, query)
 
     @mcp.tool()
+    def search_project_text(project: str, query: str, glob: str | None = None) -> list[dict[str, Any]]:
+        """Search text files inside a configured project root."""
+
+        return workbench.search_project_text(project, query, glob)
+
+    @mcp.tool()
     def git_status(project: str) -> str:
         """Return git status --short for an allowlisted project."""
 

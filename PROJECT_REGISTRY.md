@@ -113,6 +113,17 @@
 - Project-specific warnings: Keep game-specific observations, run logs, adapter details, save notes, and strategy content in the relevant game's own workspace.
 - Open authority questions: None identified beyond normal session-note promotion rules.
 
+### mi-chang-sheng-agent-workspace
+
+- Root: `D:\SteamLibrary\steamapps\common\觅长生\agent-workspace`
+- Configured summary/entry file: `CURRENT_SESSION.md`
+- Actual first file to read: `SAFETY_RULES.md`, then `CURRENT_SESSION.md`, `GOALS.md`, and `WORLD_STATE.md`.
+- Current authority status: Registered game-specific agent memory workspace for 觅长生; game-specific session state, assumptions, known facts, decisions, failures, tools, and hidden information live here.
+- Related external notes/spaces: Core game-agent doctrine in `D:\GameAgentCore`
+- Historical/reference/staging areas: None beyond normal Git history.
+- Project-specific warnings: Never modify, delete, or overwrite files inside the game installation directory other than those inside `agent-workspace\`; avoid unrequested story spoilers.
+- Open authority questions: Whether this workspace should remain inside the Steam install path or later move to a separate directory with only a pointer back to the game install.
+
 ## Cross-Project Warnings
 
 - Project-specific assumptions should not leak into unrelated projects just because they appear in a shared vault, archive, or session note.

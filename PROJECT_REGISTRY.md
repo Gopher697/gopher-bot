@@ -102,6 +102,17 @@
 - Project-specific warnings: Do not replace the live `.c5m` with older assistant-generated test folders; do not delete archive or reference corpus material unless explicitly requested.
 - Open authority questions: None identified beyond normal session-note promotion rules.
 
+### game-agent-core
+
+- Root: `D:\GameAgentCore`
+- Configured summary/entry file: `AGENTS.md`
+- Actual first file to read: `AGENTS.md`, then `GAME_AGENT_LOOP.md`, `AUTONOMY_LEVELS.md`, and `SAFETY_RULES_GLOBAL.md`.
+- Current authority status: Registered architecture and doctrine only project; no game-specific memory or content belongs here.
+- Related external notes/spaces: None observed beyond Workbench registration.
+- Historical/reference/staging areas: `notes\sessions\`
+- Project-specific warnings: Keep game-specific observations, run logs, adapter details, save notes, and strategy content in the relevant game's own workspace.
+- Open authority questions: None identified beyond normal session-note promotion rules.
+
 ## Cross-Project Warnings
 
 - Project-specific assumptions should not leak into unrelated projects just because they appear in a shared vault, archive, or session note.

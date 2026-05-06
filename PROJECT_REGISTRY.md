@@ -124,6 +124,17 @@
 - Project-specific warnings: Never modify, delete, or overwrite files inside the game installation directory other than those inside `agent-workspace\`; avoid unrequested story spoilers.
 - Open authority questions: Whether this workspace should remain inside the Steam install path or later move to a separate directory with only a pointer back to the game install.
 
+### dwarf-fortress-agent-workspace
+
+- Root: `D:\SteamLibrary\steamapps\common\Dwarf Fortress\agent-workspace`
+- Configured summary/entry file: `CURRENT_SESSION.md`
+- Actual first file to read: `SAFETY_RULES.md`, then `CURRENT_SESSION.md`, `GOALS.md`, and `WORLD_STATE.md`.
+- Current authority status: Registered game-specific agent memory workspace for Dwarf Fortress.
+- Related external notes/spaces: Core game-agent doctrine in `D:\GameAgentCore`
+- Historical/reference/staging areas: `notes\sessions\`
+- Project-specific warnings: Never modify files inside the game installation directory other than those inside `agent-workspace\`; avoid unrequested story spoilers.
+- Open authority questions: None identified beyond normal session-note promotion rules.
+
 ## Cross-Project Warnings
 
 - Project-specific assumptions should not leak into unrelated projects just because they appear in a shared vault, archive, or session note.

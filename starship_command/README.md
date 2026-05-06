@@ -138,7 +138,10 @@ division/station; it does not mean gameplay movement, map navigation, UI
 navigation, or pathfinding.
 
 First Officer local-model outputs must use exact division names from the
-Starship roster. Model Operations preserves validation warnings such as
+Starship roster. `Supporting divisions` must be either `None` or a
+comma-separated list of bare exact Starship division names; explanations belong
+in `One-sentence reason`, not inside the division field. Model Operations
+preserves validation warnings such as
 `invalid_division`, `invented_structure_possible`, and `missing_required_field`
 in readiness reports so a failed trust gate explains why the model is not yet a
 crew resource.
@@ -194,7 +197,14 @@ Context window size matters. A low context setting such as `2048` can reduce
 quality for code and project reasoning, especially when a prompt depends on
 repo-specific terms. The Server Doctor reports `context_window` when the local
 endpoint exposes it; otherwise it prints `context_window: unknown` and asks the
-user to verify the setting in LM Studio before comparing model quality.
+user to verify the setting in LM Studio before comparing model quality. When
+Model Operations can merge live `lms` context data, that live context value
+supersedes stale `context_window unknown` warnings in the final report.
+
+Model Operations also reports loaded resource state. If many large local models
+are loaded, Starship warns that future readiness comparisons may be slower or
+resource-sensitive. It will not eject or unload models without Captain
+authorization.
 
 Current Coder-14B status: the LM Studio bridge call succeeded manually with
 `qwen2.5-coder-14b-instruct`, but latency was `20.199s`, the observed LM Studio

@@ -50,6 +50,15 @@ def test_first_officer_prompt_lists_allowed_divisions_and_forbids_generic_names(
     assert "If you output a division name not in the allowed list, the answer fails" in rendered.system_prompt
 
 
+def test_first_officer_prompt_requires_bare_supporting_division_names() -> None:
+    rendered = render_prompt_profile("first_officer_triage", {"mission": "route a mission"})
+
+    assert "Supporting divisions must be either None or a comma-separated list" in rendered.system_prompt
+    assert "bare exact allowed division names" in rendered.system_prompt
+    assert "Do not include explanations inside the Supporting divisions field" in rendered.system_prompt
+    assert "Put explanations only in One-sentence reason" in rendered.system_prompt
+
+
 def test_engineering_prompt_forbids_invented_modules_and_gameplay() -> None:
     rendered = render_prompt_profile("engineering_test_design", {"task": "Suggest one route unit test."})
 

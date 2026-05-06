@@ -39,6 +39,9 @@ except ImportError:  # pragma: no cover - direct script execution path
 CODER_14B_MODEL_ID = "qwen2.5-coder-14b-instruct"
 SUPPORTED_RETEST_CONTEXTS = {4096, 8192}
 FIRST_RETEST_CONTEXT = 4096
+CONTEXT_UNKNOWN_WARNING = "context_window unknown; verify in LM Studio before comparing model quality"
+LOADED_MODEL_COUNT_WARNING_THRESHOLD = 6
+LOADED_MODEL_SIZE_WARNING_THRESHOLD_BYTES = 40 * 1024**3
 
 
 @dataclass(frozen=True)
@@ -211,6 +214,47 @@ def _loaded_max_context_by_alias(loaded_models: list[dict[str, Any]]) -> dict[st
     return contexts
 
 
+def _loaded_model_ids(loaded_models: list[dict[str, Any]]) -> list[str]:
+    ids: list[str] = []
+    for model in loaded_models:
+        identifier = model.get("identifier") or model.get("modelKey") or model.get("displayName")
+        if isinstance(identifier, str) and identifier and identifier not in ids:
+            ids.append(identifier)
+    return ids
+
+
+def _loaded_model_size_bytes(model: dict[str, Any]) -> int | None:
+    value = model.get("sizeBytes") or model.get("size_bytes")
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)) and int(value) > 0:
+        return int(value)
+    return None
+
+
+def _format_gib(value: int | None) -> str:
+    if value is None:
+        return "unknown"
+    return f"{value / 1024**3:.2f} GiB"
+
+
+def build_loaded_resource_report(loaded_models: list[dict[str, Any]]) -> dict[str, Any]:
+    sizes = [_loaded_model_size_bytes(model) for model in loaded_models]
+    known_sizes = [size for size in sizes if size is not None]
+    total_size = sum(known_sizes) if known_sizes else None
+    count = len(loaded_models)
+    warning_active = count >= LOADED_MODEL_COUNT_WARNING_THRESHOLD or (
+        total_size is not None and total_size >= LOADED_MODEL_SIZE_WARNING_THRESHOLD_BYTES
+    )
+    return {
+        "loaded_model_count": count,
+        "loaded_model_ids": _loaded_model_ids(loaded_models),
+        "known_size_count": len(known_sizes),
+        "total_loaded_size_bytes": total_size,
+        "warning_active": warning_active,
+    }
+
+
 def _best_context(
     model_id: str,
     endpoint_context: int | None,
@@ -277,6 +321,7 @@ def build_model_operations_status_report(
         "endpoint_error": endpoint["error"],
         "visible_models": visible_models,
         "lms_control": control,
+        "loaded_resource_report": build_loaded_resource_report(control["loaded_models"]),
         "coder_retest": build_coder_retest_recommendation(
             config=loaded_config,
             loaded_context_by_alias=loaded_contexts,
@@ -391,8 +436,30 @@ def format_model_operations_status(report: dict[str, Any]) -> str:
     else:
         lines.append("- None reported by lms ps --json.")
 
+    lines.extend(format_loaded_resource_report(report["loaded_resource_report"]))
     lines.extend(format_coder_retest_recommendation(report["coder_retest"]))
     return "\n".join(lines)
+
+
+def format_loaded_resource_report(report: dict[str, Any]) -> list[str]:
+    lines = [
+        "Loaded resource state:",
+        f"- Loaded model count: {report['loaded_model_count']}",
+        f"- Known loaded model size total: {_format_gib(report['total_loaded_size_bytes'])}",
+    ]
+    if report["loaded_model_ids"]:
+        lines.append(f"- Loaded model ids: {', '.join(report['loaded_model_ids'])}")
+    else:
+        lines.append("- Loaded model ids: none")
+    if report["warning_active"]:
+        lines.extend(
+            [
+                "- Warning: multiple large local models are currently loaded.",
+                "- Future readiness comparisons may be slower or resource-sensitive.",
+                "- Starship will not eject or unload models without Captain authorization.",
+            ]
+        )
+    return lines
 
 
 def format_coder_retest_recommendation(recommendation: dict[str, Any]) -> list[str]:
@@ -423,11 +490,13 @@ def build_model_operations_readiness_output(
         report = build_readiness_report(config, requester=requester)
         control = inspect_lms_control(lms_path=lms_path, runner=runner)
         merge_lms_context_into_readiness_report(report, config, control["loaded_models"])
-        return format_readiness_report(report).replace(
+        output = format_readiness_report(report).replace(
             "Starship Local Model Server Doctor - Readiness Report",
             "Starship Model Operations - Readiness Report",
             1,
         )
+        resource_report = build_loaded_resource_report(control["loaded_models"])
+        return "\n".join([output, *format_loaded_resource_report(resource_report)])
     except LocalModelBridgeError as exc:
         return "\n".join(
             [
@@ -455,14 +524,13 @@ def merge_lms_context_into_readiness_report(
             continue
         if model.get("context_window") is None and model_id in loaded_contexts:
             model["context_window"] = loaded_contexts[model_id]
+        if model.get("context_window") is not None:
             observed = observed_by_model.get(model_id)
-            model["warnings"] = merge_warning_lists(
+            model["warnings"] = merge_context_warnings(
                 model.get("warnings", []),
-                model_warnings(
-                    model["context_window"],
-                    observed.human_observed_context_window if observed else model.get("human_observed_context_window"),
-                    config.low_context_window_threshold,
-                ),
+                model["context_window"],
+                observed.human_observed_context_window if observed else model.get("human_observed_context_window"),
+                config.low_context_window_threshold,
             )
     for result in report.get("models_tested", []):
         if not isinstance(result, dict):
@@ -472,15 +540,24 @@ def merge_lms_context_into_readiness_report(
             continue
         if result.get("context_window") is None and model_id in loaded_contexts:
             result["context_window"] = loaded_contexts[model_id]
+        if result.get("context_window") is not None:
             observed = observed_by_model.get(model_id)
-            result["warnings"] = merge_warning_lists(
+            result["warnings"] = merge_context_warnings(
                 result.get("warnings", []),
-                model_warnings(
-                    result["context_window"],
-                    observed.human_observed_context_window if observed else result.get("human_observed_context_window"),
-                    config.low_context_window_threshold,
-                ),
+                result["context_window"],
+                observed.human_observed_context_window if observed else result.get("human_observed_context_window"),
+                config.low_context_window_threshold,
             )
+
+
+def merge_context_warnings(
+    existing_warnings: object,
+    context_window: int | None,
+    human_observed_context_window: int | None,
+    threshold: int,
+) -> list[str]:
+    warnings = [warning for warning in merge_warning_lists(existing_warnings) if warning != CONTEXT_UNKNOWN_WARNING]
+    return merge_warning_lists(warnings, model_warnings(context_window, human_observed_context_window, threshold))
 
 
 def merge_warning_lists(*warning_lists: object) -> list[str]:

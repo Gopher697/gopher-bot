@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ from starship_command.local_model_adapter import LocalModelBridgeError
 from starship_command.local_model_server_doctor import DoctorConfig, ObservedModel, ReadinessTest, validate_doctor_endpoint
 from starship_command.model_operations import (
     CODER_14B_MODEL_ID,
+    CONTEXT_UNKNOWN_WARNING,
     LocalCommandResult,
     authorized_coder_context_reload_output,
     build_coder_retest_recommendation,
@@ -143,7 +145,7 @@ def test_model_operations_context_merge_preserves_validation_warning_codes() -> 
                 "model_id": CODER_14B_MODEL_ID,
                 "context_window": None,
                 "human_observed_context_window": None,
-                "warnings": ["invented_structure_possible"],
+                "warnings": [CONTEXT_UNKNOWN_WARNING, "invented_structure_possible"],
                 "schema_valid": True,
                 "division_vocabulary_valid": "not_applicable",
                 "missing_required_fields": [],
@@ -166,8 +168,126 @@ def test_model_operations_context_merge_preserves_validation_warning_codes() -> 
     result = report["models_tested"][0]
     assert result["context_window"] == 16384
     assert "invented_structure_possible" in result["warnings"]
+    assert CONTEXT_UNKNOWN_WARNING not in result["warnings"]
     assert result["schema_valid"] is True
     assert result["trust_gate"] == "fail"
+
+
+def test_model_operations_context_merge_keeps_unknown_warning_when_live_context_missing() -> None:
+    report = {
+        "models_visible": [],
+        "models_tested": [
+            {
+                "model_id": CODER_14B_MODEL_ID,
+                "context_window": None,
+                "human_observed_context_window": None,
+                "warnings": [CONTEXT_UNKNOWN_WARNING],
+                "schema_valid": True,
+                "division_vocabulary_valid": "not_applicable",
+                "missing_required_fields": [],
+                "invalid_divisions": [],
+                "trust_gate": "human_review_required",
+                "human_review_required": True,
+            }
+        ],
+    }
+
+    model_operations.merge_lms_context_into_readiness_report(report, doctor_config(), [])
+
+    result = report["models_tested"][0]
+    assert result["context_window"] is None
+    assert CONTEXT_UNKNOWN_WARNING in result["warnings"]
+
+
+def test_model_operations_readiness_output_shows_live_context_without_stale_unknown_warning(monkeypatch) -> None:
+    def fake_report(config, requester=model_operations.request_json):
+        return {
+            "endpoint": "http://localhost:1234/v1",
+            "endpoint_reachable": True,
+            "models_visible": [],
+            "registry_models_visible": [],
+            "user_observed_models_missing": [],
+            "models_tested": [
+                {
+                    "model_id": CODER_14B_MODEL_ID,
+                    "prompt_name": "engineering_test_design",
+                    "prompt_profile": "engineering_test_design",
+                    "role_classification": "deep Engineering consult candidate",
+                    "latency_seconds": 1.0,
+                    "response_preview": "Test intent: Verify routing.",
+                    "error": "",
+                    "context_window": None,
+                    "human_observed_context_window": None,
+                    "schema_valid": True,
+                    "division_vocabulary_valid": "not_applicable",
+                    "warnings": [CONTEXT_UNKNOWN_WARNING],
+                    "missing_required_fields": [],
+                    "invalid_divisions": [],
+                    "trust_gate": "human_review_required",
+                    "human_review_required": True,
+                }
+            ],
+            "failures": [],
+            "human_judgment_required": True,
+        }
+
+    monkeypatch.setattr(model_operations, "build_readiness_report", fake_report)
+    monkeypatch.setattr(
+        model_operations,
+        "inspect_lms_control",
+        lambda **kwargs: {
+            "loaded_models": [
+                {
+                    "identifier": CODER_14B_MODEL_ID,
+                    "modelKey": CODER_14B_MODEL_ID,
+                    "contextLength": 16384,
+                }
+            ]
+        },
+    )
+
+    output = model_operations.build_model_operations_readiness_output()
+
+    assert "context_window: 16384" in output
+    assert CONTEXT_UNKNOWN_WARNING not in output
+
+
+def test_model_operations_status_warns_when_many_large_models_loaded() -> None:
+    loaded_models = []
+    for index in range(6):
+        loaded_models.append(
+            {
+                "identifier": f"large-model-{index}",
+                "modelKey": f"large/model-{index}",
+                "contextLength": 8192,
+                "sizeBytes": 8 * 1024**3,
+                "status": "idle",
+            }
+        )
+
+    def fake_request(method: str, url: str, payload: dict | None, timeout: float) -> dict:
+        return {"data": []}
+
+    def fake_runner(command: list[str], timeout: float) -> LocalCommandResult:
+        if command[-1] == "--json":
+            return LocalCommandResult(command, 0, json.dumps(loaded_models), "")
+        if command[1:3] == ["server", "status"]:
+            return LocalCommandResult(command, 0, "The server is running on port 1234.", "")
+        return LocalCommandResult(command, 0, "Server: ON (port: 1234)", "")
+
+    report = build_model_operations_status_report(
+        doctor_config(),
+        requester=fake_request,
+        lms_path="lms",
+        runner=fake_runner,
+    )
+    output = format_model_operations_status(report)
+
+    assert "Loaded resource state:" in output
+    assert "Loaded model count: 6" in output
+    assert "Known loaded model size total: 48.00 GiB" in output
+    assert "multiple large local models are currently loaded" in output
+    assert "will not eject or unload models without Captain authorization" in output
 
 
 def test_coder_retest_recommendation_records_known_weak_first_result() -> None:

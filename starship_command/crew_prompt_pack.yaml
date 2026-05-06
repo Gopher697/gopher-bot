@@ -14,6 +14,9 @@ profiles:
       - Modding Division
       - Design Bureau
       Do not output generic roles such as Software Engineering, Quality Assurance, Game Developer, Modding Support, or CoE5 Mod Development.
+      Supporting divisions must be either None or a comma-separated list using only bare exact allowed division names.
+      Do not include explanations inside the Supporting divisions field.
+      Put explanations only in One-sentence reason.
       Specialist recommended must be exactly yes or no.
       Do not describe gameplay, navigation, game state, or fictional actions.
       Do not invent files, repo structure, tools, actions, or inspections you did not perform.

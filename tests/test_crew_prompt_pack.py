@@ -28,6 +28,28 @@ def test_first_officer_prompt_defines_route_as_starship_assignment() -> None:
     assert "debug the nostdrec recruit screen issue" in rendered.user_prompt
 
 
+def test_first_officer_prompt_lists_allowed_divisions_and_forbids_generic_names() -> None:
+    rendered = render_prompt_profile("first_officer_triage", {"mission": "route a mission"})
+
+    for division in [
+        "Command Division",
+        "Engineering Division",
+        "Computer Core / Archives",
+        "Tactical / Safety",
+        "Science / Game Intelligence",
+        "Modding Division",
+        "Design Bureau",
+    ]:
+        assert division in rendered.system_prompt
+    assert "Use only these exact division names" in rendered.system_prompt
+    assert "Software Engineering" in rendered.system_prompt
+    assert "Quality Assurance" in rendered.system_prompt
+    assert "Game Developer" in rendered.system_prompt
+    assert "Modding Support" in rendered.system_prompt
+    assert "CoE5 Mod Development" in rendered.system_prompt
+    assert "If you output a division name not in the allowed list, the answer fails" in rendered.system_prompt
+
+
 def test_engineering_prompt_forbids_invented_modules_and_gameplay() -> None:
     rendered = render_prompt_profile("engineering_test_design", {"task": "Suggest one route unit test."})
 

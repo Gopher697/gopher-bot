@@ -456,10 +456,13 @@ def merge_lms_context_into_readiness_report(
         if model.get("context_window") is None and model_id in loaded_contexts:
             model["context_window"] = loaded_contexts[model_id]
             observed = observed_by_model.get(model_id)
-            model["warnings"] = model_warnings(
-                model["context_window"],
-                observed.human_observed_context_window if observed else model.get("human_observed_context_window"),
-                config.low_context_window_threshold,
+            model["warnings"] = merge_warning_lists(
+                model.get("warnings", []),
+                model_warnings(
+                    model["context_window"],
+                    observed.human_observed_context_window if observed else model.get("human_observed_context_window"),
+                    config.low_context_window_threshold,
+                ),
             )
     for result in report.get("models_tested", []):
         if not isinstance(result, dict):
@@ -470,11 +473,25 @@ def merge_lms_context_into_readiness_report(
         if result.get("context_window") is None and model_id in loaded_contexts:
             result["context_window"] = loaded_contexts[model_id]
             observed = observed_by_model.get(model_id)
-            result["warnings"] = model_warnings(
-                result["context_window"],
-                observed.human_observed_context_window if observed else result.get("human_observed_context_window"),
-                config.low_context_window_threshold,
+            result["warnings"] = merge_warning_lists(
+                result.get("warnings", []),
+                model_warnings(
+                    result["context_window"],
+                    observed.human_observed_context_window if observed else result.get("human_observed_context_window"),
+                    config.low_context_window_threshold,
+                ),
             )
+
+
+def merge_warning_lists(*warning_lists: object) -> list[str]:
+    merged: list[str] = []
+    for warnings in warning_lists:
+        if not isinstance(warnings, list):
+            continue
+        for warning in warnings:
+            if isinstance(warning, str) and warning not in merged:
+                merged.append(warning)
+    return merged
 
 
 def build_model_operations_status_output(

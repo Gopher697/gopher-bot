@@ -667,14 +667,12 @@ def format_readiness_report(report: dict[str, Any]) -> str:
                 lines.append(f"  error: {result['error']}")
             else:
                 lines.append(f"  response_preview: {result['response_preview']}")
-            lines.append(
-                "  validation: "
-                f"Schema: {format_validation_value(result.get('schema_valid', False))}; "
-                f"Division names: {result.get('division_vocabulary_valid', 'not_applicable')}; "
-                f"Warnings: {', '.join(result.get('warnings', [])) or 'none'}; "
-                f"Trust gate: {result.get('trust_gate', 'fail')}; "
-                "Human review required: yes"
-            )
+            lines.append("  Validation:")
+            lines.append(f"  - Schema: {format_validation_value(result.get('schema_valid', False))}")
+            lines.append(f"  - Division names: {result.get('division_vocabulary_valid', 'not_applicable')}")
+            lines.append(f"  - Warnings: {', '.join(result.get('warnings', [])) or 'none'}")
+            lines.append(f"  - Trust gate: {result.get('trust_gate', 'fail')}")
+            lines.append("  - Human review required: yes")
             if result.get("missing_required_fields"):
                 lines.append(f"  missing_required_fields: {', '.join(result['missing_required_fields'])}")
             if result.get("invalid_divisions"):

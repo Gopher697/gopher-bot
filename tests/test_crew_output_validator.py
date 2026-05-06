@@ -72,6 +72,25 @@ def test_first_officer_invalid_divisions_are_flagged() -> None:
     assert validation.trust_gate == "fail"
 
 
+def test_first_officer_specialist_recommended_must_be_yes_or_no() -> None:
+    validation = validate_crew_output(
+        prompt_profile="first_officer_triage",
+        response_text=(
+            "Primary division: Engineering Division\n"
+            "Supporting divisions: Modding Division\n"
+            "Risk flags: None\n"
+            "Specialist recommended: Frontend Developer\n"
+            "One-sentence reason: Specialist field is not yes or no."
+        ),
+        prompt_context="debug the nostdrec recruit screen issue in the CoE5 mod",
+        allowed_divisions=allowed_divisions(),
+    )
+
+    assert validation.schema_valid is True
+    assert "invalid_specialist_recommendation" in validation.warnings
+    assert validation.trust_gate == "fail"
+
+
 def test_required_schema_detection_for_all_prompt_profiles() -> None:
     cases = {
         "first_officer_triage": "Primary division: Engineering Division",

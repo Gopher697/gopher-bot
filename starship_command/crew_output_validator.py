@@ -54,9 +54,12 @@ GENERIC_NON_STARSHIP_TERMS = [
     "Quality Assurance",
     "Game Developer",
     "Mod Development",
+    "Modding Support",
+    "CoE5 Mod Development",
 ]
 
 NONE_VALUES = {"none", "n/a", "not applicable", ""}
+SPECIALIST_RECOMMENDED_VALUES = {"yes", "no"}
 
 
 @dataclass(frozen=True)
@@ -113,6 +116,8 @@ def validate_crew_output(
         division_vocabulary_valid = "no" if invalid_divisions else "yes"
         if invalid_divisions:
             warnings.append("invalid_division")
+        if not valid_specialist_recommended_value(response_text):
+            warnings.append("invalid_specialist_recommendation")
 
     if contains_any_term(response_text, GAMEPLAY_DRIFT_TERMS):
         warnings.append("gameplay_drift")
@@ -165,6 +170,13 @@ def find_invalid_first_officer_divisions(response_text: str, allowed_divisions: 
             if value not in allowed and value.casefold() not in NONE_VALUES:
                 invalid.append(value)
     return list(dict.fromkeys(invalid))
+
+
+def valid_specialist_recommended_value(response_text: str) -> bool:
+    value = extract_label_value(response_text, "Specialist recommended")
+    if not value:
+        return True
+    return value.strip().casefold() in SPECIALIST_RECOMMENDED_VALUES
 
 
 def split_division_values(value: str) -> list[str]:

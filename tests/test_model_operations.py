@@ -135,6 +135,41 @@ def test_model_operations_readiness_output_keeps_validation_summary(monkeypatch)
     assert "Trust gate: fail" in output
 
 
+def test_model_operations_context_merge_preserves_validation_warning_codes() -> None:
+    report = {
+        "models_visible": [],
+        "models_tested": [
+            {
+                "model_id": CODER_14B_MODEL_ID,
+                "context_window": None,
+                "human_observed_context_window": None,
+                "warnings": ["invented_structure_possible"],
+                "schema_valid": True,
+                "division_vocabulary_valid": "not_applicable",
+                "missing_required_fields": [],
+                "invalid_divisions": [],
+                "trust_gate": "fail",
+                "human_review_required": True,
+            }
+        ],
+    }
+    loaded_models = [
+        {
+            "identifier": CODER_14B_MODEL_ID,
+            "modelKey": CODER_14B_MODEL_ID,
+            "contextLength": 16384,
+        }
+    ]
+
+    model_operations.merge_lms_context_into_readiness_report(report, doctor_config(), loaded_models)
+
+    result = report["models_tested"][0]
+    assert result["context_window"] == 16384
+    assert "invented_structure_possible" in result["warnings"]
+    assert result["schema_valid"] is True
+    assert result["trust_gate"] == "fail"
+
+
 def test_coder_retest_recommendation_records_known_weak_first_result() -> None:
     recommendation = build_coder_retest_recommendation(config=doctor_config())
 

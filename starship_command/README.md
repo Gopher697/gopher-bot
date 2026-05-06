@@ -137,6 +137,12 @@ Starship prompts, `route` means assigning a mission to a Starship
 division/station; it does not mean gameplay movement, map navigation, UI
 navigation, or pathfinding.
 
+First Officer local-model outputs must use exact division names from the
+Starship roster. Model Operations preserves validation warnings such as
+`invalid_division`, `invented_structure_possible`, and `missing_required_field`
+in readiness reports so a failed trust gate explains why the model is not yet a
+crew resource.
+
 Local models remain untrusted until their outputs pass role-specific prompt
 tests and human review. A model can be callable through LM Studio and still not
 be ready for First Officer, Engineering, Archives, or model-evaluation duty.

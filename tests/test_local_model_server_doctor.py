@@ -265,6 +265,47 @@ def test_readiness_report_includes_validation_failure_fields() -> None:
     assert "invalid_divisions: Software Engineering, Quality Assurance" in output
 
 
+def test_readiness_report_includes_invented_structure_warning_for_engineering() -> None:
+    config = doctor_config()
+    config = DoctorConfig(
+        endpoint=config.endpoint,
+        timeout_seconds=config.timeout_seconds,
+        list_models_path=config.list_models_path,
+        chat_completions_path=config.chat_completions_path,
+        allow_non_local_endpoint=config.allow_non_local_endpoint,
+        low_context_window_threshold=config.low_context_window_threshold,
+        temperature=config.temperature,
+        max_tokens=config.max_tokens,
+        registry_models=config.registry_models,
+        observed_models=config.observed_models,
+        readiness_tests=[config.readiness_tests[1]],
+        allowed_divisions=config.allowed_divisions,
+    )
+
+    def fake_request(method: str, url: str, payload: dict | None, timeout: float) -> dict:
+        if method == "GET":
+            return {"data": [{"id": "qwen2.5-coder-14b-instruct", "context_length": 8192}]}
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": (
+                            "Test intent: Verify routing.\n"
+                            "Assertions: Engineering module remains primary.\n"
+                            "Notes: Module language was not provided."
+                        )
+                    }
+                }
+            ]
+        }
+
+    report = build_readiness_report(config, fake_request, timer=iter([1.0, 2.0]).__next__)
+    output = format_readiness_report(report)
+
+    assert "invented_structure_possible" in report["models_tested"][0]["warnings"]
+    assert "Warnings: invented_structure_possible" in output
+
+
 def test_readiness_payloads_can_be_rendered_without_network_call() -> None:
     config = doctor_config()
     payload = build_readiness_payload(config, config.readiness_tests[0])

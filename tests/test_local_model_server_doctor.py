@@ -9,6 +9,8 @@ from starship_command.local_model_server_doctor import (
     DoctorConfig,
     ObservedModel,
     ReadinessTest,
+    build_readiness_dry_run,
+    build_readiness_payload,
     build_readiness_report,
     check_endpoint,
     format_check,
@@ -82,6 +84,8 @@ def test_registry_doctor_config_loads() -> None:
     assert config.allow_non_local_endpoint is False
     assert config.low_context_window_threshold == 2048
     assert any(test.model_id == "qwen2.5-coder-14b-instruct" for test in config.readiness_tests)
+    assert any(test.prompt_profile == "first_officer_triage" for test in config.readiness_tests)
+    assert any(test.prompt_profile == "engineering_test_design" for test in config.readiness_tests)
 
 
 def test_endpoint_refuses_non_local_without_explicit_flag() -> None:
@@ -183,6 +187,47 @@ def test_readiness_report_runs_available_tests_and_skips_missing_models() -> Non
     assert "latency: 20.199s" in output
     assert "qwen2.5-3b-instruct" not in [call[2]["model"] for call in calls if call[0] == "POST"]
     assert all("tools" not in call[2] for call in calls if call[0] == "POST")
+
+
+def test_readiness_payloads_can_be_rendered_without_network_call() -> None:
+    config = doctor_config()
+    payload = build_readiness_payload(config, config.readiness_tests[0])
+    dry_run = build_readiness_dry_run(config)
+
+    assert payload["model"] == "qwen/qwen3.5-9b"
+    assert payload["messages"][0]["role"] == "system"
+    assert "First Officer triage assistant" in payload["messages"][0]["content"]
+    assert "Do not edit files" in payload["messages"][0]["content"]
+    assert payload["messages"][1] == {"role": "user", "content": "Triage a vague workflow mission."}
+    assert dry_run["network_call_made"] is False
+    assert dry_run["url"] == "http://localhost:1234/v1/chat/completions"
+    assert [item["prompt_name"] for item in dry_run["tests"]] == [
+        "first_officer_triage",
+        "engineering_unit_test",
+        "lightweight_engineering_triage",
+    ]
+    assert dry_run["tests"][0]["payload"] == payload
+
+
+def test_registry_readiness_payloads_include_crew_prompt_profiles() -> None:
+    config = load_doctor_config(REGISTRY_PATH)
+    dry_run = build_readiness_dry_run(config)
+
+    first_officer = next(item for item in dry_run["tests"] if item["model_id"] == "qwen/qwen3.5-9b")
+    coder = next(item for item in dry_run["tests"] if item["model_id"] == "qwen2.5-coder-14b-instruct")
+    three_b = next(item for item in dry_run["tests"] if item["model_id"] == "qwen2.5-3b-instruct")
+
+    assert first_officer["prompt_profile"] == "first_officer_triage"
+    assert "Route means assign a mission to Starship Command divisions or stations" in first_officer["payload"]["messages"][0]["content"]
+    assert "Route does not mean gameplay movement, map navigation, UI navigation, or pathfinding" in first_officer["payload"]["messages"][0]["content"]
+    assert "debug the nostdrec recruit screen issue" in first_officer["payload"]["messages"][1]["content"]
+
+    assert three_b["prompt_profile"] == "first_officer_triage"
+    assert "Failure condition" in three_b["payload"]["messages"][0]["content"]
+
+    assert coder["prompt_profile"] == "engineering_test_design"
+    assert "focus on Starship routing behavior, not game simulation" in coder["payload"]["messages"][0]["content"]
+    assert "Do not invent imports or modules unless provided" in coder["payload"]["messages"][0]["content"]
 
 
 def test_low_context_window_is_flagged_as_quality_limitation() -> None:

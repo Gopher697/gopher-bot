@@ -7,6 +7,8 @@ import pytest
 from starship_command.local_model_adapter import (
     LocalModelBridgeError,
     LocalModelConfig,
+    build_engineering_dry_run,
+    build_engineering_test_payload,
     ensure_model_available,
     format_engineering_result,
     list_models,
@@ -106,9 +108,28 @@ def test_engineering_test_uses_fixed_prompt_and_measures_latency() -> None:
     assert calls[1][0] == "POST"
     assert calls[1][1] == "http://localhost:1234/v1/chat/completions"
     assert chat_payload["model"] == "qwen2.5-coder-14b-instruct"
-    assert chat_payload["messages"][1]["content"] == "Suggest one unit test."
+    assert "Task: Suggest one unit test." in chat_payload["messages"][1]["content"]
+    assert "Propose one Starship Command routing unit test." in chat_payload["messages"][1]["content"]
     assert "Do not edit files" in chat_payload["messages"][0]["content"]
+    assert "do not invent them" in chat_payload["messages"][0]["content"]
     assert "tools" not in chat_payload
+
+
+def test_engineering_payload_can_be_rendered_without_network_call() -> None:
+    payload = build_engineering_test_payload(config())
+    dry_run = build_engineering_dry_run(config())
+
+    assert payload["model"] == "qwen2.5-coder-14b-instruct"
+    assert payload["messages"][0]["role"] == "system"
+    assert "local Engineering review assistant for Starship Command" in payload["messages"][0]["content"]
+    assert "focus on Starship routing behavior, not game simulation" in payload["messages"][0]["content"]
+    assert "Do not invent imports or modules unless provided" in payload["messages"][0]["content"]
+    assert "Do not edit files" in payload["messages"][0]["content"]
+    assert "Task: Suggest one unit test." in payload["messages"][1]["content"]
+    assert dry_run["network_call_made"] is False
+    assert dry_run["prompt_profile"] == "engineering_test_design"
+    assert dry_run["url"] == "http://localhost:1234/v1/chat/completions"
+    assert dry_run["payload"] == payload
 
 
 def test_format_engineering_result_includes_human_judgment_marker() -> None:

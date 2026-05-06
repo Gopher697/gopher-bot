@@ -125,6 +125,22 @@ python starship_command\local_model_adapter.py test-engineering
 The Engineering test sends one fixed prompt, measures latency, and prints the
 response for human judgment. It does not score quality automatically.
 
+## Crew Prompt Pack
+
+Starship local-model calls use explicit Crew Prompt Pack profiles in
+`crew_prompt_pack.yaml`. These profiles define the local model's Starship role,
+the allowed interpretation of the task, and the exact output schema expected
+from the response.
+
+The prompt pack is meant to prevent generic/gameplay/navigation drift. In
+Starship prompts, `route` means assigning a mission to a Starship
+division/station; it does not mean gameplay movement, map navigation, UI
+navigation, or pathfinding.
+
+Local models remain untrusted until their outputs pass role-specific prompt
+tests and human review. A model can be callable through LM Studio and still not
+be ready for First Officer, Engineering, Archives, or model-evaluation duty.
+
 ## Model Operations
 
 Model Operations is the unified GUI workflow for local model status, readiness,

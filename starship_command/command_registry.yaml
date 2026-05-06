@@ -1132,22 +1132,22 @@ local_model_server_doctor:
   readiness_tests:
     - model_id: qwen/qwen3.5-9b
       prompt_name: first_officer_triage
+      prompt_profile: first_officer_triage
       role_classification: fast triage candidate
       max_tokens: 220
-      system_prompt: You are a local First Officer triage assistant for Starship Command.
-      prompt: "In two short bullets, triage this mission for Starship Command without claiming to run tools. Mission: decide the next station for a vague request to improve a local project workflow."
+      mission: "debug the nostdrec recruit screen issue in the CoE5 mod"
     - model_id: qwen2.5-coder-14b-instruct
-      prompt_name: engineering_unit_test
+      prompt_name: engineering_test_design
+      prompt_profile: engineering_test_design
       role_classification: deep Engineering consult candidate
       max_tokens: 320
-      system_prompt: You are a local Engineering review assistant for Starship Command.
-      prompt: "Suggest one Python unit test for Starship Command that verifies Engineering remains primary while Modding supports for a CoE5 nostdrec recruit-screen debugging mission. Do not describe gameplay."
+      task: "Suggest one Python unit test for Starship Command that verifies Engineering remains primary while Modding supports for a CoE5 nostdrec recruit-screen debugging mission."
     - model_id: qwen2.5-3b-instruct
-      prompt_name: lightweight_engineering_triage
+      prompt_name: first_officer_triage
+      prompt_profile: first_officer_triage
       role_classification: fast triage candidate
       max_tokens: 220
-      system_prompt: You are a lightweight local Engineering triage assistant for Starship Command.
-      prompt: "In one short paragraph, identify what a route test should assert for a CoE5 nostdrec recruit-screen debugging mission."
+      mission: "debug the nostdrec recruit screen issue in the CoE5 mod"
   notes:
     - Server Doctor reads context_window from the local endpoint only if the endpoint exposes it.
     - If context_window is unknown, the user should verify context in LM Studio before judging model quality.

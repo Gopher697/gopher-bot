@@ -9,6 +9,7 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 try:
+    from .crew_prompt_pack import render_prompt_profile
     from .local_model_adapter import (
         JSONRequester,
         LOCAL_HOSTS,
@@ -20,6 +21,7 @@ try:
     )
     from .starship_core import REGISTRY_PATH, load_registry
 except ImportError:  # pragma: no cover - direct script execution path
+    from crew_prompt_pack import render_prompt_profile
     from local_model_adapter import (
         JSONRequester,
         LOCAL_HOSTS,
@@ -54,6 +56,7 @@ LIKELY_UNREACHABLE_CAUSES = [
     "The configured endpoint or port differs from the running server.",
     "The expected model is not loaded or visible through the local endpoint.",
 ]
+LOCAL_MODEL_SAFETY_RULE = "Do not edit files, claim to run tools, call external services, or make autonomous changes."
 
 
 @dataclass(frozen=True)
@@ -72,6 +75,7 @@ class ReadinessTest:
     system_prompt: str
     role_classification: str
     max_tokens: int
+    prompt_profile: str = ""
 
 
 @dataclass(frozen=True)
@@ -120,6 +124,12 @@ def _bool(value: object, name: str) -> bool:
     if isinstance(value, bool):
         return value
     raise LocalModelBridgeError(f"{name} must be true or false")
+
+
+def _optional_string(value: object, name: str) -> str:
+    if value is None:
+        return ""
+    return _string(value, name)
 
 
 def validate_doctor_endpoint(endpoint: str, allow_non_local_endpoint: bool = False) -> str:
@@ -222,17 +232,35 @@ def parse_readiness_tests(raw_tests: object, observed_models: list[ObservedModel
         if not isinstance(item, dict):
             raise LocalModelBridgeError("Each readiness test entry must be a mapping")
         model_id = _string(item.get("model_id"), "readiness_tests.model_id")
+        prompt_profile = _optional_string(item.get("prompt_profile"), "readiness_tests.prompt_profile")
+        prompt = _optional_string(
+            item.get("mission")
+            or item.get("task")
+            or item.get("context")
+            or item.get("observations")
+            or item.get("prompt"),
+            "readiness_tests.prompt",
+        )
+        system_prompt = _optional_string(item.get("system_prompt"), "readiness_tests.system_prompt")
+        if not prompt:
+            raise LocalModelBridgeError("readiness_tests prompt, mission, task, context, or observations is required")
+        if not prompt_profile and not system_prompt:
+            raise LocalModelBridgeError("readiness_tests.system_prompt is required when prompt_profile is not set")
         tests.append(
             ReadinessTest(
                 model_id=model_id,
-                prompt_name=_string(item.get("prompt_name"), "readiness_tests.prompt_name"),
-                prompt=_string(item.get("prompt"), "readiness_tests.prompt"),
-                system_prompt=_string(item.get("system_prompt"), "readiness_tests.system_prompt"),
+                prompt_name=_string(
+                    item.get("prompt_name", prompt_profile),
+                    "readiness_tests.prompt_name",
+                ),
+                prompt=prompt,
+                system_prompt=system_prompt,
                 role_classification=_string(
                     item.get("role_classification", classification_by_model.get(model_id, "unavailable")),
                     "readiness_tests.role_classification",
                 ),
                 max_tokens=_int(item.get("max_tokens", 300), "readiness_tests.max_tokens"),
+                prompt_profile=prompt_profile,
             )
         )
     return tests
@@ -329,22 +357,7 @@ def run_readiness_test(
     requester: JSONRequester = request_json,
     timer: Timer = time.perf_counter,
 ) -> dict[str, Any]:
-    payload = {
-        "model": test.model_id,
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    f"{test.system_prompt} Do not edit files, claim to run tools, "
-                    "call external services, or make autonomous changes."
-                ),
-            },
-            {"role": "user", "content": test.prompt},
-        ],
-        "temperature": config.temperature,
-        "max_tokens": test.max_tokens or config.max_tokens,
-        "stream": False,
-    }
+    payload = build_readiness_payload(config, test)
     started = timer()
     response = requester(
         "POST",
@@ -357,10 +370,63 @@ def run_readiness_test(
     return {
         "model_id": test.model_id,
         "prompt_name": test.prompt_name,
+        "prompt_profile": test.prompt_profile or test.prompt_name,
         "role_classification": test.role_classification,
         "latency_seconds": latency_seconds,
         "response_preview": preview_text(response_text),
         "error": "",
+    }
+
+
+def build_readiness_payload(config: DoctorConfig, test: ReadinessTest) -> dict[str, Any]:
+    system_prompt, user_prompt = render_readiness_messages(test)
+    return {
+        "model": test.model_id,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": config.temperature,
+        "max_tokens": test.max_tokens or config.max_tokens,
+        "stream": False,
+    }
+
+
+def render_readiness_messages(test: ReadinessTest) -> tuple[str, str]:
+    if test.prompt_profile:
+        rendered = render_prompt_profile(
+            test.prompt_profile,
+            {
+                "mission": test.prompt,
+                "task": test.prompt,
+                "context": test.prompt,
+                "observations": test.prompt,
+            },
+        )
+        system_prompt = rendered.system_prompt
+        if LOCAL_MODEL_SAFETY_RULE not in system_prompt:
+            system_prompt = f"{system_prompt}\n{LOCAL_MODEL_SAFETY_RULE}"
+        return system_prompt, rendered.user_prompt
+    return f"{test.system_prompt} {LOCAL_MODEL_SAFETY_RULE}", test.prompt
+
+
+def build_readiness_dry_run(config: DoctorConfig) -> dict[str, Any]:
+    return {
+        "dry_run": True,
+        "network_call_made": False,
+        "endpoint": config.endpoint,
+        "url": join_endpoint(config.endpoint, config.chat_completions_path),
+        "timeout_seconds": config.timeout_seconds,
+        "tests": [
+            {
+                "model_id": test.model_id,
+                "prompt_name": test.prompt_name,
+                "prompt_profile": test.prompt_profile or test.prompt_name,
+                "role_classification": test.role_classification,
+                "payload": build_readiness_payload(config, test),
+            }
+            for test in config.readiness_tests
+        ],
     }
 
 
@@ -405,6 +471,7 @@ def build_readiness_report(
             result = {
                 "model_id": test.model_id,
                 "prompt_name": test.prompt_name,
+                "prompt_profile": test.prompt_profile or test.prompt_name,
                 "role_classification": test.role_classification,
                 "latency_seconds": None,
                 "response_preview": "",
@@ -567,6 +634,7 @@ def format_readiness_report(report: dict[str, Any]) -> str:
         for result in report["models_tested"]:
             lines.append(
                 f"- {result['model_id']} | role: {result['role_classification']} | "
+                f"profile: {result.get('prompt_profile', result['prompt_name'])} | "
                 f"context_window: {format_context(result.get('context_window'))} | "
                 f"latency: {format_latency(result['latency_seconds'])}"
             )
@@ -605,6 +673,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("check", help="Check whether the configured local endpoint responds.")
     subparsers.add_parser("list-models", help="List visible models and known registry/user-observed matches.")
+    subparsers.add_parser("dry-run-readiness", help="Render configured readiness request payloads without sending them.")
     subparsers.add_parser("readiness", help="Run lightweight readiness tests for visible configured models.")
     return parser
 
@@ -618,6 +687,11 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "list-models":
             print(format_model_list(config, list_model_infos(config)))
+            return 0
+        if args.command == "dry-run-readiness":
+            import json
+
+            print(json.dumps(build_readiness_dry_run(config), indent=2))
             return 0
         if args.command == "readiness":
             print(format_readiness_report(build_readiness_report(config)))

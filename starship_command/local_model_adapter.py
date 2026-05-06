@@ -13,8 +13,10 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 try:
+    from .crew_prompt_pack import render_prompt_profile
     from .starship_core import REGISTRY_PATH, load_registry
 except ImportError:  # pragma: no cover - direct script execution path
+    from crew_prompt_pack import render_prompt_profile
     from starship_core import REGISTRY_PATH, load_registry
 
 
@@ -22,6 +24,7 @@ JSONRequester = Callable[[str, str, dict[str, Any] | None, float], dict[str, Any
 Timer = Callable[[], float]
 
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+ENGINEERING_TEST_PROFILE = "engineering_test_design"
 
 
 class LocalModelBridgeError(RuntimeError):
@@ -200,29 +203,42 @@ def extract_chat_text(response: dict[str, Any]) -> str:
     return message["content"].strip()
 
 
+def build_engineering_test_payload(config: LocalModelConfig) -> dict[str, Any]:
+    prompt = render_prompt_profile(
+        ENGINEERING_TEST_PROFILE,
+        {"task": config.engineering_test_prompt},
+    )
+    return {
+        "model": config.model,
+        "messages": [
+            {"role": "system", "content": prompt.system_prompt},
+            {"role": "user", "content": prompt.user_prompt},
+        ],
+        "temperature": config.temperature,
+        "max_tokens": config.max_tokens,
+        "stream": False,
+    }
+
+
+def build_engineering_dry_run(config: LocalModelConfig) -> dict[str, Any]:
+    return {
+        "dry_run": True,
+        "network_call_made": False,
+        "endpoint": config.endpoint,
+        "url": join_endpoint(config.endpoint, config.chat_completions_path),
+        "timeout_seconds": config.timeout_seconds,
+        "prompt_profile": ENGINEERING_TEST_PROFILE,
+        "payload": build_engineering_test_payload(config),
+    }
+
+
 def run_engineering_test(
     config: LocalModelConfig,
     requester: JSONRequester = request_json,
     timer: Timer = time.perf_counter,
 ) -> dict[str, Any]:
     ensure_model_available(config, requester)
-    payload = {
-        "model": config.model,
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "You are a local Engineering review assistant for Starship Command. "
-                    "Do not edit files, claim to run tools, or call external services. "
-                    "Answer with one suggested unit test and a short rationale."
-                ),
-            },
-            {"role": "user", "content": config.engineering_test_prompt},
-        ],
-        "temperature": config.temperature,
-        "max_tokens": config.max_tokens,
-        "stream": False,
-    }
+    payload = build_engineering_test_payload(config)
 
     started = timer()
     response = requester(
@@ -286,6 +302,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("config", help="Show the configured local model bridge target.")
     subparsers.add_parser("list-models", help="Call the local /models endpoint and list available models.")
+    subparsers.add_parser("dry-run-engineering", help="Render the Engineering test request payload without sending it.")
     subparsers.add_parser("test-engineering", help="Run the fixed Engineering behavior test prompt.")
     return parser
 
@@ -307,6 +324,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "list-models":
             print(format_models(config, list_models(config)))
+            return 0
+        if args.command == "dry-run-engineering":
+            print(json.dumps(build_engineering_dry_run(config), indent=2))
             return 0
         if args.command == "test-engineering":
             print(format_engineering_result(run_engineering_test(config)))

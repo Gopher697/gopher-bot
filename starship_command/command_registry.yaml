@@ -1,0 +1,1108 @@
+version: 2
+
+station_order:
+  - first_officer
+  - engineering
+  - archives
+  - tactical
+  - science
+  - modding
+  - design
+
+stations:
+  first_officer:
+    display_name: First Officer
+    division_name: Command Division
+    standing_officer: First Officer
+    authority: scoped
+    specialist_default: true
+    mission: Routing, prioritization, mission breakdown, cross-division assignment, specialist deployment, and unclear ownership.
+    responsibilities:
+      - Route missions to the correct division.
+      - Coordinate cross-division work.
+      - Generate specialist briefs without launching autonomous processes.
+      - Own low-confidence routing and command authorization limits.
+  engineering:
+    display_name: Chief Engineer
+    division_name: Engineering Division
+    standing_officer: Chief Engineer
+    authority: scoped
+    specialist_default: true
+    mission: Implementation, debugging, code, tests, scripts, repos, builds, CLI/backend work, and Codex execution.
+    responsibilities:
+      - Implement and debug code.
+      - Run or design tests and scripts.
+      - Handle repository, backend, and CLI work.
+      - Preserve scope and show git status after changes.
+  archives:
+    display_name: Archivist
+    division_name: Computer Core / Archives
+    standing_officer: Chief Archivist
+    authority: scoped
+    specialist_default: true
+    mission: Continuity, project memory, notes, corpus organization, reference systems, authority maps, stale context, and handoffs.
+    responsibilities:
+      - Organize notes, references, and source corpora.
+      - Preserve continuity and bridge-log clarity.
+      - Map authority, source, version, and current-state questions.
+      - Treat historical material as reference unless promoted.
+  tactical:
+    display_name: Tactical Officer
+    division_name: Tactical / Safety
+    standing_officer: Tactical Officer
+    authority: scoped
+    specialist_default: true
+    mission: Explicit risk and safety review; supporting review for destructive, broad, live-runtime, cross-project, or unclear-authority hazards.
+    responsibilities:
+      - Review safety, security, destructive-change, and source-confusion risks.
+      - Support implementation, archive, and modding work when risk flags appear.
+      - Escalate unclear authority or dangerous operations.
+  science:
+    display_name: Science Officer
+    division_name: Science / Game Intelligence
+    standing_officer: Science Officer
+    authority: scoped
+    specialist_default: true
+    mission: Game-analysis assistants, game workspaces, save-state tracking, gameplay decision support, strategy analysis, simulation analysis, and adaptive game-agent systems.
+    responsibilities:
+      - Analyze game state and strategy.
+      - Support persistent game memory and save profiles.
+      - Route game information into usable decision support.
+  modding:
+    display_name: Modding Lead
+    division_name: Modding Division
+    standing_officer: Modding Lead
+    authority: scoped
+    specialist_default: true
+    mission: Mod design and triage, game mod constraints, translation workflows, loader/runtime concerns, version separation, mod-specific diagnosis, and game data/config issues.
+    responsibilities:
+      - Handle mod-specific diagnosis and data interpretation.
+      - Track loader, runtime, localization, and version constraints.
+      - Support implementation tasks inside mod repositories.
+  design:
+    display_name: Design Director
+    division_name: Design Bureau
+    standing_officer: Project Director
+    authority: scoped
+    specialist_default: true
+    mission: Speculative game design, roadmap critique, faction/system design, design synthesis, design-lane boundaries, source-corpus-driven design interpretation, and project direction.
+    responsibilities:
+      - Clarify project direction and design-lane boundaries.
+      - Synthesize source-corpus-driven design implications.
+      - Critique roadmaps, factions, systems, and mechanics.
+
+routing_rules:
+  low_confidence_threshold: 2
+  specialist_threshold: 2
+  repo_change_keywords:
+    - add
+    - backend
+    - build
+    - change
+    - class
+    - cli
+    - code
+    - codex
+    - compile
+    - debug
+    - edit
+    - exception
+    - failing test
+    - fix
+    - function
+    - implement
+    - module
+    - pytest
+    - refactor
+    - repo
+    - script
+    - test
+    - tests
+  implementation_dominance_keywords:
+    - debug
+    - build
+    - implement
+    - test
+    - refactor
+    - script
+    - cli
+    - repo
+    - code
+    - crash
+    - exception
+    - compile
+    - failing test
+    - pytest
+    - c#
+    - python
+    - mcp
+    - codex
+    - backend
+    - function
+    - class
+    - module
+  archive_dominance_keywords:
+    - summarize
+    - organize
+    - catalog
+    - preserve
+    - continuity
+    - memory
+    - notes
+    - corpus
+    - reference
+    - handoff
+    - bridge log
+    - authority map
+    - deprecated
+    - current state
+    - context
+    - archive
+    - wiki
+    - session notes
+    - source corpus
+    - source confusion
+    - version/source confusion
+    - resume
+    - lane boundaries
+  design_dominance_keywords:
+    - design
+    - roadmap
+    - synthesis
+    - critique
+    - faction
+    - system design
+    - mechanic
+    - gameplay loop
+    - design lane
+    - route ecology
+    - source-corpus-driven design
+    - project director
+    - xianxia system
+    - cultivation system
+  game_intelligence_dominance_keywords:
+    - game agent
+    - game assistant
+    - gameplay
+    - save state
+    - save profile
+    - decision support
+    - strategy
+    - rpg
+    - simulation
+    - dwarf fortress
+    - 5d chess
+    - chess analysis
+    - current turn
+    - route game info
+    - game workspace
+    - persistent game memory
+    - fortress
+    - colony
+    - campaign
+    - playthrough
+  stations:
+    first_officer:
+      keyword_weights:
+        route: 5
+        plan: 4
+        prioritize: 5
+        decide: 5
+        break down: 5
+        assign: 5
+        next step: 5
+        what should i do: 6
+        coordinate: 5
+        triage: 4
+        spawn specialist: 5
+        deploy specialist: 5
+        multi-project: 5
+        command: 3
+        first officer: 6
+        reusable game-agent workspace: 7
+        new game: 5
+        resume: 2
+        lane boundaries: 2
+    engineering:
+      keyword_weights:
+        debug: 7
+        build: 6
+        implement: 7
+        test: 5
+        tests: 5
+        refactor: 6
+        script: 5
+        cli: 5
+        repo: 4
+        code: 5
+        crash: 5
+        exception: 5
+        compile: 5
+        failing test: 7
+        pytest: 6
+        c#: 4
+        python: 4
+        mcp: 4
+        codex: 3
+        backend: 5
+        function: 4
+        class: 4
+        module: 4
+        recruit screen: 5
+        screen issue: 4
+    archives:
+      keyword_weights:
+        summarize: 5
+        organize: 6
+        catalog: 5
+        preserve: 5
+        continuity: 7
+        memory: 7
+        notes: 6
+        corpus: 7
+        reference: 6
+        handoff: 6
+        bridge log: 6
+        authority map: 6
+        authority mapping: 6
+        deprecated: 5
+        current state: 5
+        context: 4
+        archive: 5
+        wiki: 5
+        session notes: 6
+        source corpus: 7
+        er gen: 5
+        renegade immortal: 5
+        xian ni: 5
+        codex reference system: 6
+        source confusion: 6
+        version/source confusion: 9
+        resume: 6
+        lane boundaries: 6
+    tactical:
+      keyword_weights:
+        risk: 5
+        safety: 5
+        review risk: 7
+        delete: 4
+        overwrite: 4
+        migrate: 3
+        replace: 3
+        broad edit: 5
+        bulk edit: 5
+        destructive: 5
+        credentials: 5
+        secrets: 5
+        production: 4
+        live runtime: 5
+        live dll: 5
+        steam workshop: 5
+        bepinex runtime: 5
+        config: 2
+        backup: 3
+        external repo: 5
+        cross-project: 5
+        unclear authority: 5
+        source confusion: 3
+        version/source confusion: 4
+    science:
+      keyword_weights:
+        game agent: 7
+        game assistant: 7
+        gameplay: 5
+        save state: 7
+        save profile: 7
+        decision support: 7
+        strategy: 6
+        rpg: 4
+        simulation: 5
+        dwarf fortress: 7
+        5d chess: 7
+        chess analysis: 7
+        current turn: 5
+        route game info: 6
+        game workspace: 6
+        persistent game memory: 7
+        fortress: 4
+        colony: 4
+        campaign: 4
+        playthrough: 5
+        reusable game-agent workspace: 4
+    modding:
+      keyword_weights:
+        mod: 5
+        modding: 6
+        coe5: 7
+        conquest of elysium: 7
+        worldbox: 6
+        xianni: 6
+        xuan ni: 6
+        bepinex: 6
+        xunity: 6
+        loader: 5
+        runtime: 4
+        translation: 5
+        localization: 5
+        version: 3
+        source version: 5
+        translated version: 5
+        0.4.2: 5
+        recruit: 5
+        recruit screen: 6
+        nostdrec: 7
+        commander: 4
+        monster: 4
+        ritual: 4
+        dll: 6
+    design:
+      keyword_weights:
+        design: 7
+        roadmap: 7
+        synthesis: 5
+        critique: 5
+        faction: 6
+        system design: 7
+        mechanic: 5
+        gameplay loop: 6
+        cultivation gsg: 2
+        mystery: 4
+        revelation: 4
+        continuity lane: 5
+        design lane: 7
+        route ecology: 5
+        source-corpus-driven design: 7
+        simulation economist: 5
+        continuity architect: 5
+        mystery curator: 5
+        project director: 6
+        xianxia system: 6
+        cultivation system: 6
+
+risk_keyword_rules:
+  authority: scoped
+  support_when_matched: true
+  primary_only_for_explicit_review: true
+  risk_keywords:
+    - delete
+    - overwrite
+    - migrate
+    - replace
+    - broad edit
+    - bulk edit
+    - destructive
+    - credentials
+    - secrets
+    - production
+    - live runtime
+    - live dll
+    - steam workshop
+    - bepinex runtime
+    - backup
+    - external repo
+    - cross-project
+    - unclear authority
+    - source confusion
+    - version/source confusion
+  primary_review_phrases:
+    - risk review
+    - safety review
+    - security review
+    - threat model
+    - audit for risk
+    - audit safety
+    - review risk
+    - review safety
+    - review security
+
+known_projects:
+  - name: gopher-workbench-mcp
+    display_name: gopher-workbench-mcp
+    authority: scoped
+    activity_status: unknown
+    aliases:
+      - gopher-workbench-mcp
+      - workbench
+      - mcp workbench
+      - workbench mcp
+    entrypoints:
+      - README.md
+      - PROJECT.md
+  - name: mcp-sandbox
+    display_name: mcp-sandbox
+    authority: scoped
+    activity_status: unknown
+    aliases:
+      - mcp-sandbox
+      - sandbox
+    entrypoints:
+      - PROJECT.md
+  - name: 5d-chess-tools
+    display_name: 5D Chess Tools
+    authority: scoped
+    activity_status: unknown
+    aliases:
+      - 5d-chess-tools
+      - 5d chess tools
+      - 5d chess
+    entrypoints:
+      - PROJECT.md
+      - README.md
+  - name: gopher-vault
+    display_name: GopherVault
+    authority: scoped
+    activity_status: unknown
+    aliases:
+      - gopher-vault
+      - gophervault
+      - vault
+      - broad external notes
+    entrypoints:
+      - PROJECT.md
+      - 10-Projects/README.md
+      - 20-SOPs/
+  - name: worldbox-xianni
+    display_name: WorldBox Xianni
+    authority: scoped
+    activity_status: unknown
+    aliases:
+      - worldbox-xianni
+      - worldbox xianni
+      - xianni
+      - worldbox
+    entrypoints:
+      - PROJECT.md
+      - notes/worldbox-xianni-sop.md
+  - name: cultivation-gsg
+    display_name: Cultivation GSG Code Repo
+    authority: scoped
+    activity_status: unknown
+    aliases:
+      - cultivation-gsg
+      - cultivation gsg
+      - cultivation grand strategy game
+      - gsg code repo
+    entrypoints:
+      - README.md
+      - cultivation-gsg-wiki/00 START HERE.md
+  - name: cultivation-gsg-wiki
+    display_name: Cultivation GSG Wiki
+    authority: scoped
+    activity_status: unknown
+    aliases:
+      - cultivation-gsg-wiki
+      - cultivation gsg wiki
+      - cultivation gsg memory
+      - cultivation gsg project memory
+    entrypoints:
+      - 00 START HERE.md
+  - name: invading-cultivation-army
+    display_name: Invading Cultivation Army
+    authority: scoped
+    activity_status: unknown
+    aliases:
+      - invading-cultivation-army
+      - invading cultivation army
+      - coe5
+      - conquest of elysium 5
+      - invading cultivation army mod
+      - er gen
+      - ergen
+      - nostdrec
+    entrypoints:
+      - PROJECT_STATUS.md
+      - README.md
+      - docs/design/current-direction.md
+  - name: game-agent-core
+    display_name: GameAgentCore
+    authority: scoped
+    activity_status: unknown
+    aliases:
+      - game-agent-core
+      - game agent core
+      - reusable game-agent workspace
+      - reusable game agent workspace
+      - game-agent workspace
+      - game agent workspace
+      - agent workspace
+    entrypoints:
+      - AGENTS.md
+      - GAME_AGENT_LOOP.md
+      - AUTONOMY_LEVELS.md
+      - SAFETY_RULES_GLOBAL.md
+  - name: mi-chang-sheng-agent-workspace
+    display_name: Mi Chang Sheng Agent Workspace
+    authority: scoped
+    activity_status: unknown
+    aliases:
+      - mi-chang-sheng-agent-workspace
+      - mi chang sheng
+      - michangsheng
+    entrypoints:
+      - SAFETY_RULES.md
+      - CURRENT_SESSION.md
+      - GOALS.md
+      - WORLD_STATE.md
+  - name: dwarf-fortress-agent-workspace
+    display_name: Dwarf Fortress Agent Workspace
+    authority: scoped
+    activity_status: unknown
+    aliases:
+      - dwarf-fortress-agent-workspace
+      - dwarf fortress
+      - dwarf fortress agent workspace
+    entrypoints:
+      - SAFETY_RULES.md
+      - CURRENT_SESSION.md
+      - GOALS.md
+      - WORLD_STATE.md
+
+template_defaults:
+  limitation: This is template-based output from Starship Command Operations V1; it is rule-based, not LLM-generated.
+  unknown_placeholder: "[[UNKNOWN: fill in before use]]"
+  no_agent_launched: No autonomous agent was launched; this is only a tracked specialist brief and session-state record.
+  no_commit_boundary: Do not commit unless explicitly instructed.
+  repo_change_git_status_instruction: Show git status --short after changes.
+  retirement_condition: Retire this specialist brief when the bounded mission output is delivered, when required context contradicts the route, or when scope changes enough to require First Officer rerouting.
+  escalation_rules:
+    - Escalate to First Officer if route confidence is low or the division boundary is unclear.
+    - Escalate to Tactical / Safety before destructive, credential, live-runtime, overwrite, external-repo, or unclear-authority actions.
+    - Escalate to Computer Core / Archives when old notes, raw imports, or handoffs must be promoted into current authority.
+  required_context:
+    - Local AGENTS.md or project instructions.
+    - WORKBENCH_INDEX.md and PROJECT_REGISTRY.md when operating inside the Workbench layer.
+    - The matched project's configured entrypoint files.
+    - Current git status before any repo change.
+  safety_boundaries:
+    - Stay inside the named project and expected file scope.
+    - Treat session notes, raw imports, archives, and old handoffs as historical unless promoted.
+    - Do not edit external project repos unless explicitly named.
+    - Do not add API calls, autonomous agents, automatic log systems, commits, or pushes unless explicitly requested.
+  expected_output:
+    - Primary finding or implementation summary.
+    - Files created or changed, if any.
+    - Tests or checks run.
+    - Remaining limitations or authority ambiguity.
+
+tool_roles:
+  chatgpt_pro:
+    id: chatgpt_pro
+    display_name: ChatGPT Pro
+    category: chat_agent
+    likely_starship_divisions:
+      - Command Division
+      - Computer Core / Archives
+      - Design Bureau
+    best_use:
+      - Manual high-capability reasoning surface for planning, synthesis, and review.
+      - External comparison point for Starship routing and prompt quality.
+    limitations:
+      - No verified callable integration exists in this repo.
+      - OAuth or app login does not prove a local callable model endpoint.
+    current_integration_status: manual
+    access_method: Manual ChatGPT web or app session outside Starship Command.
+    verification_needed:
+      - Verify any future API or connector path separately before marking callable.
+    hazards:
+      - Do not treat Pro subscription access as Open WebUI or MCP callability.
+      - Do not route private repo state to it automatically.
+  chatgpt_desktop:
+    id: chatgpt_desktop
+    display_name: ChatGPT Desktop app
+    category: chat_agent
+    likely_starship_divisions:
+      - Command Division
+      - Engineering Division
+      - Computer Core / Archives
+      - Design Bureau
+    best_use:
+      - Manual reasoning and coding discussion surface.
+      - Human-mediated bridge for copying Starship mission orders into a chat.
+    limitations:
+      - No verified Starship-callable or MCP-callable route exists in this repo.
+    current_integration_status: manual
+    access_method: Manual desktop app usage.
+    verification_needed:
+      - Verify any future local automation or connector route before registry promotion.
+    hazards:
+      - Desktop app presence proves availability to the user, not callability by Starship.
+  codex_local:
+    id: codex_local
+    display_name: Codex local app / CLI / IDE surface
+    category: coding_agent
+    likely_starship_divisions:
+      - Engineering Division
+      - Command Division
+      - Tactical / Safety
+    best_use:
+      - Primary implementation and repo-editing surface.
+      - Apply Starship Codex mission orders manually in a controlled coding session.
+    limitations:
+      - Starship Command does not launch Codex or manage Codex jobs.
+      - Repo evidence shows MCP configuration for Codex, not a crew-resource protocol.
+    current_integration_status: partially_callable
+    access_method: Manual Codex app/CLI/IDE session; project-local MCP config points Codex at gopher-workbench.
+    verification_needed:
+      - Define and test a deliberate Starship-to-Codex handoff protocol before marking callable.
+    hazards:
+      - Treat Codex as human-supervised implementation, not an autonomous background agent.
+      - Do not commit unless explicitly instructed.
+  claude_desktop:
+    id: claude_desktop
+    display_name: Claude Desktop / local Claude surface
+    category: chat_agent
+    likely_starship_divisions:
+      - Command Division
+      - Computer Core / Archives
+      - Design Bureau
+    best_use:
+      - Manual reasoning, review, and synthesis surface.
+      - Possible future MCP client for Workbench resources.
+    limitations:
+      - Repo README includes a Claude MCP setup draft, but no verified Starship-callable route.
+      - No working Claude CLI/API integration was proven by repo files in this audit.
+    current_integration_status: manual
+    access_method: Manual Claude Desktop or Claude chat surface unless a future route is verified.
+    verification_needed:
+      - Verify actual Claude MCP client visibility and callable workflow before registry promotion.
+    hazards:
+      - Do not assume Claude can be routed to automatically through MCP or Starship.
+  lm_studio:
+    id: lm_studio
+    display_name: LM Studio
+    category: local_model_server
+    likely_starship_divisions:
+      - Engineering Division
+      - Command Division
+      - Science / Game Intelligence
+      - Computer Core / Archives
+    best_use:
+      - User-verified local model host.
+      - Likely first future callable local model server for Starship.
+    limitations:
+      - Current availability is manual and user-verified, not Starship/MCP callability.
+      - No repo bridge currently exposes LM Studio model calls to Starship Command.
+    current_integration_status: partially_callable
+    access_method: Manual LM Studio model hosting, plus the narrow local_model_adapter.py proof when the local server is running.
+    verification_needed:
+      - Record the trusted local endpoint and model names only after user verification.
+      - Test a controlled local request path before marking partially callable or callable.
+    hazards:
+      - Do not scan ports or inspect running processes during registry-only audits.
+      - Restrict future endpoints to trusted local addresses unless explicitly approved.
+  open_webui:
+    id: open_webui
+    display_name: Open WebUI
+    category: model_ui
+    likely_starship_divisions:
+      - Command Division
+      - Engineering Division
+      - Science / Game Intelligence
+      - Computer Core / Archives
+    best_use:
+      - User-verified manual local model cockpit connected to LM Studio.
+      - Human-facing surface for first local model behavior tests.
+    limitations:
+      - User verification proves manual availability, not Starship/MCP callability.
+      - Starship Command has no runtime integration with Open WebUI.
+    current_integration_status: manual
+    access_method: Manual Open WebUI session connected to LM Studio.
+    verification_needed:
+      - Record working endpoint/model names manually if the user chooses.
+      - Verify any API bridge separately before registry promotion.
+    hazards:
+      - Direct or external Open WebUI connections are a hazard unless limited to trusted local endpoints.
+      - Do not configure or rediscover this connection in registry-only audits.
+  vscode_continue:
+    id: vscode_continue
+    display_name: VS Code / Continue
+    category: editor_tool
+    likely_starship_divisions:
+      - Engineering Division
+      - Design Bureau
+    best_use:
+      - Possible manual editor-integrated local model or coding assistant surface.
+    limitations:
+      - No verified repo configuration was found that makes it available to Starship.
+    current_integration_status: unknown
+    access_method: Requires user or repo verification.
+    verification_needed:
+      - Confirm installation, model/provider configuration, and safe project scope.
+    hazards:
+      - Do not infer callable model access from editor-tool mention alone.
+  gopher_workbench_mcp:
+    id: gopher_workbench_mcp
+    display_name: gopher-workbench MCP
+    category: mcp_server
+    likely_starship_divisions:
+      - Computer Core / Archives
+      - Engineering Division
+      - Command Division
+      - Tactical / Safety
+    best_use:
+      - Registered project lookup, SOP reads, project summary reads, notes/text search, git status/diff, allowlisted commands, and session note creation.
+      - Conservative Workbench access layer for future Starship tool routing.
+    limitations:
+      - Does not expose local model calls.
+      - Does not provide autonomous job queue, crew messaging, or agent runtime.
+    current_integration_status: callable
+    access_method: MCP server configured by repo-local Codex config and server module.
+    verification_needed:
+      - Verify live MCP client exposure in each client before relying on tools.
+      - Add explicit local-model bridge tools before Starship can request model assistance.
+    hazards:
+      - git_diff can expose sensitive uncommitted work.
+      - run_allowed_command is intentionally narrow and should not become general shell access.
+  github_connector:
+    id: github_connector
+    display_name: GitHub connector/access
+    category: connector
+    likely_starship_divisions:
+      - Engineering Division
+      - Command Division
+      - Tactical / Safety
+    best_use:
+      - Manual or Codex-mediated repository, issue, pull request, and CI context when explicitly requested.
+    limitations:
+      - Not represented as a Starship-callable crew resource.
+      - External API calls are out of scope for registry-only audits.
+    current_integration_status: partially_callable
+    access_method: Codex plugin/context when available; not through Starship Command.
+    verification_needed:
+      - Verify exact connector capability in the active client before each GitHub workflow.
+    hazards:
+      - External network/API access must remain explicit.
+      - Do not publish, push, or create PRs unless instructed.
+  local_scripts_test_runners:
+    id: local_scripts_test_runners
+    display_name: Local scripts and test runners
+    category: script_runner
+    likely_starship_divisions:
+      - Engineering Division
+      - Tactical / Safety
+    best_use:
+      - Run focused local tests and allowlisted project commands.
+      - Verify changes through explicit shell or MCP allowlisted commands.
+    limitations:
+      - Workbench MCP exposes only named allowlisted commands, not arbitrary shell.
+      - Starship Command itself does not invoke tests as tool actions.
+    current_integration_status: partially_callable
+    access_method: Local shell in the current coding session, plus Workbench MCP run_allowed_command where configured.
+    verification_needed:
+      - Confirm project and command allowlist before routing future automated checks.
+    hazards:
+      - Avoid broad, destructive, deploy, live-runtime, or external-repo commands without explicit authorization.
+
+model_roles:
+  text_embedding_nomic_embed_text:
+    id: text_embedding_nomic_embed_text
+    display_name: text-embedding-nomic-embed-text
+    provider_surface: LM Studio / Open WebUI / unknown
+    model_type: embedding
+    likely_starship_divisions:
+      - Computer Core / Archives
+    likely_role: Inferred Archives retrieval backbone for later document search and memory indexing.
+    best_use:
+      - Embedding source for future local retrieval over project notes, source corpora, and manuals.
+    limitations:
+      - Requires document store, indexing, chunking, query plumbing, and authority filters before useful Starship routing.
+      - Not a behavior-test target.
+    current_integration_status: manual
+    first_test: Second-phase Archives retrieval proof after local model bridge and document-store choices are made.
+    hazards:
+      - Do not treat embedding availability as retrieval system availability.
+      - Preserve authority distinctions between current-state files, notes, raw reference, and archives.
+  qwen2_5_vl_7b_instruct:
+    id: qwen2_5_vl_7b_instruct
+    display_name: qwen2.5-vl-7b-instruct
+    provider_surface: LM Studio / Open WebUI / unknown
+    model_type: vision_language
+    likely_starship_divisions:
+      - Science / Game Intelligence
+      - Design Bureau
+      - Tactical / Safety
+    likely_role: Inferred visual inspection assistant for screenshots, GUI review, and game-state analysis.
+    best_use:
+      - Manual screenshot or UI inspection tests after local model behavior is verified.
+    limitations:
+      - Capability is inferred from model name/type and requires behavior testing.
+    current_integration_status: manual
+    first_test: Manual screenshot review prompt through Open WebUI or LM Studio after the Engineering model test.
+    hazards:
+      - Do not rely on visual conclusions without human review and source context.
+  qwen2_5_3b_instruct:
+    id: qwen2_5_3b_instruct
+    display_name: qwen2.5-3b-instruct
+    provider_surface: LM Studio / Open WebUI / unknown
+    model_type: llm
+    likely_starship_divisions:
+      - Command Division
+      - Engineering Division
+    likely_role: Inferred lightweight quick triage model with lower expected capability.
+    best_use:
+      - Fast manual triage, checklist generation, or shallow code explanation if larger local models are too slow.
+    limitations:
+      - Lower expected capability; must be tested before assigning real Starship duties.
+    current_integration_status: manual
+    first_test: Use as a faster temporary Engineering test target only if qwen2.5-coder-14b latency is unacceptable.
+    hazards:
+      - Do not substitute speed for authority or correctness on implementation decisions.
+  qwen2_5_coder_14b_instruct:
+    id: qwen2_5_coder_14b_instruct
+    display_name: qwen2.5-coder-14b-instruct
+    provider_surface: LM Studio / Open WebUI / unknown
+    model_type: llm
+    likely_starship_divisions:
+      - Engineering Division
+    likely_role: Candidate Engineering deep-consult model; callable bridge verified, usefulness pending higher-context retest.
+    best_use:
+      - Higher-context retest for code inspection, file explanation, small script or test drafting, and implementation-plan critique.
+    limitations:
+      - Manual LM Studio bridge call succeeded, but first response was coherent and weak.
+      - First response misunderstood a Starship routing-test prompt as a game/gameplay scenario.
+      - User observed latency was 20.199s.
+      - Human-observed LM Studio context setting was 2048, which may explain weak project/code reasoning.
+      - Usefulness and response speed must be retested at higher context before assigning it as a trusted Engineering crew resource.
+    current_integration_status: partially_callable
+    bridge_status: callable bridge verified; usefulness pending retest
+    first_test: Fixed Engineering prompt through local_model_adapter.py returned in 20.199s but misunderstood the task.
+    required_next_test: Retest Coder-14B at a higher context window if hardware allows, ideally 8192 or higher, before deciding whether it should be an Engineering deep-consult resource.
+    hazards:
+      - Do not allow direct file edits in the first behavior test.
+      - Do not use for routine First Officer chatter until latency and usefulness are verified.
+      - If latency is unacceptable for working-session use, consider qwen2.5-3b-instruct as a faster temporary target.
+      - If higher context makes Coder-14B too slow, classify it as deep consult only.
+  qwen_qwen3_5_9b:
+    id: qwen_qwen3_5_9b
+    display_name: qwen/qwen3.5-9b
+    provider_surface: LM Studio / Open WebUI / unknown
+    model_type: llm
+    likely_starship_divisions:
+      - Command Division
+      - Design Bureau
+      - Computer Core / Archives
+    likely_role: Inferred possible First Officer or general planning local model after behavior testing.
+    best_use:
+      - Manual planning, routing critique, synthesis, and general reasoning tests.
+    limitations:
+      - Capability is inferred from model name and must be tested.
+    current_integration_status: manual
+    first_test: Planning and routing critique prompt after Engineering model behavior has been measured.
+    hazards:
+      - Do not promote to routing authority without comparing against deterministic Starship rules and human review.
+
+integration_status:
+  starship_command:
+    current_integration_status: callable
+    summary: Local CLI/core/GUI are callable from the workstation, but behavior is rule/template-based only.
+    starship_callable: true
+    notes:
+      - No API calls.
+      - No autonomous agents.
+      - No model-backed officer behavior.
+  gopher_workbench_mcp:
+    current_integration_status: callable
+    summary: MCP server exposes conservative Workbench project and SOP access to MCP clients.
+    starship_callable: false
+    notes:
+      - Tools include list_sops, read_sop, list_projects, read_project_summary, search_project_notes, search_project_text, git_status, git_diff, run_allowed_command, and save_session_note.
+      - Starship Command has no direct MCP client bridge yet.
+  local_model_bridge:
+    current_integration_status: partially_callable
+    summary: local_model_adapter.py and the GUI Server Doctor provide narrow local LM Studio OpenAI-compatible call proofs.
+    starship_callable: true
+    notes:
+      - LM Studio is the first callable local model server proof target.
+      - Open WebUI is currently a manual local model cockpit.
+      - The GUI can run Server Doctor readiness checks from the local machine.
+      - This is not integrated into autonomous specialist behavior, MCP tools, a job queue, or an agent runtime.
+  lm_studio_open_webui_manual_bridge:
+    current_integration_status: manual
+    summary: User verified Open WebUI is connected to LM Studio and can use local models.
+    starship_callable: false
+    notes:
+      - This audit records manual availability only.
+      - Do not configure, scan, or rediscover the connection in this pass.
+  chatgpt_claude_surfaces:
+    current_integration_status: manual
+    summary: ChatGPT Pro/Desktop and Claude Desktop are manual reasoning surfaces unless a future verified callable route is added.
+    starship_callable: false
+  codex_surface:
+    current_integration_status: partially_callable
+    summary: Codex is the primary implementation surface, but not yet represented as a Starship-callable crew resource.
+    starship_callable: false
+  github_connector:
+    current_integration_status: partially_callable
+    summary: GitHub access may be available in Codex context, but Starship has no direct connector bridge.
+    starship_callable: false
+  retrieval_pipeline:
+    current_integration_status: not_integrated
+    summary: Archives has no connected embedding store, document index, or authority-aware retrieval pipeline.
+    starship_callable: false
+
+missing_bridges:
+  - id: local_models_not_exposed
+    summary: Local models are not exposed to Starship Command as callable resources.
+    blocks:
+      - Model-backed Engineering, Archives, Science, and First Officer assistance.
+  - id: lm_studio_open_webui_not_starship_callable
+    summary: LM Studio and Open WebUI are user-verified manual surfaces, not Starship/MCP callable bridges.
+    blocks:
+      - Automatic local model mission consultation.
+  - id: manual_reasoning_surfaces
+    summary: ChatGPT Pro/Desktop and Claude Desktop remain manual-only reasoning surfaces.
+    blocks:
+      - Direct Starship routing to external reasoning surfaces.
+  - id: codex_not_crew_resource
+    summary: Codex is primary for implementation, but Starship cannot launch or supervise Codex as a crew resource.
+    blocks:
+      - Direct Engineering assignment execution from Starship.
+  - id: no_crew_communication_protocol
+    summary: No message schema exists for requesting model assistance, receiving outputs, retiring specialists, or escalating hazards.
+    blocks:
+      - Multi-agent coordination.
+  - id: no_job_queue_or_agent_runtime
+    summary: No local job queue, worker lifecycle, or autonomous agent runtime exists.
+    blocks:
+      - Background specialist execution.
+  - id: no_archives_retrieval_pipeline
+    summary: Embedding model availability is not connected to an authority-aware retrieval system.
+    blocks:
+      - Reliable Archives recall across project notes, corpora, manuals, and current-state files.
+  - id: no_model_role_verification_tests
+    summary: No recorded behavior or latency tests prove which local models are useful for Starship divisions.
+    blocks:
+      - Reliable model-to-division assignment.
+
+first_integration_tests:
+  open_webui_to_lm_studio_zero_code:
+    id: open_webui_to_lm_studio_zero_code
+    priority: 1
+    purpose: Record the existing user-verified manual bridge from Open WebUI to LM Studio without Starship code changes.
+    current_state: User verified LM Studio hosts local models and Open WebUI is connected to LM Studio.
+    steps:
+      - Confirm from the user-facing Open WebUI session that a local LM Studio-hosted model can answer a simple prompt.
+      - Record the working endpoint and model name only if the user chooses to provide it.
+      - Keep connections limited to trusted local endpoints.
+    success_evidence:
+      - User confirms the model answered through Open WebUI.
+      - Endpoint and model name are recorded as manual availability, not Starship callability.
+    do_not_do:
+      - Do not scan ports.
+      - Do not inspect running processes.
+      - Do not modify Open WebUI or LM Studio settings.
+      - Do not add Starship runtime integrations in this test.
+  qwen2_5_coder_14b_engineering_behavior:
+    id: qwen2_5_coder_14b_engineering_behavior
+    priority: 2
+    purpose: Measure whether qwen2.5-coder-14b-instruct is useful and fast enough as the first Engineering local-model assistant.
+    target_model: qwen2_5_coder_14b_instruct
+    access_surface: Manual Open WebUI or LM Studio session, whichever is easiest after user verification.
+    prompt_shape:
+      - Give it a small code-inspection or test-drafting prompt.
+      - Provide only copied context selected by the user or current Codex session.
+      - Ask for explanation or a proposed test; do not let it edit files directly.
+    measurements:
+      - Response latency.
+      - Correctness and usefulness of code reasoning.
+      - Whether the output is concise enough for a working Engineering session.
+    fallback:
+      - If qwen2.5-coder-14b-instruct is too slow, test qwen2.5-3b-instruct as a faster temporary Engineering triage target despite lower expected capability.
+    success_evidence:
+      - Manual bridge call succeeded through LM Studio.
+      - Observed latency was 20.199s.
+      - Response was coherent but shallow and misunderstood the routing-test task as a game/gameplay scenario.
+      - Human-observed context window was 2048.
+      - Decision is pending higher-context retest, ideally 8192 or higher if hardware allows.
+    retest_required:
+      - Retest Coder-14B at a higher context window before assigning it as an Engineering deep-consult resource.
+      - If higher context is too slow, classify it as deep consult only or test qwen2.5-3b-instruct as a faster temporary triage model.
+      - Do not use Coder-14B for routine First Officer chatter until latency and usefulness are verified.
+    do_not_do:
+      - Do not build Starship infrastructure around Coder-14B until usefulness and response speed are verified.
+      - Do not permit direct file edits in this behavior test.
+
+local_model_bridge:
+  endpoint: http://localhost:1234/v1
+  provider_surface: LM Studio
+  default_model: qwen2.5-coder-14b-instruct
+  timeout_seconds: 90
+  list_models_path: /models
+  chat_completions_path: /chat/completions
+  temperature: 0.1
+  max_tokens: 600
+  engineering_test_prompt: Inspect this Starship Command routing scenario and suggest one unit test that would verify Engineering remains primary while Modding supports for a CoE5 nostdrec recruit-screen debugging mission.
+  safety_boundaries:
+    - Local localhost LM Studio endpoint only.
+    - No API keys or external internet APIs.
+    - No file edits, commits, autonomous agents, or background jobs.
+    - Human judgment decides whether the model response is usable.
+  secret_hygiene:
+    - command_registry.yaml may contain only non-secret localhost defaults.
+    - Future API keys, tokens, or non-local credentials must use a gitignored local config file, not command_registry.yaml.
+
+local_model_server_doctor:
+  allow_non_local_endpoint: false
+  timeout_seconds: 90
+  list_models_path: /models
+  chat_completions_path: /chat/completions
+  low_context_window_threshold: 2048
+  temperature: 0.1
+  max_tokens: 360
+  registry_models:
+    - model_id: qwen/qwen3.5-9b
+      registry_role_id: qwen_qwen3_5_9b
+      role_classification: fast triage candidate
+    - model_id: qwen2.5-coder-14b-instruct
+      registry_role_id: qwen2_5_coder_14b_instruct
+      role_classification: deep Engineering consult candidate
+    - model_id: qwen2.5-3b-instruct
+      registry_role_id: qwen2_5_3b_instruct
+      role_classification: fast triage candidate
+    - model_id: qwen2.5-vl-7b-instruct
+      registry_role_id: qwen2_5_vl_7b_instruct
+      role_classification: visual model candidate
+    - model_id: text-embedding-nomic-embed-text-v1.5@q8_0
+      registry_role_id: text_embedding_nomic_embed_text
+      role_classification: embedding/retrieval candidate
+  user_observed_models:
+    - model_id: qwen/qwen3.5-9b
+      registry_role_id: qwen_qwen3_5_9b
+      role_classification: fast triage candidate
+      human_observed_context_window: 8192
+    - model_id: qwen2.5-coder-14b-instruct
+      registry_role_id: qwen2_5_coder_14b_instruct
+      role_classification: deep Engineering consult candidate
+      human_observed_context_window: 2048
+      observed_latency_seconds: 20.199
+      bridge_status: callable bridge verified; usefulness pending higher-context retest
+      observed_response_quality: coherent but shallow; misunderstood routing-test task as game/gameplay scenario
+      required_next_test: Retest at 8192 or higher context if hardware allows before assigning Engineering deep-consult status.
+    - model_id: text-embedding-nomic-embed-text-v1.5@q8_0
+      registry_role_id: text_embedding_nomic_embed_text
+      role_classification: embedding/retrieval candidate
+      human_observed_context_window: 2048
+  readiness_tests:
+    - model_id: qwen/qwen3.5-9b
+      prompt_name: first_officer_triage
+      role_classification: fast triage candidate
+      max_tokens: 220
+      system_prompt: You are a local First Officer triage assistant for Starship Command.
+      prompt: "In two short bullets, triage this mission for Starship Command without claiming to run tools. Mission: decide the next station for a vague request to improve a local project workflow."
+    - model_id: qwen2.5-coder-14b-instruct
+      prompt_name: engineering_unit_test
+      role_classification: deep Engineering consult candidate
+      max_tokens: 320
+      system_prompt: You are a local Engineering review assistant for Starship Command.
+      prompt: "Suggest one Python unit test for Starship Command that verifies Engineering remains primary while Modding supports for a CoE5 nostdrec recruit-screen debugging mission. Do not describe gameplay."
+    - model_id: qwen2.5-3b-instruct
+      prompt_name: lightweight_engineering_triage
+      role_classification: fast triage candidate
+      max_tokens: 220
+      system_prompt: You are a lightweight local Engineering triage assistant for Starship Command.
+      prompt: "In one short paragraph, identify what a route test should assert for a CoE5 nostdrec recruit-screen debugging mission."
+  notes:
+    - Server Doctor reads context_window from the local endpoint only if the endpoint exposes it.
+    - If context_window is unknown, the user should verify context in LM Studio before judging model quality.
+    - A 2048 or lower context window should be flagged as a likely quality limitation for code/project reasoning.
+    - Server Doctor must not modify LM Studio settings, Open WebUI settings, project files based on model output, commits, or agent runtime state.

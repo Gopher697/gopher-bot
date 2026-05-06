@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Starship Command Operations</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="ops-shell">
+      <header class="topbar">
+        <div>
+          <h1>Command Operations</h1>
+          <p>Rule-based bridge management console. No autonomous agents, no external APIs.</p>
+        </div>
+        <button id="resetSession" class="ghost-button">Reset Session</button>
+      </header>
+
+      <section class="command-console panel">
+        <div class="panel-title">
+          <span>First Officer Channel</span>
+          <small>Mission input</small>
+        </div>
+        <textarea id="missionInput" rows="4">debug the nostdrec recruit screen issue in the CoE5 mod</textarea>
+        <div class="command-actions">
+          <button data-action="route">Route Mission</button>
+          <button data-action="deploy">Deploy Specialist</button>
+          <button data-action="codex">Generate Codex Mission Order</button>
+          <button data-action="handoff">Create Bridge Log / Handoff</button>
+          <button id="copyOutput" class="secondary">Copy Output</button>
+        </div>
+      </section>
+
+      <section class="diagnostics panel">
+        <div class="panel-title">
+          <span>Diagnostics / Local Resources</span>
+          <small>Local LM Studio only</small>
+        </div>
+        <div class="diagnostics-body">
+          <button id="runLocalModelReadiness" class="secondary">Run Local Model Readiness Check</button>
+          <p>Runs from this local GUI server. Slower local models may take 20+ seconds.</p>
+        </div>
+      </section>
+
+      <section class="handoff panel" id="handoffPanel" hidden>
+        <div class="panel-title">
+          <span>Bridge Log / Handoff</span>
+          <small>Not saved automatically</small>
+        </div>
+        <div class="handoff-grid">
+          <input id="handoffProject" placeholder="Project / Mission" />
+          <input id="handoffDate" placeholder="Stardate / Date" />
+          <textarea id="handoffState" placeholder="Current State"></textarea>
+          <textarea id="handoffThreads" placeholder="Open Threads"></textarea>
+          <textarea id="handoffNext" placeholder="Next Action"></textarea>
+          <input id="handoffStation" placeholder="Suggested Next Station/Division" />
+        </div>
+      </section>
+
+      <section class="roster panel">
+        <div class="panel-title">
+          <span>Division Status / Duty Roster</span>
+          <small>Session-local</small>
+        </div>
+        <div id="divisionRoster" class="division-grid"></div>
+      </section>
+
+      <section class="details panel">
+        <div class="panel-title">
+          <span>Selected Officer / Division Details</span>
+          <small id="selectionType">Division</small>
+        </div>
+        <div id="detailsPanel" class="details-body"></div>
+      </section>
+
+      <section class="mission-board panel">
+        <div class="panel-title">
+          <span>Active Assignments / Mission Board</span>
+          <small>Current session</small>
+        </div>
+        <div id="missionBoard" class="mission-list"></div>
+      </section>
+
+      <section class="output panel">
+        <div class="panel-title">
+          <span>Output Panel</span>
+          <small>Template-based / local diagnostics</small>
+        </div>
+        <pre id="outputPanel">Awaiting mission orders.</pre>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

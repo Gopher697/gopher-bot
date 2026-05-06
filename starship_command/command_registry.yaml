@@ -1,5 +1,15 @@
 version: 2
 
+command_doctrine:
+  principle: Codex and Starship Command are Engineering. The Captain approves, judges, and authorizes. Codex inspects, implements, tests, and reports. The user is never the integration layer.
+  workflow_rules:
+    - The GUI is the primary Captain-facing interface.
+    - Terminal commands are Engineering actions, not routine instructions for the Captain.
+    - Starship may inspect and test local resources directly when safe.
+    - Runtime-changing model operations require explicit Captain authorization.
+    - Starship may only change LM Studio runtime state through a verified local control path.
+    - Model outputs do not auto-edit files, auto-promote crew roles, or launch autonomous agents.
+
 station_order:
   - first_officer
   - engineering
@@ -866,7 +876,7 @@ model_roles:
     current_integration_status: partially_callable
     bridge_status: callable bridge verified; usefulness pending retest
     first_test: Fixed Engineering prompt through local_model_adapter.py returned in 20.199s but misunderstood the task.
-    required_next_test: Retest Coder-14B at a higher context window if hardware allows, ideally 8192 or higher, before deciding whether it should be an Engineering deep-consult resource.
+    required_next_test: Retest Coder-14B at 4096 context first, then 8192 if practical, before deciding whether it should be an Engineering deep-consult resource.
     hazards:
       - Do not allow direct file edits in the first behavior test.
       - Do not use for routine First Officer chatter until latency and usefulness are verified.
@@ -909,12 +919,13 @@ integration_status:
       - Starship Command has no direct MCP client bridge yet.
   local_model_bridge:
     current_integration_status: partially_callable
-    summary: local_model_adapter.py and the GUI Server Doctor provide narrow local LM Studio OpenAI-compatible call proofs.
+    summary: local_model_adapter.py and GUI Model Operations provide narrow local LM Studio OpenAI-compatible call proofs.
     starship_callable: true
     notes:
       - LM Studio is the first callable local model server proof target.
       - Open WebUI is currently a manual local model cockpit.
-      - The GUI can run Server Doctor readiness checks from the local machine.
+      - The GUI can run Model Operations status and readiness checks from the local machine.
+      - Runtime-changing LM Studio actions require Captain authorization and a verified local control path.
       - This is not integrated into autonomous specialist behavior, MCP tools, a job queue, or an agent runtime.
   lm_studio_open_webui_manual_bridge:
     current_integration_status: manual
@@ -1041,6 +1052,42 @@ local_model_bridge:
     - command_registry.yaml may contain only non-secret localhost defaults.
     - Future API keys, tokens, or non-local credentials must use a gitignored local config file, not command_registry.yaml.
 
+model_operations:
+  display_name: Model Operations
+  phase: drydock
+  primary_interface: Command Operations GUI
+  local_only: true
+  runtime_change_requires_captain_authorization: true
+  control_mechanisms:
+    - id: lm_studio_lms_cli
+      display_name: LM Studio lms CLI
+      current_integration_status: partially_callable
+      safe_read_only_actions:
+        - lms status
+        - lms server status
+        - lms ps --json
+      runtime_changing_actions:
+        - lms load with --context-length after Captain authorization
+      verification_needed:
+        - Confirm lms exists on PATH in the active local environment.
+        - Confirm lms load estimate succeeds before attempting authorized reload.
+        - Confirm readiness after reload before assigning a crew role.
+      hazards:
+        - Loading at higher context can increase memory use, slow responses, or fail.
+        - Do not unload or reload models from passive checks.
+  coder_14b_retest:
+    model_id: qwen2.5-coder-14b-instruct
+    bridge_status: callable bridge verified; usefulness pending retest
+    previous_latency_seconds: 20.199
+    previous_observed_context_window: 2048
+    previous_response_quality: coherent but shallow; misunderstood routing-test task as game/gameplay scenario
+    likely_issue: Low context may have limited code/project reasoning; do not blame model capability alone until retested.
+    preferred_first_retest_context: 4096
+    secondary_retest_context: 8192
+    required_next_test: Retest at 4096 first, then 8192 if practical, before assigning Engineering deep-consult status.
+    fallback: If higher context is too slow, classify Coder-14B as deep consult only or test qwen2.5-3b-instruct as faster temporary Engineering triage.
+    routine_use_boundary: Do not use Coder-14B for routine First Officer chatter until latency and usefulness are verified.
+
 local_model_server_doctor:
   allow_non_local_endpoint: false
   timeout_seconds: 90
@@ -1077,7 +1124,7 @@ local_model_server_doctor:
       observed_latency_seconds: 20.199
       bridge_status: callable bridge verified; usefulness pending higher-context retest
       observed_response_quality: coherent but shallow; misunderstood routing-test task as game/gameplay scenario
-      required_next_test: Retest at 8192 or higher context if hardware allows before assigning Engineering deep-consult status.
+      required_next_test: Retest at 4096 context first, then 8192 if practical, before assigning Engineering deep-consult status.
     - model_id: text-embedding-nomic-embed-text-v1.5@q8_0
       registry_role_id: text_embedding_nomic_embed_text
       role_classification: embedding/retrieval candidate

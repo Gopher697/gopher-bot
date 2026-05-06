@@ -10,7 +10,7 @@ const missionBoard = document.querySelector("#missionBoard");
 const detailsPanel = document.querySelector("#detailsPanel");
 const selectionType = document.querySelector("#selectionType");
 const handoffPanel = document.querySelector("#handoffPanel");
-const readinessButton = document.querySelector("#runLocalModelReadiness");
+const modelOperationButtons = Array.from(document.querySelectorAll("[data-model-op], [data-reload-context]"));
 
 async function api(path, body = null) {
   const options = body
@@ -223,21 +223,96 @@ document.querySelector("#copyOutput").addEventListener("click", async () => {
   await navigator.clipboard.writeText(outputPanel.textContent);
 });
 
-readinessButton.addEventListener("click", async () => {
-  readinessButton.disabled = true;
-  readinessButton.classList.add("busy");
-  outputPanel.textContent = "Running local model readiness check... slower local models may take 20+ seconds.";
+function setModelOperationsBusy(isBusy, activeButton = null) {
+  modelOperationButtons.forEach((button) => {
+    button.disabled = isBusy;
+    button.classList.toggle("busy", isBusy && button === activeButton);
+  });
+}
+
+async function runModelOperation(button, path, payload, busyMessage) {
+  setModelOperationsBusy(true, button);
+  outputPanel.textContent = busyMessage;
   try {
-    const response = await api("/api/local-model-readiness", {});
+    const response = await api(path, payload);
     state.snapshot = response.state;
     state.selected = state.snapshot.selected;
     render();
   } catch (error) {
     outputPanel.textContent = error.message;
   } finally {
-    readinessButton.disabled = false;
-    readinessButton.classList.remove("busy");
+    setModelOperationsBusy(false);
   }
+}
+
+function confirmCoderReload(targetContext) {
+  return window.confirm(
+    [
+      "Captain authorization required.",
+      "",
+      "Runtime-changing action: reload qwen2.5-coder-14b-instruct in LM Studio.",
+      `Target context window: ${targetContext}`,
+      "",
+      "Expected risk: slower response, higher memory use, possible load failure.",
+      "This affects LM Studio runtime state.",
+      "",
+      "Authorize this local reload request?",
+    ].join("\n")
+  );
+}
+
+modelOperationButtons.forEach((button) => {
+  button.addEventListener("click", async () => {
+    const reloadContext = button.dataset.reloadContext;
+    if (reloadContext) {
+      const targetContext = Number(reloadContext);
+      if (!confirmCoderReload(targetContext)) {
+        outputPanel.textContent = "Coder-14B reload canceled. No LM Studio runtime state was changed.";
+        return;
+      }
+      await runModelOperation(
+        button,
+        "/api/model-operations/reload-coder",
+        { target_context: targetContext, captain_authorized: true },
+        `Running authorized Coder-14B reload at ${targetContext} context and readiness retest... slower local models may take 20+ seconds.`
+      );
+      return;
+    }
+
+    const operation = button.dataset.modelOp;
+    if (operation === "status") {
+      await runModelOperation(
+        button,
+        "/api/model-operations/status",
+        {},
+        "Checking local model status from Starship Model Operations..."
+      );
+    }
+    if (operation === "readiness") {
+      await runModelOperation(
+        button,
+        "/api/model-operations/readiness",
+        {},
+        "Running local model readiness check... slower local models may take 20+ seconds."
+      );
+    }
+    if (operation === "prepare-coder") {
+      await runModelOperation(
+        button,
+        "/api/model-operations/prepare-coder-retest",
+        { target_context: 4096 },
+        "Preparing Coder-14B higher-context retest. No runtime state will be changed."
+      );
+    }
+    if (operation === "rerun-readiness") {
+      await runModelOperation(
+        button,
+        "/api/model-operations/rerun-readiness",
+        {},
+        "Rerunning local model readiness check... slower local models may take 20+ seconds."
+      );
+    }
+  });
 });
 
 document.querySelector("#resetSession").addEventListener("click", async () => {

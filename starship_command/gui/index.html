@@ -33,12 +33,19 @@
 
       <section class="diagnostics panel">
         <div class="panel-title">
-          <span>Diagnostics / Local Resources</span>
+          <span>Model Operations</span>
           <small>Local LM Studio only</small>
         </div>
         <div class="diagnostics-body">
-          <button id="runLocalModelReadiness" class="secondary">Run Local Model Readiness Check</button>
-          <p>Runs from this local GUI server. Slower local models may take 20+ seconds.</p>
+          <div class="model-actions">
+            <button data-model-op="status" class="secondary">Check Local Models</button>
+            <button data-model-op="readiness" class="secondary">Run Readiness Check</button>
+            <button data-model-op="prepare-coder">Prepare Coder-14B Higher-Context Retest</button>
+            <button data-reload-context="4096" class="authorization">Authorize Reload at 4096 Context</button>
+            <button data-reload-context="8192" class="authorization heavy">Authorize Reload at 8192 Context</button>
+            <button data-model-op="rerun-readiness" class="secondary">Rerun Readiness After Reload</button>
+          </div>
+          <p>Runs from this local GUI server. Runtime-changing model actions require Captain authorization. Slower local models may take 20+ seconds.</p>
         </div>
       </section>
 

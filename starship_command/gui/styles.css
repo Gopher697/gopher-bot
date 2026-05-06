@@ -108,6 +108,11 @@ p {
   margin-top: 10px;
 }
 
+.model-actions {
+  display: grid;
+  gap: 8px;
+}
+
 .handoff {
   grid-column: 1 / 3;
 }
@@ -178,6 +183,15 @@ button.busy {
 
 button.secondary {
   background: var(--cyan);
+}
+
+button.authorization {
+  background: var(--amber);
+}
+
+button.authorization.heavy {
+  color: var(--text);
+  background: #8c3dff;
 }
 
 button.ghost-button {

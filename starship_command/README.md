@@ -20,6 +20,17 @@ The ship is not commissioned until the First Officer can receive an order, route
 it to a crew member who produces a useful artifact, and complete the full loop
 without the user touching a terminal.
 
+## Command Doctrine
+
+"Codex and Starship Command are Engineering. The Captain approves, judges, and
+authorizes. Codex inspects, implements, tests, and reports. The user is never
+the integration layer."
+
+Terminal commands are Engineering actions, not normal Captain workflow. The GUI
+is the primary interface for routine checks. Starship may inspect and test local
+resources directly when safe, but runtime-changing operations require explicit
+Captain authorization and a verified local control path.
+
 ## Command Operations GUI
 
 Launch from the Workbench root:
@@ -37,8 +48,8 @@ python starship_command\command_operations_gui.py --no-open
 
 The GUI runs on Python's standard library `http.server` stack. It makes no
 external API calls and adds no external dependencies. The local model readiness
-diagnostic can call the configured localhost LM Studio endpoint when the GUI is
-running on the user's machine.
+and Model Operations checks can call the configured localhost LM Studio endpoint
+when the GUI is running on the user's machine.
 
 ## Divisions
 
@@ -114,17 +125,28 @@ python starship_command\local_model_adapter.py test-engineering
 The Engineering test sends one fixed prompt, measures latency, and prints the
 response for human judgment. It does not score quality automatically.
 
-## Local Model Server Doctor
+## Model Operations
 
-`local_model_server_doctor.py` is the setup/readiness diagnostic for the local
-LM Studio endpoint. Use it when Starship needs to verify what local models it can
-actually see before assigning any model a bridge role.
+Model Operations is the unified GUI workflow for local model status, readiness,
+and authorized reload/retest work. The user should not need to use terminal
+commands for normal model checks.
 
-The Server Doctor is available through the Command Operations GUI as
-`Run Local Model Readiness Check`. The user should normally use the GUI button
-instead of running terminal commands. The check runs from the local GUI server
-process, so it can reach `http://localhost:1234/v1` only when Starship Command is
-running on the user's machine with LM Studio available locally.
+The panel can check local model status, list models visible through the
+configured endpoint, show live context windows when available, fall back to
+registry-observed context values, run readiness tests, prepare the Coder-14B
+higher-context retest, and request an authorized Coder-14B reload at `4096` or
+`8192` context when a safe local LM Studio control path is available.
+
+Any runtime-changing model action requires Captain authorization in the GUI. A
+passive status or readiness check never loads, unloads, or reloads models. A
+reload request explains the affected model, target context, expected risk, and
+that LM Studio runtime state may change.
+
+The lower-level `local_model_server_doctor.py` module remains a backend/debug
+harness for Codex and advanced troubleshooting, but Model Operations is the
+user-facing workflow. The check runs from the local GUI server process, so it can reach
+`http://localhost:1234/v1` only when Starship Command is running on the user's
+machine with LM Studio available locally.
 
 Terminal commands remain backend/debug options for Codex or advanced
 troubleshooting:
@@ -135,16 +157,16 @@ python -B starship_command\local_model_server_doctor.py list-models
 python -B starship_command\local_model_server_doctor.py readiness
 ```
 
-The Server Doctor checks the configured localhost endpoint, lists visible model
-ids, compares them with registry/user-observed model ids, runs lightweight
-readiness prompts for available text models, measures latency, and prints a plain
-readiness report. It does not modify LM Studio settings, Open WebUI settings,
-project files, commits, or agent runtime state.
+The backend diagnostic checks the configured localhost endpoint, lists visible
+model ids, compares them with registry/user-observed model ids, runs lightweight
+readiness prompts for available text models, measures latency, and prints a
+plain readiness report. Model Operations reuses those helpers. It does not
+modify Open WebUI settings, project files, commits, or agent runtime state.
 
-The user should not need to manually understand server internals. LM Studio GUI
-model loading may still be manual unless a reliable local CLI/API load route is
-identified later. Starship can only call models exposed through the configured
-local endpoint.
+The user should not need to manually understand server internals. Starship can
+only call models exposed through the configured local endpoint. Starship may
+inspect and test local models; it may only change LM Studio runtime state after
+Captain authorization and only through a verified local control path.
 
 Context window size matters. A low context setting such as `2048` can reduce
 quality for code and project reasoning, especially when a prompt depends on
@@ -157,9 +179,11 @@ Current Coder-14B status: the LM Studio bridge call succeeded manually with
 context was `2048`, and the response was coherent but weak because it
 misunderstood a Starship routing-test prompt as a game/gameplay scenario. Treat
 Coder-14B as callable but pending usefulness retest at a higher context window,
-ideally `8192+` if hardware allows. Do not assign it as a trusted Engineering
-deep-consult resource or use it for routine First Officer chatter until latency
-and usefulness are verified.
+starting with `4096`, then `8192` if practical. Do not assign it as a trusted
+Engineering deep-consult resource or use it for routine First Officer chatter
+until latency and usefulness are verified. If higher context is too slow,
+classify it as deep consult only or test `qwen2.5-3b-instruct` as a faster
+temporary Engineering triage model.
 
 ## Manual GUI Smoke Tests
 
@@ -174,6 +198,9 @@ and usefulness are verified.
 - Create a bridge log / handoff; expected: compact Markdown appears in the
   output panel and is not saved automatically.
 - Use Copy Output; expected: current output panel text is copied to clipboard.
+- Use Model Operations; expected: local status/readiness appears in the output
+  panel, runtime-changing reload actions require Captain authorization, and no
+  autonomous model work is launched.
 
 ## Evolution Ladder
 
@@ -185,6 +212,7 @@ static notes
 -> specialist deployment tracking
 -> template-based Codex mission orders
 -> bridge-log handoff loop
+-> model operations and authorized local-model retesting
 -> tool integrations
 -> persistent agent environment
 -> animated/Agent-Craft-like workspace

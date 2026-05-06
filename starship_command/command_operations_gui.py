@@ -10,8 +10,12 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 try:
-    from .local_model_adapter import LocalModelBridgeError
-    from .local_model_server_doctor import build_readiness_report, format_readiness_report, load_doctor_config
+    from .model_operations import (
+        authorized_coder_context_reload_output,
+        build_model_operations_readiness_output,
+        build_model_operations_status_output,
+        prepare_coder_retest_output,
+    )
     from .starship_core import (
         add_codex_order,
         add_handoff,
@@ -22,8 +26,12 @@ try:
         state_snapshot,
     )
 except ImportError:  # pragma: no cover - direct script execution path
-    from local_model_adapter import LocalModelBridgeError
-    from local_model_server_doctor import build_readiness_report, format_readiness_report, load_doctor_config
+    from model_operations import (
+        authorized_coder_context_reload_output,
+        build_model_operations_readiness_output,
+        build_model_operations_status_output,
+        prepare_coder_retest_output,
+    )
     from starship_core import (
         add_codex_order,
         add_handoff,
@@ -40,22 +48,7 @@ GUI_DIR = BASE_DIR / "gui"
 
 
 def build_local_model_readiness_output() -> str:
-    try:
-        config = load_doctor_config()
-        return format_readiness_report(build_readiness_report(config))
-    except LocalModelBridgeError as exc:
-        return "\n".join(
-            [
-                "Starship Local Model Server Doctor - Readiness Report",
-                "Endpoint reachable: no",
-                f"Error: {exc}",
-                "Likely causes:",
-                "- LM Studio is not running.",
-                "- LM Studio local server is disabled.",
-                "- The configured endpoint or port differs from the running server.",
-                "- The expected model is not loaded or visible through the local endpoint.",
-            ]
-        )
+    return build_model_operations_readiness_output()
 
 
 class CommandOperationsServer(ThreadingHTTPServer):
@@ -95,6 +88,31 @@ class CommandOperationsHandler(BaseHTTPRequestHandler):
                 result = add_handoff(self.server.state, payload, self.server.registry)
             elif parsed.path == "/api/local-model-readiness":
                 output = build_local_model_readiness_output()
+                self.server.state["output"] = output
+                result = {"output": output}
+            elif parsed.path == "/api/model-operations/status":
+                output = build_model_operations_status_output()
+                self.server.state["output"] = output
+                result = {"output": output}
+            elif parsed.path == "/api/model-operations/readiness":
+                output = build_model_operations_readiness_output()
+                self.server.state["output"] = output
+                result = {"output": output}
+            elif parsed.path == "/api/model-operations/prepare-coder-retest":
+                target_context = int(payload.get("target_context", 4096))
+                output = prepare_coder_retest_output(target_context=target_context)
+                self.server.state["output"] = output
+                result = {"output": output}
+            elif parsed.path == "/api/model-operations/reload-coder":
+                target_context = int(payload.get("target_context", 4096))
+                output = authorized_coder_context_reload_output(
+                    target_context=target_context,
+                    captain_authorized=bool(payload.get("captain_authorized", False)),
+                )
+                self.server.state["output"] = output
+                result = {"output": output}
+            elif parsed.path == "/api/model-operations/rerun-readiness":
+                output = build_model_operations_readiness_output()
                 self.server.state["output"] = output
                 result = {"output": output}
             elif parsed.path == "/api/reset":

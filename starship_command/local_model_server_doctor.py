@@ -3,12 +3,13 @@ from __future__ import annotations
 import argparse
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
 
 try:
+    from .crew_output_validator import allowed_divisions_from_registry, validate_crew_output
     from .crew_prompt_pack import render_prompt_profile
     from .local_model_adapter import (
         JSONRequester,
@@ -21,6 +22,7 @@ try:
     )
     from .starship_core import REGISTRY_PATH, load_registry
 except ImportError:  # pragma: no cover - direct script execution path
+    from crew_output_validator import allowed_divisions_from_registry, validate_crew_output
     from crew_prompt_pack import render_prompt_profile
     from local_model_adapter import (
         JSONRequester,
@@ -91,6 +93,7 @@ class DoctorConfig:
     registry_models: list[ObservedModel]
     observed_models: list[ObservedModel]
     readiness_tests: list[ReadinessTest]
+    allowed_divisions: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -198,6 +201,7 @@ def load_doctor_config(
         registry_models=registry_models,
         observed_models=observed_models,
         readiness_tests=parse_readiness_tests(raw_doctor.get("readiness_tests", []), registry_models + observed_models),
+        allowed_divisions=allowed_divisions_from_registry(registry),
     )
 
 
@@ -367,6 +371,12 @@ def run_readiness_test(
     )
     latency_seconds = timer() - started
     response_text = extract_chat_text(response)
+    validation = validate_crew_output(
+        prompt_profile=test.prompt_profile or test.prompt_name,
+        response_text=response_text,
+        prompt_context=test.prompt,
+        allowed_divisions=config.allowed_divisions,
+    )
     return {
         "model_id": test.model_id,
         "prompt_name": test.prompt_name,
@@ -375,6 +385,7 @@ def run_readiness_test(
         "latency_seconds": latency_seconds,
         "response_preview": preview_text(response_text),
         "error": "",
+        **validation.as_dict(),
     }
 
 
@@ -476,6 +487,13 @@ def build_readiness_report(
                 "latency_seconds": None,
                 "response_preview": "",
                 "error": str(exc),
+                "schema_valid": False,
+                "division_vocabulary_valid": "not_applicable",
+                "warnings": [],
+                "missing_required_fields": [],
+                "invalid_divisions": [],
+                "trust_gate": "fail",
+                "human_review_required": True,
             }
         model_info = info_by_id.get(test.model_id)
         observed = next((item for item in config.observed_models if item.model_id == test.model_id), None)
@@ -483,11 +501,12 @@ def build_readiness_report(
         result["human_observed_context_window"] = (
             observed.human_observed_context_window if observed else None
         )
-        result["warnings"] = model_warnings(
+        context_warnings = model_warnings(
             result["context_window"],
             result["human_observed_context_window"],
             config.low_context_window_threshold,
         )
+        result["warnings"] = list(dict.fromkeys([*result.get("warnings", []), *context_warnings]))
         models_tested.append(result)
 
     visible_models = []
@@ -593,6 +612,12 @@ def format_latency(value: object) -> str:
     return "not measured" if value is None else f"{float(value):.3f}s"
 
 
+def format_validation_value(value: object) -> str:
+    if isinstance(value, bool):
+        return "pass" if value else "fail"
+    return str(value)
+
+
 def format_readiness_report(report: dict[str, Any]) -> str:
     lines = [
         "Starship Local Model Server Doctor - Readiness Report",
@@ -642,6 +667,18 @@ def format_readiness_report(report: dict[str, Any]) -> str:
                 lines.append(f"  error: {result['error']}")
             else:
                 lines.append(f"  response_preview: {result['response_preview']}")
+            lines.append(
+                "  validation: "
+                f"Schema: {format_validation_value(result.get('schema_valid', False))}; "
+                f"Division names: {result.get('division_vocabulary_valid', 'not_applicable')}; "
+                f"Warnings: {', '.join(result.get('warnings', [])) or 'none'}; "
+                f"Trust gate: {result.get('trust_gate', 'fail')}; "
+                "Human review required: yes"
+            )
+            if result.get("missing_required_fields"):
+                lines.append(f"  missing_required_fields: {', '.join(result['missing_required_fields'])}")
+            if result.get("invalid_divisions"):
+                lines.append(f"  invalid_divisions: {', '.join(result['invalid_divisions'])}")
             for warning in result["warnings"]:
                 lines.append(f"  warning: {warning}")
     else:

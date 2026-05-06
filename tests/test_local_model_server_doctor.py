@@ -74,6 +74,15 @@ def doctor_config() -> DoctorConfig:
                 max_tokens=120,
             ),
         ],
+        allowed_divisions=[
+            "Command Division",
+            "Engineering Division",
+            "Computer Core / Archives",
+            "Tactical / Safety",
+            "Science / Game Intelligence",
+            "Modding Division",
+            "Design Bureau",
+        ],
     )
 
 
@@ -172,7 +181,35 @@ def test_readiness_report_runs_available_tests_and_skips_missing_models() -> Non
                     {"id": "qwen2.5-coder-14b-instruct", "context_length": 2048},
                 ]
             }
-        return {"choices": [{"message": {"content": f"Readiness response for {payload['model']}."}}]}
+        if payload["model"] == "qwen/qwen3.5-9b":
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                "Primary division: Engineering Division\n"
+                                "Supporting divisions: Modding Division\n"
+                                "Risk flags: None\n"
+                                "Specialist recommended: yes\n"
+                                "One-sentence reason: A repo debugging mission with mod context."
+                            )
+                        }
+                    }
+                ]
+            }
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": (
+                            "Test intent: Verify routing.\n"
+                            "Assertions: Engineering Division remains primary.\n"
+                            "Notes: No imports or modules were invented."
+                        )
+                    }
+                }
+            ]
+        }
 
     report = build_readiness_report(doctor_config(), fake_request, timer=lambda: next(timer_values))
     output = format_readiness_report(report)
@@ -185,8 +222,47 @@ def test_readiness_report_runs_available_tests_and_skips_missing_models() -> Non
         "qwen2.5-coder-14b-instruct",
     ]
     assert "latency: 20.199s" in output
+    assert "Schema: pass" in output
+    assert "Division names: yes" in output
+    assert "Trust gate: human_review_required" in output
     assert "qwen2.5-3b-instruct" not in [call[2]["model"] for call in calls if call[0] == "POST"]
     assert all("tools" not in call[2] for call in calls if call[0] == "POST")
+
+
+def test_readiness_report_includes_validation_failure_fields() -> None:
+    timer_values = iter([1.0, 2.0])
+
+    def fake_request(method: str, url: str, payload: dict | None, timeout: float) -> dict:
+        if method == "GET":
+            return {"data": [{"id": "qwen/qwen3.5-9b", "context_length": 8192}]}
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": (
+                            "Primary division: Software Engineering\n"
+                            "Supporting divisions: Quality Assurance\n"
+                            "Risk flags: None\n"
+                            "Specialist recommended: yes\n"
+                            "One-sentence reason: A generic QA path."
+                        )
+                    }
+                }
+            ]
+        }
+
+    report = build_readiness_report(doctor_config(), fake_request, timer=lambda: next(timer_values))
+    result = report["models_tested"][0]
+    output = format_readiness_report(report)
+
+    assert result["schema_valid"] is True
+    assert result["division_vocabulary_valid"] == "no"
+    assert "invalid_division" in result["warnings"]
+    assert result["trust_gate"] == "fail"
+    assert "Schema: pass" in output
+    assert "Division names: no" in output
+    assert "Warnings: invalid_division" in output
+    assert "invalid_divisions: Software Engineering, Quality Assurance" in output
 
 
 def test_readiness_payloads_can_be_rendered_without_network_call() -> None:

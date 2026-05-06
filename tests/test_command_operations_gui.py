@@ -50,6 +50,38 @@ def test_model_operations_status_endpoint_updates_output_without_live_lm_studio(
     assert payload["state"]["output"] == payload["result"]["output"]
 
 
+def test_model_operations_readiness_endpoint_returns_validation_summary(monkeypatch) -> None:
+    def fake_readiness() -> str:
+        return (
+            "Starship Model Operations - Readiness Report\n"
+            "validation: Schema: fail; Division names: no; Warnings: invalid_division; "
+            "Trust gate: fail; Human review required: yes"
+        )
+
+    monkeypatch.setattr(command_operations_gui, "build_model_operations_readiness_output", fake_readiness)
+
+    server = command_operations_gui.CommandOperationsServer(("127.0.0.1", 0))
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = server.server_address[1]
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/model-operations/readiness",
+            data=b"{}",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    assert "Schema: fail" in payload["result"]["output"]
+    assert "Trust gate: fail" in payload["state"]["output"]
+
+
 def test_model_operations_reload_endpoint_requires_authorized_payload(monkeypatch) -> None:
     calls = []
 

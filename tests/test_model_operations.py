@@ -92,6 +92,49 @@ def test_model_operations_status_uses_live_lms_context_before_registry_fallback(
     assert "LM Studio control path available: yes" in output
 
 
+def test_model_operations_readiness_output_keeps_validation_summary(monkeypatch) -> None:
+    def fake_report(config, requester=model_operations.request_json):
+        return {
+            "endpoint": "http://localhost:1234/v1",
+            "endpoint_reachable": True,
+            "models_visible": [],
+            "registry_models_visible": [],
+            "user_observed_models_missing": [],
+            "models_tested": [
+                {
+                    "model_id": CODER_14B_MODEL_ID,
+                    "prompt_name": "engineering_test_design",
+                    "prompt_profile": "engineering_test_design",
+                    "role_classification": "deep Engineering consult candidate",
+                    "latency_seconds": 1.0,
+                    "response_preview": "Test intent: Verify routing.",
+                    "error": "",
+                    "context_window": None,
+                    "human_observed_context_window": None,
+                    "schema_valid": False,
+                    "division_vocabulary_valid": "not_applicable",
+                    "warnings": ["missing_required_field"],
+                    "missing_required_fields": ["Assertions", "Notes"],
+                    "invalid_divisions": [],
+                    "trust_gate": "fail",
+                    "human_review_required": True,
+                }
+            ],
+            "failures": [],
+            "human_judgment_required": True,
+        }
+
+    monkeypatch.setattr(model_operations, "build_readiness_report", fake_report)
+    monkeypatch.setattr(model_operations, "inspect_lms_control", lambda **kwargs: {"loaded_models": []})
+
+    output = model_operations.build_model_operations_readiness_output()
+
+    assert "Starship Model Operations - Readiness Report" in output
+    assert "Schema: fail" in output
+    assert "Warnings: missing_required_field" in output
+    assert "Trust gate: fail" in output
+
+
 def test_coder_retest_recommendation_records_known_weak_first_result() -> None:
     recommendation = build_coder_retest_recommendation(config=doctor_config())
 

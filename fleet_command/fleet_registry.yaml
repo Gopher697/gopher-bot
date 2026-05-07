@@ -1,0 +1,32 @@
+version: 1
+
+fleet_commander: Gopher
+fleet_phase: bootstrap
+doctrine_version: initial
+
+ship_local_isolation: true
+fleet_absorbs_raw_ship_memory: false
+fleet_receives_structured_reports: true
+fleet_extracts_reusable_doctrine: true
+
+ships:
+  - id: starship_command
+    name: Starship Command
+    status: drydock
+    path: 'D:\gopher-workbench-mcp\starship_command'
+    role: first ship / command-system prototype
+    commissioned: false
+    commissioning_condition: 'First Officer receives order -> routes to crew/tool/model -> useful artifact returns through GUI -> no terminal use by Fleet Commander'
+    local_knowledge_policy: isolated ship-local knowledgebase; reports promoted selectively to Fleet Command
+    current_known_capabilities:
+      - Command Operations GUI
+      - Model Operations
+      - local LM Studio bridge
+      - Crew Prompt Pack
+      - Crew Output Validation
+      - Model Profile Management
+    current_blockers:
+      - no completed terminal-free useful artifact loop yet
+      - local models not trusted as autonomous crew
+      - First Officer/crew loop still needs commissioning mission
+    report_template: fleet_command/SHIP_REPORT_TEMPLATE.md

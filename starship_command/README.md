@@ -20,6 +20,11 @@ The ship is not commissioned until the First Officer can receive an order, route
 it to a crew member who produces a useful artifact, and complete the full loop
 without the user touching a terminal.
 
+Fleet Command note: Starship Command is the first ship under Fleet Command. It
+remains in drydock until the commissioning condition is met. Ship-local
+knowledge remains in `starship_command` unless promoted through Fleet Command
+report templates.
+
 ## Command Doctrine
 
 "Codex and Starship Command are Engineering. The Captain approves, judges, and

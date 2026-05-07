@@ -1,14 +1,72 @@
 version: 2
 
 command_doctrine:
-  principle: Codex and Starship Command are Engineering. The Captain approves, judges, and authorizes. Codex inspects, implements, tests, and reports. The user is never the integration layer.
+  principle: Codex and Starship Command are Engineering. The Fleet Commander approves, judges, and authorizes. Codex inspects, implements, tests, and reports. The user is never the integration layer.
   workflow_rules:
-    - The GUI is the primary Captain-facing interface.
-    - Terminal commands are Engineering actions, not routine instructions for the Captain.
+    - The GUI is the primary Fleet Commander-facing interface during drydock.
+    - Terminal commands are Engineering actions, not routine instructions for the Fleet Commander.
+    - The Ship Captain is a ship-local command role and does not replace Fleet Commander final authority.
     - Starship may inspect and test local resources directly when safe.
-    - Runtime-changing model operations require explicit Captain authorization.
+    - Runtime-changing model operations require explicit Fleet Commander authorization during drydock.
     - Starship may only change LM Studio runtime state through a verified local control path.
     - Model outputs do not auto-edit files, auto-promote crew roles, or launch autonomous agents.
+
+command_structure:
+  chain_of_command:
+    - Fleet Commander
+    - Fleet Command Staff
+    - Ship Captain, Starship Command
+    - First Officer
+    - Divisions / crew officers
+    - Specialists / tools / models
+  fleet_commander:
+    role: human strategic authority
+    authority: scoped
+    authority_scope: strategic
+    responsibilities:
+      - Set fleet-level intent, priorities, authorizations, and final judgment.
+      - Approve commissioning, major doctrine, risk, and future ship creation.
+      - Avoid terminal and integration work when Engineering can safely inspect, implement, test, or report.
+  fleet_command_staff:
+    role: fleet coordination and doctrine staff
+    authority: scoped
+    responsibilities:
+      - Coordinate ships through structured reports.
+      - Extract reusable doctrine without absorbing raw ship-local memory.
+      - Escalate strategic decisions to the Fleet Commander.
+  ship_captain:
+    display_name: Ship Captain
+    division: Command Division
+    standing_officer: true
+    reports_to:
+      - fleet_commander
+      - fleet_command
+    supervises:
+      - first_officer
+    authority: scoped
+    role: ship-local command authority
+    responsibilities:
+      - Receive fleet intent.
+      - Maintain ship readiness.
+      - Supervise First Officer.
+      - Escalate fleet-level decisions.
+      - Track commissioning progress.
+
+ship_package_identity:
+  package_id: starship_command
+  package_path: starship_command
+  layer: ship_local_command_package
+  parent_command_layer: Fleet Command
+  is_fleet_command: false
+  ships_are_projects: false
+  missions_are_temporary_dossiers: true
+  mission_context_stays_separate_from_ship_identity: true
+  ship_local_knowledge_stays_local_unless_reported_upward: true
+  mission_assignment_policy:
+    - Fleet Command assigns missions/projects/theaters as dossiers or operations.
+    - Project assignments do not define this ship package's core identity by default.
+    - Mission dossiers and history remain ship-local unless promoted through structured Fleet Command reports.
+    - Reusable ship skills, tools, validation gates, or doctrine may be promoted only after review.
 
 station_order:
   - first_officer
@@ -26,10 +84,14 @@ stations:
     standing_officer: First Officer
     authority: scoped
     specialist_default: true
-    mission: Routing, prioritization, mission breakdown, cross-division assignment, specialist deployment, and unclear ownership.
+    reports_to: ship_captain
+    mission: Ship-local operations routing, prioritization, mission breakdown, cross-division assignment, specialist deployment, and unclear ownership under the Ship Captain.
     responsibilities:
+      - Receive orders from the Ship Captain or, during drydock testing, the Fleet Commander.
       - Route missions to the correct division.
       - Coordinate cross-division work.
+      - Produce or request artifacts through assigned crew, tool, or model paths.
+      - Report status upward to the Ship Captain.
       - Generate specialist briefs without launching autonomous processes.
       - Own low-confidence routing and command authorization limits.
   engineering:
@@ -925,7 +987,7 @@ integration_status:
       - LM Studio is the first callable local model server proof target.
       - Open WebUI is currently a manual local model cockpit.
       - The GUI can run Model Operations status and readiness checks from the local machine.
-      - Runtime-changing LM Studio actions require Captain authorization and a verified local control path.
+      - Runtime-changing LM Studio actions require Fleet Commander authorization during drydock and a verified local control path.
       - This is not integrated into autonomous specialist behavior, MCP tools, a job queue, or an agent runtime.
   lm_studio_open_webui_manual_bridge:
     current_integration_status: manual
@@ -1057,7 +1119,7 @@ model_operations:
   phase: drydock
   primary_interface: Command Operations GUI
   local_only: true
-  runtime_change_requires_captain_authorization: true
+  runtime_change_requires_fleet_commander_authorization_during_drydock: true
   operating_profiles:
     profile_file: starship_command/model_profiles.yaml
     summary: Model Operations manages model operating profiles, not only model loading.
@@ -1087,7 +1149,7 @@ model_operations:
         - lms server status
         - lms ps --json
       runtime_changing_actions:
-        - lms load with --context-length after Captain authorization
+        - lms load with --context-length after Fleet Commander authorization during drydock
       verification_needed:
         - Confirm lms exists on PATH in the active local environment.
         - Confirm lms load estimate succeeds before attempting authorized reload.

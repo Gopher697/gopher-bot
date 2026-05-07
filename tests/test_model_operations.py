@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "starship_command" / "command_registry.yaml"
 README_PATH = ROOT / "starship_command" / "README.md"
 DOCTRINE = (
-    "Codex and Starship Command are Engineering. The Captain approves, judges, and authorizes. "
+    "Codex and Starship Command are Engineering. The Fleet Commander approves, judges, and authorizes. "
     "Codex inspects, implements, tests, and reports. The user is never the integration layer."
 )
 
@@ -327,7 +327,7 @@ def test_model_operations_status_warns_when_many_large_models_loaded() -> None:
     assert "Loaded model count: 6" in output
     assert "Known loaded model size total: 48.00 GiB" in output
     assert "multiple large local models are currently loaded" in output
-    assert "will not eject or unload models without Captain authorization" in output
+    assert "will not eject or unload models without Fleet Commander authorization during drydock" in output
 
 
 def test_profile_compliance_output_reports_controllability_and_warnings() -> None:
@@ -426,7 +426,7 @@ def test_unauthorized_reload_refuses_without_running_lms() -> None:
         runner=fake_runner,
     )
 
-    assert "Captain authorization is required" in output
+    assert "Fleet Commander authorization is required" in output
     assert calls == []
 
 
@@ -503,4 +503,4 @@ def test_command_doctrine_exists_in_readme_and_registry() -> None:
 
     assert DOCTRINE in " ".join(readme.split())
     assert registry["command_doctrine"]["principle"] == DOCTRINE
-    assert "The GUI is the primary Captain-facing interface." in registry["command_doctrine"]["workflow_rules"]
+    assert "The GUI is the primary Fleet Commander-facing interface during drydock." in registry["command_doctrine"]["workflow_rules"]

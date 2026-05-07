@@ -14,27 +14,50 @@ generic office org chart, physical bridge floorplan, MCP server, API client,
 autonomous agent runtime, commit tool, or replacement for repo-specific startup
 rules.
 
-Current phase: drydock prototype. The operating principle is that the Captain
-gives intent; Engineering, Codex, and Starship run diagnostics and report back.
-The ship is not commissioned until the First Officer can receive an order, route
-it to a crew member who produces a useful artifact, and complete the full loop
-without the user touching a terminal.
+Current phase: drydock prototype. The operating principle is that the Fleet
+Commander gives intent; the Ship Captain owns ship-local command posture; the
+First Officer, Engineering, Codex, and crew run diagnostics and report back. The
+ship is not commissioned until the First Officer can receive an order, route it
+to a crew member who produces a useful artifact, and complete the full loop
+without the Fleet Commander touching a terminal.
 
-Fleet Command note: Starship Command is the first ship under Fleet Command. It
-remains in drydock until the commissioning condition is met. Ship-local
-knowledge remains in `starship_command` unless promoted through Fleet Command
-report templates.
+Fleet Command note: Starship Command is currently a ship package under Fleet
+Command and remains in drydock until the commissioning condition is met. It is
+not Fleet Command. Its package path is `starship_command`. The Ship Captain is
+a ship-local command role, distinct from the Fleet Commander. Starship Command
+can receive project missions over time; those missions are dossiers or
+assignments, not the ship's identity. Ship-local and mission-local knowledge
+remain in `starship_command` unless promoted through Fleet Command report
+templates.
+
+## Ship Chain of Command
+
+- Fleet Commander: human strategic authority for fleet intent, priorities,
+  authorization, commissioning, doctrine, and final judgment.
+- Fleet Command Staff: coordinates ships and extracts reusable doctrine without
+  replacing ship-local command.
+- Ship Captain, Starship Command: receives Fleet Commander intent, maintains
+  ship readiness and commissioning posture, supervises the First Officer, and
+  escalates fleet-level decisions.
+- First Officer: routes ship-local operations, coordinates divisions and
+  specialists, and reports status upward to the Ship Captain.
+- Divisions / crew officers: execute within Engineering, Archives, Tactical /
+  Safety, Science / Game Intelligence, Modding, and Design domains.
+- Specialists / tools / models: produce bounded artifacts through assigned
+  crew/tool/model paths; they do not become autonomous agents.
 
 ## Command Doctrine
 
-"Codex and Starship Command are Engineering. The Captain approves, judges, and
-authorizes. Codex inspects, implements, tests, and reports. The user is never
-the integration layer."
+"Codex and Starship Command are Engineering. The Fleet Commander approves,
+judges, and authorizes. Codex inspects, implements, tests, and reports. The
+user is never the integration layer."
 
-Terminal commands are Engineering actions, not normal Captain workflow. The GUI
-is the primary interface for routine checks. Starship may inspect and test local
-resources directly when safe, but runtime-changing operations require explicit
-Captain authorization and a verified local control path.
+Terminal commands are Engineering actions, not normal Fleet Commander workflow.
+The GUI is the primary interface for routine checks. Starship may inspect and
+test local resources directly when safe, but runtime-changing operations require
+explicit Fleet Commander authorization during drydock and a verified local
+control path. The Ship Captain may manage ship-local posture, but does not
+replace Fleet Commander final authority.
 
 ## Command Operations GUI
 
@@ -170,10 +193,10 @@ profile readiness tests, prepare the Coder-14B higher-context retest, and
 request an authorized Coder-14B reload at `4096` or `8192` context when a safe
 local LM Studio control path is available.
 
-Any runtime-changing model action requires Captain authorization in the GUI. A
-passive status or readiness check never loads, unloads, or reloads models. A
-reload request explains the affected model, target context, expected risk, and
-that LM Studio runtime state may change.
+Any runtime-changing model action requires Fleet Commander authorization in the
+GUI during drydock. A passive status or readiness check never loads, unloads, or
+reloads models. A reload request explains the affected model, target context,
+expected risk, and that LM Studio runtime state may change.
 
 The lower-level `local_model_server_doctor.py` module remains a backend/debug
 harness for Codex and advanced troubleshooting, but Model Operations is the
@@ -196,19 +219,20 @@ readiness prompts for available text models, measures latency, and prints a
 plain readiness report. Model Operations reuses those helpers. It does not
 modify Open WebUI settings, project files, commits, or agent runtime state.
 
-The user should not need to manually understand server internals. Starship can
-only call models exposed through the configured local endpoint. Starship may
-inspect and test local models; it may only change LM Studio runtime state after
-Captain authorization and only through a verified local control path.
+The Fleet Commander should not need to manually understand server internals.
+Starship can only call models exposed through the configured local endpoint.
+Starship may inspect and test local models; it may only change LM Studio
+runtime state after Fleet Commander authorization and only through a verified
+local control path.
 
 Model operating profiles live in `model_profiles.yaml`. They separate load-time
 settings such as context length from inference-time settings such as
 temperature, `top_p`, `top_k`, `max_tokens`, and stop strings. Starship applies
 inference-time settings in its own local chat/completions payload where
 possible. Runtime-changing settings such as loading/reloading a model at a
-different context remain Captain-authorized actions. Settings that Starship
-cannot verify, such as GPU offload or thinking/reasoning mode when LM Studio
-does not expose them, are reported as manual/unknown.
+different context remain Fleet Commander-authorized actions during drydock.
+Settings that Starship cannot verify, such as GPU offload or thinking/reasoning
+mode when LM Studio does not expose them, are reported as manual/unknown.
 
 A model readiness result is not meaningful unless the Model Profile Compliance
 block is passing or explicitly marked unknown for unverifiable settings. A
@@ -224,8 +248,8 @@ supersedes stale `context_window unknown` warnings in the final report.
 
 Model Operations also reports loaded resource state. If many large local models
 are loaded, Starship warns that future readiness comparisons may be slower or
-resource-sensitive. It will not eject or unload models without Captain
-authorization.
+resource-sensitive. It will not eject or unload models without Fleet Commander
+authorization during drydock.
 
 Gemma 4 26B A4B status: the prior `google/gemma-4-26b-a4b` readiness result is
 settings-suspect, not a quality rejection. Human-observed settings were GPU
@@ -265,8 +289,8 @@ temporary Engineering triage model.
   output panel and is not saved automatically.
 - Use Copy Output; expected: current output panel text is copied to clipboard.
 - Use Model Operations; expected: local status/readiness appears in the output
-  panel, runtime-changing reload actions require Captain authorization, and no
-  autonomous model work is launched.
+  panel, runtime-changing reload actions require Fleet Commander authorization
+  during drydock, and no autonomous model work is launched.
 
 ## Evolution Ladder
 

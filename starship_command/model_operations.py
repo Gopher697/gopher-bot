@@ -482,7 +482,7 @@ def format_loaded_resource_report(report: dict[str, Any]) -> list[str]:
             [
                 "- Warning: multiple large local models are currently loaded.",
                 "- Future readiness comparisons may be slower or resource-sensitive.",
-                "- Starship will not eject or unload models without Captain authorization.",
+                "- Starship will not eject or unload models without Fleet Commander authorization during drydock.",
             ]
         )
     return lines
@@ -650,7 +650,7 @@ def build_profile_load_estimate_output(
         f"Model: {model_id}",
         f"Profile: {profile_id}",
         "Runtime state changed: no",
-        "Captain authorization required before any load/reload action.",
+        "Fleet Commander authorization required before any load/reload action during drydock.",
     ]
     profile = get_model_profile(profile_id)
     if profile is None:
@@ -692,7 +692,7 @@ def build_profile_load_estimate_output(
     if estimate.returncode != 0:
         lines.append("Load/reload should not proceed until the estimate succeeds.")
     else:
-        lines.append("Next action: Captain may authorize reload/load with this profile.")
+        lines.append("Next action: Fleet Commander may authorize reload/load with this profile.")
     return "\n".join(lines)
 
 
@@ -708,7 +708,7 @@ def prepare_profile_reload_output(
         f"Model: {model_id}",
         f"Profile: {profile_id}",
         "Runtime state changed: no",
-        "Captain authorization required before changing LM Studio runtime state.",
+        "Fleet Commander authorization required before changing LM Studio runtime state during drydock.",
         "Risk note: profile reload can change context, memory pressure, and response latency.",
     ]
     lines.append(build_profile_compliance_output(model_id=model_id, profile_id=profile_id, lms_path=lms_path, runner=runner))
@@ -836,7 +836,7 @@ def prepare_coder_retest_output(
         f"Model: {CODER_14B_MODEL_ID}",
         f"Target context_window: {target_context}",
         "Runtime state changed: no",
-        "Captain authorization required before any load/reload action.",
+        "Fleet Commander authorization required before any load/reload action during drydock.",
         "Risk note: higher context can slow responses, increase memory use, or fail to load.",
     ]
 
@@ -897,7 +897,7 @@ def prepare_coder_retest_output(
     if estimate.returncode != 0:
         lines.append("Reload should not proceed until the estimate succeeds.")
     else:
-        lines.append("Next action: Captain may authorize reload at this context from the GUI.")
+        lines.append("Next action: Fleet Commander may authorize reload at this context from the GUI.")
     return "\n".join(lines)
 
 
@@ -920,7 +920,7 @@ def authorized_coder_context_reload_output(
         lines.append(f"Refused unsupported target context: {target_context}")
         return "\n".join(lines)
     if not captain_authorized:
-        lines.append("Refused: Captain authorization is required before changing LM Studio runtime state.")
+        lines.append("Refused: Fleet Commander authorization is required before changing LM Studio runtime state during drydock.")
         return "\n".join(lines)
 
     control = inspect_lms_control(lms_path=lms_path, runner=runner)

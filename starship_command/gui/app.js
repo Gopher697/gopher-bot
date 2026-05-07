@@ -250,9 +250,9 @@ async function runModelOperation(button, path, payload, busyMessage) {
 function confirmCoderReload(targetContext) {
   return window.confirm(
     [
-      "Captain authorization required.",
+      "Fleet Commander authorization required.",
       "",
-      "Runtime-changing action: reload qwen2.5-coder-14b-instruct in LM Studio.",
+      "Ship Captain runtime request: reload qwen2.5-coder-14b-instruct in LM Studio.",
       `Target context window: ${targetContext}`,
       "",
       "Expected risk: slower response, higher memory use, possible load failure.",

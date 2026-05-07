@@ -1,14 +1,16 @@
 # Ship Report Template
 
 Use this template when a ship reports mission results, drydock findings,
-commissioning evidence, or reusable lessons to Fleet Command.
+commissioning evidence, or reusable lessons to Fleet Command. Keep the ship
+package identity separate from the temporary mission/project/dossier.
 
 ```markdown
 # Ship Report
 
-- Ship name:
+- Ship name / package id:
 - Ship phase:
-- Mission / operation:
+- Mission / project / operation:
+- Mission dossier path, if any:
 - Date:
 - Owning ship officer / station:
 
@@ -16,6 +18,9 @@ commissioning evidence, or reusable lessons to Fleet Command.
 
 
 ## Useful Artifact Produced
+
+
+## Ship-Local Knowledge Created Or Updated
 
 
 ## Validation / Tests
@@ -27,11 +32,18 @@ commissioning evidence, or reusable lessons to Fleet Command.
 ## Local Lessons Learned
 
 
-## Candidate Fleet-Level Lessons
+## What Remains Mission-Local
 
 
-## What Should Remain Ship-Local
+## What Remains Ship-Local
 
+
+## Candidate Fleet-Level Lesson
+
+
+- Should this become fleet doctrine? yes/no/unknown:
+- Should this update future ship design? yes/no/unknown:
+- Should this update this ship's skills/tools only? yes/no/unknown:
 
 ## Recommended Fleet Doctrine Update, If Any
 
@@ -39,4 +51,3 @@ commissioning evidence, or reusable lessons to Fleet Command.
 ## Next Requested Fleet Command Decision
 
 ```
-

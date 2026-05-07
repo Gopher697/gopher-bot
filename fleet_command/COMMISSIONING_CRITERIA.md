@@ -1,9 +1,10 @@
 # Commissioning Criteria
 
-No ship is commissioned by component existence alone. A ship is commissioned
-only when the full command loop works on one real project task.
+No ship package is commissioned by component existence alone. A ship package is
+commissioned only when the full command loop works on one real project mission
+or dossier assignment.
 
-## First Ship Commissioning Condition
+## Current Ship Package Commissioning Condition
 
 Starship Command is not commissioned until:
 
@@ -16,9 +17,10 @@ Starship Command is not commissioned until:
 ## Phase Definitions
 
 - Drydock means components exist, but the full loop is not reliable.
-- Commissioning means the loop works on one real project task.
-- Exploration means the ship can begin mapping and working across real project
-  territory.
+- Commissioning means the loop works on one real project mission or dossier
+  assignment.
+- Exploration means the ship can begin taking, revisiting, and reporting on
+  real project missions and dossiers.
 - Fleet means multiple ships and workspaces can coordinate through Fleet
   Command.
 
@@ -33,4 +35,3 @@ A commissioning claim should include:
 - validation or tests run
 - confirmation that the Fleet Commander did not need terminal operation
 - failures encountered and remaining drydock limitations
-

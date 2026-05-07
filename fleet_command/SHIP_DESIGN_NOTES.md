@@ -1,12 +1,19 @@
 # Ship Design Notes
 
-Future ships should be designed as isolated command systems with their own
-local operating memory and validation boundaries.
+Future ships should be designed as self-contained command packages with their
+own local operating memory and validation boundaries. They are not project
+folders, and they are not one-role specialist agents by default.
 
 ## Ship Isolation
 
 - Ships should have isolated registries, tools, prompts, model profiles,
   validation gates, and local mission history.
+- Ships should have their own Ship Command, Ship Captain, First Officer,
+  divisions/crew, Model Operations, Mission Control GUI, local tools, local
+  skills, local knowledgebase, mission dossiers, and mission history.
+- Ships may receive project missions repeatedly over time.
+- Projects and missions should be loaded as dossiers or assignments, not as the
+  ship's identity.
 - Ship-local knowledge should stay with the ship unless a structured report
   promotes a reusable lesson to Fleet Command.
 - Ship registries should distinguish local capabilities, callable tools,
@@ -16,6 +23,7 @@ local operating memory and validation boundaries.
 
 - Crew agents should have role-specific prompts, tools, skills, failure notes,
   and output standards.
+- Ships need full local crew coverage, not a single specialty lane.
 - Crew outputs should return through the ship command interface rather than
   expecting the Fleet Commander to reconcile raw tool output.
 - Crew members, tools, and models should not be treated as trusted merely
@@ -30,5 +38,9 @@ local operating memory and validation boundaries.
   ship design.
 - Fleet Command should receive reports, extract reusable lessons, and update
   fleet doctrine only when the lesson applies beyond one ship-local situation.
+- Fleet Command should evaluate whether lessons from a mission improve that
+  ship, all ships, future ships, or only the mission dossier.
 - Future ships should be designed using lessons from Starship Command's
   drydock and commissioning.
+- Do not build future ships over existing projects unless the Fleet Commander
+  explicitly decides to convert a project into a ship package.

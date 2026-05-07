@@ -133,8 +133,31 @@ model_observations:
       gpu_offload: 0
       thinking_mode: true
       temperature: 0.8
-    observed_result:
+    starship_api_result:
       latency_seconds: 49
       output_quality: empty/no extractable content
-    interpretation: "Prior Gemma result is settings-suspect. Do not reject model quality until Starship can distinguish bad model, bad extraction, bad settings, and unsupported thinking/output path."
-    required_next_step: "Retest only after profile compliance is inspected and schema-test inference settings are applied by Starship."
+      affected_profiles:
+        - first_officer_triage
+        - model_evaluation
+    manual_open_webui_observation:
+      prompt: Tell me about Beyond the Timescape by Er Gen.
+      approximate_latency_minutes: 9
+      output_shape: final fluent prose response was produced, not empty
+      quality: fluent but generic; visible uncertainty/confabulation in thinking trace; weak source grounding
+      grounding_gaps:
+        - Did not clearly anchor Xu Qing as protagonist.
+        - Did not clearly anchor the polluted post-god-descent world from known synopses.
+      follow_up_prompt: Xu Qing
+      follow_up_quality: unstable factual recall; required user cueing to reach the correct association
+      follow_up_confabulations:
+        - Claimed Xu Qing was not the protagonist of Beyond the Timescape.
+        - Confused Xu Qing with Lord of the Mysteries / Klein Moretti.
+        - Guessed other unrelated works before self-correcting.
+        - Eventually stated Xu Qing is the protagonist of Beyond the Timescape after the user-provided cue.
+    revised_classification:
+      first_officer: not suitable
+      archives_factual_recall: not suitable
+      schema_bound_starship_text_duty: not suitable
+      future_candidate: experimental only for possible visual/reasoning workflow or response-extraction investigation
+    interpretation: "Prior Gemma Starship empty-output result is settings/extraction/thinking-path suspect. Do not treat it as sole evidence of model failure, but manual Open WebUI follow-up confirmed unstable factual recall and current evidence makes Gemma unsuitable for Starship text-duty."
+    required_next_step: "Do not retest for First Officer or Archives text duty unless response extraction/thinking-mode handling changes; consider only a future visual/reasoning-specific workflow or extraction investigation."

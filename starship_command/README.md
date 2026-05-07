@@ -225,8 +225,15 @@ authorization.
 Gemma 4 26B A4B status: the prior `google/gemma-4-26b-a4b` readiness result is
 settings-suspect, not a quality rejection. Human-observed settings were GPU
 Offload `0`, Enable Thinking on, Temperature `0.8`, and Context Length `8192`;
-the response had empty/no extractable content. Retest Gemma only after Starship
-has inspected profile compliance and sent schema-test inference settings.
+the Starship API path returned empty/no extractable content for schema-bound
+text tests. A later manual Open WebUI prompt did produce final prose, but took
+about nine minutes and was fluent but generic, with visible uncertainty and weak
+source grounding. A follow-up `Xu Qing` cue confirmed unstable factual recall:
+Gemma confused the association with unrelated works before eventually
+self-correcting from the user cue. Treat Gemma as unsuitable for First Officer,
+Archives factual recall, or schema-bound Starship text duty. Keep it
+experimental only for a future visual/reasoning workflow or response-extraction
+investigation.
 
 Current Coder-14B status: the LM Studio bridge call succeeded manually with
 `qwen2.5-coder-14b-instruct`, but latency was `20.199s`, the observed LM Studio

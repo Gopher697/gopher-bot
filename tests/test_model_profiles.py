@@ -9,6 +9,7 @@ from starship_command.model_profiles import (
     get_model_profile,
     inference_settings_from_payload,
     load_model_profiles,
+    model_observation,
     setting_control_summary,
 )
 
@@ -101,6 +102,16 @@ def test_gemma_prior_result_is_settings_suspect_not_quality_rejected() -> None:
     assert "settings_suspect_retest_required" in compliance["profile_notes"]
     assert compliance["observed_settings"]["gpu_offload"] == 0
     assert compliance["observed_settings"]["thinking_mode"] is True
+
+    observation = model_observation("google/gemma-4-26b-a4b", PROFILE_PATH)
+    assert observation["starship_api_result"]["output_quality"] == "empty/no extractable content"
+    assert observation["manual_open_webui_observation"]["approximate_latency_minutes"] == 9
+    assert observation["manual_open_webui_observation"]["follow_up_prompt"] == "Xu Qing"
+    assert "Klein Moretti" in observation["manual_open_webui_observation"]["follow_up_confabulations"][1]
+    assert "unstable factual recall" in observation["manual_open_webui_observation"]["follow_up_quality"]
+    assert observation["revised_classification"]["first_officer"] == "not suitable"
+    assert observation["revised_classification"]["archives_factual_recall"] == "not suitable"
+    assert "response-extraction investigation" in observation["revised_classification"]["future_candidate"]
 
 
 def test_coder_profile_has_higher_context_override() -> None:

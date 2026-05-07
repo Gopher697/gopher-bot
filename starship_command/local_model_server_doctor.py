@@ -20,6 +20,14 @@ try:
         request_json,
         require_local_http_endpoint,
     )
+    from .model_profiles import (
+        apply_profile_compliance_to_result,
+        apply_profile_to_payload,
+        build_profile_compliance,
+        format_profile_compliance_lines,
+        get_model_profile,
+        inference_settings_from_payload,
+    )
     from .starship_core import REGISTRY_PATH, load_registry
 except ImportError:  # pragma: no cover - direct script execution path
     from crew_output_validator import allowed_divisions_from_registry, validate_crew_output
@@ -32,6 +40,14 @@ except ImportError:  # pragma: no cover - direct script execution path
         join_endpoint,
         request_json,
         require_local_http_endpoint,
+    )
+    from model_profiles import (
+        apply_profile_compliance_to_result,
+        apply_profile_to_payload,
+        build_profile_compliance,
+        format_profile_compliance_lines,
+        get_model_profile,
+        inference_settings_from_payload,
     )
     from starship_core import REGISTRY_PATH, load_registry
 
@@ -385,13 +401,14 @@ def run_readiness_test(
         "latency_seconds": latency_seconds,
         "response_preview": preview_text(response_text),
         "error": "",
+        "inference_settings_sent": inference_settings_from_payload(payload),
         **validation.as_dict(),
     }
 
 
 def build_readiness_payload(config: DoctorConfig, test: ReadinessTest) -> dict[str, Any]:
     system_prompt, user_prompt = render_readiness_messages(test)
-    return {
+    payload = {
         "model": test.model_id,
         "messages": [
             {"role": "system", "content": system_prompt},
@@ -401,6 +418,8 @@ def build_readiness_payload(config: DoctorConfig, test: ReadinessTest) -> dict[s
         "max_tokens": test.max_tokens or config.max_tokens,
         "stream": False,
     }
+    profile_id = test.prompt_profile or test.prompt_name
+    return apply_profile_to_payload(payload, get_model_profile(profile_id))
 
 
 def render_readiness_messages(test: ReadinessTest) -> tuple[str, str]:
@@ -487,6 +506,7 @@ def build_readiness_report(
                 "latency_seconds": None,
                 "response_preview": "",
                 "error": str(exc),
+                "inference_settings_sent": {},
                 "schema_valid": False,
                 "division_vocabulary_valid": "not_applicable",
                 "warnings": [],
@@ -507,6 +527,14 @@ def build_readiness_report(
             config.low_context_window_threshold,
         )
         result["warnings"] = list(dict.fromkeys([*result.get("warnings", []), *context_warnings]))
+        compliance = build_profile_compliance(
+            profile_id=test.prompt_profile or test.prompt_name,
+            model_id=test.model_id,
+            live_model=model_info.raw if model_info else None,
+            live_context=result["context_window"],
+            inference_settings_sent=result.get("inference_settings_sent", {}),
+        )
+        apply_profile_compliance_to_result(result, compliance)
         models_tested.append(result)
 
     visible_models = []
@@ -677,6 +705,8 @@ def format_readiness_report(report: dict[str, Any]) -> str:
                 lines.append(f"  missing_required_fields: {', '.join(result['missing_required_fields'])}")
             if result.get("invalid_divisions"):
                 lines.append(f"  invalid_divisions: {', '.join(result['invalid_divisions'])}")
+            if result.get("model_profile_compliance"):
+                lines.extend(format_profile_compliance_lines(result["model_profile_compliance"], indent="  "))
             for warning in result["warnings"]:
                 lines.append(f"  warning: {warning}")
     else:

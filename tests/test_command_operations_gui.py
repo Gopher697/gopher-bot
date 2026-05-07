@@ -111,3 +111,45 @@ def test_model_operations_reload_endpoint_requires_authorized_payload(monkeypatc
 
     assert calls == [(4096, False)]
     assert payload["result"]["output"] == "reload refused"
+
+
+def test_model_operations_profile_compliance_endpoint_returns_profile_summary(monkeypatch) -> None:
+    calls = []
+
+    def fake_profile(*, model_id: str, profile_id: str) -> str:
+        calls.append((model_id, profile_id))
+        return (
+            "Starship Model Operations - Profile Compliance\n"
+            "Model Profile:\n"
+            "- Context compliance: pass\n"
+            "- Manual/unknown settings: gpu_offload, thinking_mode"
+        )
+
+    monkeypatch.setattr(command_operations_gui, "build_profile_compliance_output", fake_profile)
+
+    server = command_operations_gui.CommandOperationsServer(("127.0.0.1", 0))
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = server.server_address[1]
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/model-operations/profile-compliance",
+            data=json.dumps(
+                {
+                    "model_id": "qwen/qwen3.5-9b",
+                    "profile_id": "first_officer_triage",
+                }
+            ).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    assert calls == [("qwen/qwen3.5-9b", "first_officer_triage")]
+    assert "Profile Compliance" in payload["result"]["output"]
+    assert "Manual/unknown settings" in payload["state"]["output"]

@@ -112,6 +112,10 @@ def test_engineering_test_uses_fixed_prompt_and_measures_latency() -> None:
     assert "Propose one Starship Command routing unit test." in chat_payload["messages"][1]["content"]
     assert "Do not edit files" in chat_payload["messages"][0]["content"]
     assert "do not invent them" in chat_payload["messages"][0]["content"]
+    assert chat_payload["temperature"] == 0.1
+    assert chat_payload["top_p"] == 0.8
+    assert chat_payload["top_k"] == 40
+    assert chat_payload["max_tokens"] == 700
     assert "tools" not in chat_payload
 
 
@@ -126,6 +130,9 @@ def test_engineering_payload_can_be_rendered_without_network_call() -> None:
     assert "Do not invent imports or modules unless provided" in payload["messages"][0]["content"]
     assert "Do not edit files" in payload["messages"][0]["content"]
     assert "Task: Suggest one unit test." in payload["messages"][1]["content"]
+    assert payload["top_p"] == 0.8
+    assert payload["top_k"] == 40
+    assert payload["max_tokens"] == 700
     assert dry_run["network_call_made"] is False
     assert dry_run["prompt_profile"] == "engineering_test_design"
     assert dry_run["url"] == "http://localhost:1234/v1/chat/completions"

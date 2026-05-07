@@ -14,9 +14,11 @@ from urllib.parse import urlparse
 
 try:
     from .crew_prompt_pack import render_prompt_profile
+    from .model_profiles import apply_profile_to_payload, get_model_profile
     from .starship_core import REGISTRY_PATH, load_registry
 except ImportError:  # pragma: no cover - direct script execution path
     from crew_prompt_pack import render_prompt_profile
+    from model_profiles import apply_profile_to_payload, get_model_profile
     from starship_core import REGISTRY_PATH, load_registry
 
 
@@ -208,7 +210,7 @@ def build_engineering_test_payload(config: LocalModelConfig) -> dict[str, Any]:
         ENGINEERING_TEST_PROFILE,
         {"task": config.engineering_test_prompt},
     )
-    return {
+    payload = {
         "model": config.model,
         "messages": [
             {"role": "system", "content": prompt.system_prompt},
@@ -218,6 +220,7 @@ def build_engineering_test_payload(config: LocalModelConfig) -> dict[str, Any]:
         "max_tokens": config.max_tokens,
         "stream": False,
     }
+    return apply_profile_to_payload(payload, get_model_profile(ENGINEERING_TEST_PROFILE))
 
 
 def build_engineering_dry_run(config: LocalModelConfig) -> dict[str, Any]:

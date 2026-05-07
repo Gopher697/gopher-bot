@@ -1058,6 +1058,26 @@ model_operations:
   primary_interface: Command Operations GUI
   local_only: true
   runtime_change_requires_captain_authorization: true
+  operating_profiles:
+    profile_file: starship_command/model_profiles.yaml
+    summary: Model Operations manages model operating profiles, not only model loading.
+    load_time_settings:
+      - context_length
+      - gpu_offload_policy
+    inference_payload_settings:
+      - temperature
+      - top_p
+      - top_k
+      - max_tokens
+      - stop_strings
+      - structured_output_when_enabled
+    manual_or_unknown_settings:
+      - gpu_offload when LM Studio does not expose a safe control path
+      - thinking_or_reasoning_mode when not exposed through local control
+      - cpu_threads
+      - batch_size
+      - context_overflow_behavior
+    readiness_boundary: A readiness result is suspect unless profile compliance is passing or explicitly marked unknown for unverifiable settings.
   control_mechanisms:
     - id: lm_studio_lms_cli
       display_name: LM Studio lms CLI
@@ -1087,6 +1107,18 @@ model_operations:
     required_next_test: Retest at 4096 first, then 8192 if practical, before assigning Engineering deep-consult status.
     fallback: If higher context is too slow, classify Coder-14B as deep consult only or test qwen2.5-3b-instruct as faster temporary Engineering triage.
     routine_use_boundary: Do not use Coder-14B for routine First Officer chatter until latency and usefulness are verified.
+  gemma_4_26b_a4b_retest:
+    model_id: google/gemma-4-26b-a4b
+    status: settings_suspect_retest_required
+    prior_latency_seconds: 49
+    prior_result: empty/no extractable content
+    observed_settings:
+      context_length: 8192
+      gpu_offload: 0
+      thinking_mode: true
+      temperature: 0.8
+    interpretation: Do not reject model quality until Starship distinguishes bad model, bad extraction, bad settings, and unsupported thinking/output path.
+    required_next_test: Inspect profile compliance and rerun with Starship-controlled schema-test inference settings before classification.
 
 local_model_server_doctor:
   allow_non_local_endpoint: false

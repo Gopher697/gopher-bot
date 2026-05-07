@@ -16,6 +16,8 @@ from starship_command.model_operations import (
     authorized_coder_context_reload_output,
     build_coder_retest_recommendation,
     build_model_operations_status_report,
+    build_profile_compliance_output,
+    build_profile_load_estimate_output,
     format_model_operations_status,
     prepare_coder_retest_output,
 )
@@ -141,9 +143,10 @@ def test_model_operations_context_merge_preserves_validation_warning_codes() -> 
     report = {
         "models_visible": [],
         "models_tested": [
-            {
-                "model_id": CODER_14B_MODEL_ID,
-                "context_window": None,
+                {
+                    "model_id": CODER_14B_MODEL_ID,
+                    "prompt_profile": "engineering_test_design",
+                    "context_window": None,
                 "human_observed_context_window": None,
                 "warnings": [CONTEXT_UNKNOWN_WARNING, "invented_structure_possible"],
                 "schema_valid": True,
@@ -169,6 +172,8 @@ def test_model_operations_context_merge_preserves_validation_warning_codes() -> 
     assert result["context_window"] == 16384
     assert "invented_structure_possible" in result["warnings"]
     assert CONTEXT_UNKNOWN_WARNING not in result["warnings"]
+    assert result["model_profile_compliance"]["live_context"] == 16384
+    assert result["model_profile_compliance"]["context_compliance"] == "pass"
     assert result["schema_valid"] is True
     assert result["trust_gate"] == "fail"
 
@@ -197,6 +202,41 @@ def test_model_operations_context_merge_keeps_unknown_warning_when_live_context_
     result = report["models_tested"][0]
     assert result["context_window"] is None
     assert CONTEXT_UNKNOWN_WARNING in result["warnings"]
+
+
+def test_model_operations_context_merge_prefers_live_lms_context_for_profile_compliance() -> None:
+    report = {
+        "models_visible": [],
+        "models_tested": [
+            {
+                "model_id": "qwen/qwen3.5-9b",
+                "prompt_profile": "first_officer_triage",
+                "context_window": 2048,
+                "human_observed_context_window": None,
+                "warnings": ["low programmatic context window (2048); likely quality limitation for code/project reasoning"],
+                "schema_valid": True,
+                "division_vocabulary_valid": "yes",
+                "missing_required_fields": [],
+                "invalid_divisions": [],
+                "trust_gate": "human_review_required",
+                "human_review_required": True,
+            }
+        ],
+    }
+    loaded_models = [
+        {
+            "identifier": "qwen/qwen3.5-9b",
+            "modelKey": "qwen/qwen3.5-9b",
+            "contextLength": 8192,
+        }
+    ]
+
+    model_operations.merge_lms_context_into_readiness_report(report, doctor_config(), loaded_models)
+
+    result = report["models_tested"][0]
+    assert result["context_window"] == 8192
+    assert result["model_profile_compliance"]["context_compliance"] == "pass"
+    assert not any("low programmatic context window" in warning for warning in result["warnings"])
 
 
 def test_model_operations_readiness_output_shows_live_context_without_stale_unknown_warning(monkeypatch) -> None:
@@ -288,6 +328,57 @@ def test_model_operations_status_warns_when_many_large_models_loaded() -> None:
     assert "Known loaded model size total: 48.00 GiB" in output
     assert "multiple large local models are currently loaded" in output
     assert "will not eject or unload models without Captain authorization" in output
+
+
+def test_profile_compliance_output_reports_controllability_and_warnings() -> None:
+    def fake_runner(command: list[str], timeout: float) -> LocalCommandResult:
+        if command[-1] == "--json":
+            return LocalCommandResult(
+                command,
+                0,
+                (
+                    '[{"identifier":"google/gemma-4-26b-a4b",'
+                    '"modelKey":"google/gemma-4-26b-a4b",'
+                    '"contextLength":8192,"gpuOffload":0,"enableThinking":true}]'
+                ),
+                "",
+            )
+        if command[1:3] == ["server", "status"]:
+            return LocalCommandResult(command, 0, "The server is running on port 1234.", "")
+        return LocalCommandResult(command, 0, "Server: ON (port: 1234)", "")
+
+    output = build_profile_compliance_output(
+        model_id="google/gemma-4-26b-a4b",
+        profile_id="first_officer_triage",
+        lms_path="lms",
+        runner=fake_runner,
+    )
+
+    assert "Profile Compliance" in output
+    assert "Live context: 8192" in output
+    assert "Profile warnings: gpu_offload_zero, thinking_mode_enabled_for_schema_test" in output
+    assert "temperature: inference_payload_controlled" in output
+
+
+def test_profile_load_estimate_uses_profile_context_without_runtime_change() -> None:
+    calls = []
+
+    def fake_runner(command: list[str], timeout: float) -> LocalCommandResult:
+        calls.append(command)
+        return LocalCommandResult(command, 0, "Estimated memory looks acceptable.", "")
+
+    output = build_profile_load_estimate_output(
+        model_id="google/gemma-4-26b-a4b",
+        profile_id="first_officer_triage",
+        lms_path="lms",
+        runner=fake_runner,
+    )
+
+    assert "Runtime state changed: no" in output
+    assert "Target context_window: 8192" in output
+    assert "--estimate-only" in calls[0]
+    assert "--context-length" in calls[0]
+    assert "8192" in calls[0]
 
 
 def test_coder_retest_recommendation_records_known_weak_first_result() -> None:

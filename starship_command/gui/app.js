@@ -11,6 +11,8 @@ const detailsPanel = document.querySelector("#detailsPanel");
 const selectionType = document.querySelector("#selectionType");
 const handoffPanel = document.querySelector("#handoffPanel");
 const modelOperationButtons = Array.from(document.querySelectorAll("[data-model-op], [data-reload-context]"));
+const modelIdSelect = document.querySelector("#modelIdSelect");
+const modelProfileSelect = document.querySelector("#modelProfileSelect");
 
 async function api(path, body = null) {
   const options = body
@@ -261,6 +263,13 @@ function confirmCoderReload(targetContext) {
   );
 }
 
+function selectedModelProfilePayload() {
+  return {
+    model_id: modelIdSelect.value,
+    profile_id: modelProfileSelect.value,
+  };
+}
+
 modelOperationButtons.forEach((button) => {
   button.addEventListener("click", async () => {
     const reloadContext = button.dataset.reloadContext;
@@ -302,6 +311,38 @@ modelOperationButtons.forEach((button) => {
         "/api/model-operations/prepare-coder-retest",
         { target_context: 4096 },
         "Preparing Coder-14B higher-context retest. No runtime state will be changed."
+      );
+    }
+    if (operation === "profile-compliance") {
+      await runModelOperation(
+        button,
+        "/api/model-operations/profile-compliance",
+        selectedModelProfilePayload(),
+        "Inspecting selected model profile compliance. No runtime state will be changed."
+      );
+    }
+    if (operation === "estimate-profile") {
+      await runModelOperation(
+        button,
+        "/api/model-operations/estimate-profile-load",
+        selectedModelProfilePayload(),
+        "Running profile load estimate. No runtime state will be changed."
+      );
+    }
+    if (operation === "prepare-profile-reload") {
+      await runModelOperation(
+        button,
+        "/api/model-operations/prepare-profile-reload",
+        selectedModelProfilePayload(),
+        "Preparing authorized profile reload. No runtime state will be changed."
+      );
+    }
+    if (operation === "profile-readiness") {
+      await runModelOperation(
+        button,
+        "/api/model-operations/profile-readiness",
+        selectedModelProfilePayload(),
+        "Running selected profile readiness check... slower local models may take 20+ seconds."
       );
     }
     if (operation === "rerun-readiness") {

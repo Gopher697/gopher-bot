@@ -30,7 +30,8 @@ body {
 
 button,
 textarea,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -108,6 +109,21 @@ p {
   margin-top: 10px;
 }
 
+.profile-controls {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.profile-controls label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .model-actions {
   display: grid;
   gap: 8px;
@@ -135,12 +151,17 @@ p {
 }
 
 textarea,
-input {
+input,
+select {
   width: 100%;
   border: 1px solid #31596b;
   background: #07131a;
   color: var(--text);
   padding: 10px;
+}
+
+textarea,
+input {
   resize: vertical;
 }
 

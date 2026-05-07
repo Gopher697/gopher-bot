@@ -224,6 +224,8 @@ def test_readiness_report_runs_available_tests_and_skips_missing_models() -> Non
     assert "latency: 20.199s" in output
     assert "Schema: pass" in output
     assert "Division names: yes" in output
+    assert "Model Profile:" in output
+    assert "Inference settings sent by Starship: max_tokens=500, temperature=0.1, top_k=40, top_p=0.8" in output
     assert "Trust gate: human_review_required" in output
     assert "qwen2.5-3b-instruct" not in [call[2]["model"] for call in calls if call[0] == "POST"]
     assert all("tools" not in call[2] for call in calls if call[0] == "POST")
@@ -315,6 +317,10 @@ def test_readiness_payloads_can_be_rendered_without_network_call() -> None:
     assert payload["messages"][0]["role"] == "system"
     assert "First Officer triage assistant" in payload["messages"][0]["content"]
     assert "Do not edit files" in payload["messages"][0]["content"]
+    assert payload["temperature"] == 0.1
+    assert payload["top_p"] == 0.8
+    assert payload["top_k"] == 40
+    assert payload["max_tokens"] == 500
     assert payload["messages"][1] == {"role": "user", "content": "Triage a vague workflow mission."}
     assert dry_run["network_call_made"] is False
     assert dry_run["url"] == "http://localhost:1234/v1/chat/completions"

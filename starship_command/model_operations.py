@@ -12,6 +12,7 @@ try:
         DoctorConfig,
         LIKELY_UNREACHABLE_CAUSES,
         ObservedModel,
+        ReadinessTest,
         build_readiness_report,
         check_endpoint,
         format_context,
@@ -20,12 +21,21 @@ try:
         load_doctor_config,
         model_warnings,
     )
+    from .model_profiles import (
+        apply_profile_compliance_to_result,
+        build_profile_compliance,
+        context_target_for_model,
+        format_profile_compliance_lines,
+        get_model_profile,
+        setting_control_summary,
+    )
 except ImportError:  # pragma: no cover - direct script execution path
     from local_model_adapter import JSONRequester, LocalModelBridgeError, request_json
     from local_model_server_doctor import (
         DoctorConfig,
         LIKELY_UNREACHABLE_CAUSES,
         ObservedModel,
+        ReadinessTest,
         build_readiness_report,
         check_endpoint,
         format_context,
@@ -33,6 +43,14 @@ except ImportError:  # pragma: no cover - direct script execution path
         format_readiness_report,
         load_doctor_config,
         model_warnings,
+    )
+    from model_profiles import (
+        apply_profile_compliance_to_result,
+        build_profile_compliance,
+        context_target_for_model,
+        format_profile_compliance_lines,
+        get_model_profile,
+        setting_control_summary,
     )
 
 
@@ -221,6 +239,14 @@ def _loaded_model_ids(loaded_models: list[dict[str, Any]]) -> list[str]:
         if isinstance(identifier, str) and identifier and identifier not in ids:
             ids.append(identifier)
     return ids
+
+
+def _loaded_model_by_alias(loaded_models: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    by_alias: dict[str, dict[str, Any]] = {}
+    for model in loaded_models:
+        for alias in loaded_model_aliases(model):
+            by_alias[alias] = model
+    return by_alias
 
 
 def _loaded_model_size_bytes(model: dict[str, Any]) -> int | None:
@@ -509,12 +535,195 @@ def build_model_operations_readiness_output(
         )
 
 
+def default_profile_prompt(profile_id: str) -> str:
+    if profile_id == "engineering_test_design":
+        return (
+            "Suggest one Python unit test for Starship Command that verifies Engineering Division "
+            "remains primary while Modding Division supports for a CoE5 nostdrec recruit-screen debugging mission."
+        )
+    if profile_id == "model_evaluation":
+        return (
+            "Model observations: qwen/qwen3.5-9b follows First Officer schema at moderate latency; "
+            "qwen2.5-coder-14b-instruct is slower and needs Engineering grounding checks."
+        )
+    return "debug the nostdrec recruit screen issue in the CoE5 mod"
+
+
+def build_profile_readiness_output(
+    *,
+    model_id: str,
+    profile_id: str,
+    requester: JSONRequester = request_json,
+    lms_path: str | None = None,
+    runner: CommandRunner = run_local_command,
+) -> str:
+    try:
+        config = load_doctor_config()
+        custom_config = DoctorConfig(
+            endpoint=config.endpoint,
+            timeout_seconds=config.timeout_seconds,
+            list_models_path=config.list_models_path,
+            chat_completions_path=config.chat_completions_path,
+            allow_non_local_endpoint=config.allow_non_local_endpoint,
+            low_context_window_threshold=config.low_context_window_threshold,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens,
+            registry_models=config.registry_models,
+            observed_models=config.observed_models,
+            readiness_tests=[
+                ReadinessTest(
+                    model_id=model_id,
+                    prompt_name=profile_id,
+                    prompt=default_profile_prompt(profile_id),
+                    system_prompt="",
+                    role_classification=_registry_role_by_model(config).get(model_id, "unclassified local model"),
+                    max_tokens=config.max_tokens,
+                    prompt_profile=profile_id,
+                )
+            ],
+            allowed_divisions=config.allowed_divisions,
+        )
+        report = build_readiness_report(custom_config, requester=requester)
+        control = inspect_lms_control(lms_path=lms_path, runner=runner)
+        merge_lms_context_into_readiness_report(report, custom_config, control["loaded_models"])
+        output = format_readiness_report(report).replace(
+            "Starship Local Model Server Doctor - Readiness Report",
+            "Starship Model Operations - Profile Readiness Report",
+            1,
+        )
+        resource_report = build_loaded_resource_report(control["loaded_models"])
+        return "\n".join([output, *format_loaded_resource_report(resource_report)])
+    except LocalModelBridgeError as exc:
+        return "\n".join(
+            [
+                "Starship Model Operations - Profile Readiness Report",
+                "Endpoint reachable: no",
+                f"Error: {exc}",
+                "Likely causes:",
+                *[f"- {cause}" for cause in LIKELY_UNREACHABLE_CAUSES],
+            ]
+        )
+
+
+def build_profile_compliance_output(
+    *,
+    model_id: str,
+    profile_id: str,
+    lms_path: str | None = None,
+    runner: CommandRunner = run_local_command,
+) -> str:
+    lines = [
+        "Starship Model Operations - Profile Compliance",
+        f"Model: {model_id}",
+        f"Profile: {profile_id}",
+        "Runtime state changed: no",
+        "Human review required: yes",
+    ]
+    control = inspect_lms_control(lms_path=lms_path, runner=runner)
+    if control["errors"]:
+        lines.append("Control warnings:")
+        lines.extend(f"- {error}" for error in control["errors"])
+    loaded_contexts = _loaded_context_by_alias(control["loaded_models"])
+    loaded_by_alias = _loaded_model_by_alias(control["loaded_models"])
+    compliance = build_profile_compliance(
+        profile_id=profile_id,
+        model_id=model_id,
+        live_model=loaded_by_alias.get(model_id),
+        live_context=loaded_contexts.get(model_id),
+    )
+    lines.extend(format_profile_compliance_lines(compliance, indent=""))
+    lines.append("Setting controllability:")
+    for setting, classification in sorted(setting_control_summary().items()):
+        lines.append(f"- {setting}: {classification}")
+    return "\n".join(lines)
+
+
+def build_profile_load_estimate_output(
+    *,
+    model_id: str,
+    profile_id: str,
+    lms_path: str | None = None,
+    runner: CommandRunner = run_local_command,
+) -> str:
+    lines = [
+        "Starship Model Operations - Profile Load Estimate",
+        f"Model: {model_id}",
+        f"Profile: {profile_id}",
+        "Runtime state changed: no",
+        "Captain authorization required before any load/reload action.",
+    ]
+    profile = get_model_profile(profile_id)
+    if profile is None:
+        lines.append("Refused: profile not found.")
+        return "\n".join(lines)
+    target_context = context_target_for_model(profile, model_id)
+    if target_context is None:
+        lines.append("Refused: profile does not define a context target.")
+        return "\n".join(lines)
+    lines.append(f"Target context_window: {target_context}")
+    try:
+        estimate = _run_lms(
+            [
+                "load",
+                model_id,
+                "--context-length",
+                str(target_context),
+                "--identifier",
+                model_id,
+                "--estimate-only",
+                "--yes",
+            ],
+            lms_path=lms_path,
+            runner=runner,
+            timeout_seconds=60,
+        )
+    except LocalModelBridgeError as exc:
+        lines.append(f"Estimate failed: {exc}")
+        return "\n".join(lines)
+    lines.append("LM Studio estimate command completed.")
+    lines.append(f"Command: {_command_text(estimate)}")
+    lines.append(f"Exit code: {estimate.returncode}")
+    if estimate.stdout:
+        lines.append("Estimate output:")
+        lines.append(estimate.stdout)
+    if estimate.stderr:
+        lines.append("Estimate warnings:")
+        lines.append(estimate.stderr)
+    if estimate.returncode != 0:
+        lines.append("Load/reload should not proceed until the estimate succeeds.")
+    else:
+        lines.append("Next action: Captain may authorize reload/load with this profile.")
+    return "\n".join(lines)
+
+
+def prepare_profile_reload_output(
+    *,
+    model_id: str,
+    profile_id: str,
+    lms_path: str | None = None,
+    runner: CommandRunner = run_local_command,
+) -> str:
+    lines = [
+        "Starship Model Operations - Profile Reload Preparation",
+        f"Model: {model_id}",
+        f"Profile: {profile_id}",
+        "Runtime state changed: no",
+        "Captain authorization required before changing LM Studio runtime state.",
+        "Risk note: profile reload can change context, memory pressure, and response latency.",
+    ]
+    lines.append(build_profile_compliance_output(model_id=model_id, profile_id=profile_id, lms_path=lms_path, runner=runner))
+    lines.append("")
+    lines.append(build_profile_load_estimate_output(model_id=model_id, profile_id=profile_id, lms_path=lms_path, runner=runner))
+    return "\n".join(lines)
+
+
 def merge_lms_context_into_readiness_report(
     report: dict[str, Any],
     config: DoctorConfig,
     loaded_models: list[dict[str, Any]],
 ) -> None:
     loaded_contexts = _loaded_context_by_alias(loaded_models)
+    loaded_by_alias = _loaded_model_by_alias(loaded_models)
     observed_by_model = _observed_by_model(config)
     for model in report.get("models_visible", []):
         if not isinstance(model, dict):
@@ -522,7 +731,7 @@ def merge_lms_context_into_readiness_report(
         model_id = model.get("model_id")
         if not isinstance(model_id, str):
             continue
-        if model.get("context_window") is None and model_id in loaded_contexts:
+        if model_id in loaded_contexts:
             model["context_window"] = loaded_contexts[model_id]
         if model.get("context_window") is not None:
             observed = observed_by_model.get(model_id)
@@ -538,7 +747,7 @@ def merge_lms_context_into_readiness_report(
         model_id = result.get("model_id")
         if not isinstance(model_id, str):
             continue
-        if result.get("context_window") is None and model_id in loaded_contexts:
+        if model_id in loaded_contexts:
             result["context_window"] = loaded_contexts[model_id]
         if result.get("context_window") is not None:
             observed = observed_by_model.get(model_id)
@@ -548,6 +757,16 @@ def merge_lms_context_into_readiness_report(
                 observed.human_observed_context_window if observed else result.get("human_observed_context_window"),
                 config.low_context_window_threshold,
             )
+        profile_id = result.get("prompt_profile") or result.get("prompt_name")
+        if isinstance(profile_id, str):
+            compliance = build_profile_compliance(
+                profile_id=profile_id,
+                model_id=model_id,
+                live_model=loaded_by_alias.get(model_id),
+                live_context=result.get("context_window"),
+                inference_settings_sent=result.get("inference_settings_sent", {}),
+            )
+            apply_profile_compliance_to_result(result, compliance)
 
 
 def merge_context_warnings(
@@ -556,7 +775,11 @@ def merge_context_warnings(
     human_observed_context_window: int | None,
     threshold: int,
 ) -> list[str]:
-    warnings = [warning for warning in merge_warning_lists(existing_warnings) if warning != CONTEXT_UNKNOWN_WARNING]
+    warnings = [
+        warning
+        for warning in merge_warning_lists(existing_warnings)
+        if warning != CONTEXT_UNKNOWN_WARNING and not warning.startswith("low programmatic context window")
+    ]
     return merge_warning_lists(warnings, model_warnings(context_window, human_observed_context_window, threshold))
 
 

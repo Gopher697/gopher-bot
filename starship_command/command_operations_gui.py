@@ -14,6 +14,10 @@ try:
         authorized_coder_context_reload_output,
         build_model_operations_readiness_output,
         build_model_operations_status_output,
+        build_profile_compliance_output,
+        build_profile_load_estimate_output,
+        build_profile_readiness_output,
+        prepare_profile_reload_output,
         prepare_coder_retest_output,
     )
     from .starship_core import (
@@ -30,6 +34,10 @@ except ImportError:  # pragma: no cover - direct script execution path
         authorized_coder_context_reload_output,
         build_model_operations_readiness_output,
         build_model_operations_status_output,
+        build_profile_compliance_output,
+        build_profile_load_estimate_output,
+        build_profile_readiness_output,
+        prepare_profile_reload_output,
         prepare_coder_retest_output,
     )
     from starship_core import (
@@ -96,6 +104,34 @@ class CommandOperationsHandler(BaseHTTPRequestHandler):
                 result = {"output": output}
             elif parsed.path == "/api/model-operations/readiness":
                 output = build_model_operations_readiness_output()
+                self.server.state["output"] = output
+                result = {"output": output}
+            elif parsed.path == "/api/model-operations/profile-compliance":
+                output = build_profile_compliance_output(
+                    model_id=str(payload.get("model_id", "")),
+                    profile_id=str(payload.get("profile_id", "")),
+                )
+                self.server.state["output"] = output
+                result = {"output": output}
+            elif parsed.path == "/api/model-operations/estimate-profile-load":
+                output = build_profile_load_estimate_output(
+                    model_id=str(payload.get("model_id", "")),
+                    profile_id=str(payload.get("profile_id", "")),
+                )
+                self.server.state["output"] = output
+                result = {"output": output}
+            elif parsed.path == "/api/model-operations/prepare-profile-reload":
+                output = prepare_profile_reload_output(
+                    model_id=str(payload.get("model_id", "")),
+                    profile_id=str(payload.get("profile_id", "")),
+                )
+                self.server.state["output"] = output
+                result = {"output": output}
+            elif parsed.path == "/api/model-operations/profile-readiness":
+                output = build_profile_readiness_output(
+                    model_id=str(payload.get("model_id", "")),
+                    profile_id=str(payload.get("profile_id", "")),
+                )
                 self.server.state["output"] = output
                 result = {"output": output}
             elif parsed.path == "/api/model-operations/prepare-coder-retest":

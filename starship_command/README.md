@@ -152,15 +152,18 @@ be ready for First Officer, Engineering, Archives, or model-evaluation duty.
 
 ## Model Operations
 
-Model Operations is the unified GUI workflow for local model status, readiness,
-and authorized reload/retest work. The user should not need to use terminal
-commands for normal model checks.
+Model Operations is the unified GUI workflow for local model status, operating
+profiles, readiness, and authorized reload/retest work. The user should not need
+to use terminal commands or manually tune LM Studio sliders for normal model
+checks.
 
 The panel can check local model status, list models visible through the
 configured endpoint, show live context windows when available, fall back to
-registry-observed context values, run readiness tests, prepare the Coder-14B
-higher-context retest, and request an authorized Coder-14B reload at `4096` or
-`8192` context when a safe local LM Studio control path is available.
+registry-observed context values, inspect selected model/profile compliance,
+estimate a profile load, prepare an authorized reload with a profile, run
+profile readiness tests, prepare the Coder-14B higher-context retest, and
+request an authorized Coder-14B reload at `4096` or `8192` context when a safe
+local LM Studio control path is available.
 
 Any runtime-changing model action requires Captain authorization in the GUI. A
 passive status or readiness check never loads, unloads, or reloads models. A
@@ -193,6 +196,19 @@ only call models exposed through the configured local endpoint. Starship may
 inspect and test local models; it may only change LM Studio runtime state after
 Captain authorization and only through a verified local control path.
 
+Model operating profiles live in `model_profiles.yaml`. They separate load-time
+settings such as context length from inference-time settings such as
+temperature, `top_p`, `top_k`, `max_tokens`, and stop strings. Starship applies
+inference-time settings in its own local chat/completions payload where
+possible. Runtime-changing settings such as loading/reloading a model at a
+different context remain Captain-authorized actions. Settings that Starship
+cannot verify, such as GPU offload or thinking/reasoning mode when LM Studio
+does not expose them, are reported as manual/unknown.
+
+A model readiness result is not meaningful unless the Model Profile Compliance
+block is passing or explicitly marked unknown for unverifiable settings. A
+callable model is not a trusted crew member. Human review remains required.
+
 Context window size matters. A low context setting such as `2048` can reduce
 quality for code and project reasoning, especially when a prompt depends on
 repo-specific terms. The Server Doctor reports `context_window` when the local
@@ -205,6 +221,12 @@ Model Operations also reports loaded resource state. If many large local models
 are loaded, Starship warns that future readiness comparisons may be slower or
 resource-sensitive. It will not eject or unload models without Captain
 authorization.
+
+Gemma 4 26B A4B status: the prior `google/gemma-4-26b-a4b` readiness result is
+settings-suspect, not a quality rejection. Human-observed settings were GPU
+Offload `0`, Enable Thinking on, Temperature `0.8`, and Context Length `8192`;
+the response had empty/no extractable content. Retest Gemma only after Starship
+has inspected profile compliance and sent schema-test inference settings.
 
 Current Coder-14B status: the LM Studio bridge call succeeded manually with
 `qwen2.5-coder-14b-instruct`, but latency was `20.199s`, the observed LM Studio

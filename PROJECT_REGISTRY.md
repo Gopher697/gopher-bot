@@ -146,6 +146,17 @@
 - Project-specific warnings: Never modify files inside the game installation directory other than those inside `agent-workspace\`; avoid unrequested story spoilers.
 - Open authority questions: None identified beyond normal session-note promotion rules.
 
+### distant-worlds-universe-agent-workspace
+
+- Root: `D:\SteamLibrary\steamapps\common\Distant Worlds Universe\agent-workspace`
+- Configured summary/entry file: `CURRENT_SESSION.md`
+- Actual first file to read: `SAFETY_RULES.md`, then `CURRENT_SESSION.md`, `GOALS.md`, and `WORLD_STATE.md`.
+- Current authority status: Registered game-specific agent memory workspace for Distant Worlds: Universe.
+- Related external notes/spaces: Core game-agent doctrine in `D:\GameAgentCore`
+- Historical/reference/staging areas: `notes\sessions\`
+- Project-specific warnings: Never modify files inside the game installation directory other than those inside `agent-workspace\`; avoid unrequested story spoilers.
+- Open authority questions: None identified beyond normal session-note promotion rules.
+
 ## Cross-Project Warnings
 
 - Project-specific assumptions should not leak into unrelated projects just because they appear in a shared vault, archive, or session note.

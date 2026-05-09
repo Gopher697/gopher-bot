@@ -4,6 +4,7 @@ import json
 
 from starship_command.__main__ import main as starship_main
 from starship_command.run_mission import run_mission
+from tests.helpers import make_workspace
 
 
 def survey(target: str) -> dict:
@@ -105,3 +106,50 @@ def test_package_cli_run_mission_prints_json(capsys) -> None:
     assert payload["mission_type"] == "survey_dossier"
     assert payload["target"] == "gopher-workbench-mcp"
     assert payload["validation"] == {"passed": True, "issues": []}
+
+
+def test_package_cli_run_mission_writes_utf8_json_output(capsys) -> None:
+    output = make_workspace("cli-output") / "nested" / "mission.json"
+
+    exit_code = starship_main(
+        [
+            "run-mission",
+            "--target",
+            "game-agent-core",
+            "--type",
+            "survey_dossier",
+            "--output",
+            str(output),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    raw = output.read_bytes()
+    payload = json.loads(raw.decode("utf-8"))
+    assert exit_code == 0
+    assert captured.out == ""
+    assert raw[:2] != b"\xff\xfe"
+    assert payload["status"] == "succeeded"
+    assert payload["target"] == "game-agent-core"
+    assert payload["validation"] == {"passed": True, "issues": []}
+
+
+def test_package_cli_output_preserves_nonzero_exit_for_failed_report() -> None:
+    output = make_workspace("cli-output-failed") / "failed" / "mission.json"
+
+    exit_code = starship_main(
+        [
+            "run-mission",
+            "--target",
+            "unknown-project",
+            "--type",
+            "survey_dossier",
+            "--output",
+            str(output),
+        ]
+    )
+
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert exit_code == 1
+    assert payload["status"] == "failed"
+    assert payload["validation"]["passed"] is False

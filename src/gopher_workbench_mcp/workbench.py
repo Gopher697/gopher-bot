@@ -293,7 +293,10 @@ class Workbench:
             path = safe_relative_path(root, file_text)
             if is_excluded_search_path(path, root, project.session_notes_dir):
                 continue
-            results.append({"file": str(path.relative_to(root)), "line": line_number, "text": text})
+            relative = path.relative_to(root)
+            if glob is not None and not matches_search_glob(relative, glob):
+                continue
+            results.append({"file": str(relative), "line": line_number, "text": text})
         return results
 
     def _search_project_text_python(self, project: Project, query: str, glob: str | None) -> list[dict[str, object]]:

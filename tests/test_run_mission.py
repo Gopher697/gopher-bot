@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+
+from starship_command.__main__ import main as starship_main
 from starship_command.run_mission import run_mission
 
 
@@ -82,3 +85,23 @@ def test_unknown_target_fails_cleanly() -> None:
     assert report["status"] == "failed"
     assert report["validation"]["passed"] is False
     assert any("unknown target_project" in issue for issue in report["validation"]["issues"])
+
+
+def test_package_cli_run_mission_prints_json(capsys) -> None:
+    exit_code = starship_main(
+        [
+            "run-mission",
+            "--target",
+            "gopher-workbench-mcp",
+            "--type",
+            "survey_dossier",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert exit_code == 0
+    assert payload["status"] == "succeeded"
+    assert payload["mission_type"] == "survey_dossier"
+    assert payload["target"] == "gopher-workbench-mcp"
+    assert payload["validation"] == {"passed": True, "issues": []}

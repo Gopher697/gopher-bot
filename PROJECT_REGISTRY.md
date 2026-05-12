@@ -113,6 +113,17 @@
 - Project-specific warnings: Keep game-specific observations, run logs, adapter details, save notes, and strategy content in the relevant game's own workspace.
 - Open authority questions: None identified beyond normal session-note promotion rules.
 
+### worldbox-agent-workspace
+
+- Root: `D:\SteamLibrary\steamapps\common\worldbox\agent-workspace`
+- Configured summary/entry file: `CURRENT_SESSION.md`
+- Actual first file to read: `SAFETY_RULES.md`, then `CURRENT_SESSION.md`, `GOALS.md`, and `WORLD_STATE.md`.
+- Current authority status: Registered game-specific agent memory workspace for WorldBox.
+- Related external notes/spaces: Core game-agent doctrine in `D:\GameAgentCore`
+- Historical/reference/staging areas: `notes\sessions\`
+- Project-specific warnings: Never modify files inside the game installation directory other than those inside `agent-workspace\`; avoid unrequested story spoilers.
+- Open authority questions: None identified beyond normal session-note promotion rules.
+
 ### mi-chang-sheng-agent-workspace
 
 - Root: `D:\SteamLibrary\steamapps\common\觅长生\agent-workspace`

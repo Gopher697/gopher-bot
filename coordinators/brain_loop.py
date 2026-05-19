@@ -13,6 +13,7 @@ from coordinators.mirror_chad import INCUBATION_MAXLEN
 
 BACKGROUND_INTERVALS = {
     "feeling": 30.0,
+    "neuromodulation": 30.0,
     "mirror_chad": 60.0,
     "mirror_self": 120.0,
     "pattern_monitor": 120.0,
@@ -23,6 +24,7 @@ BACKGROUND_INTERVALS = {
 DREAM_IDLE_SECONDS = 300.0
 BACKGROUND_COORDINATORS = (
     "feeling",
+    "neuromodulation",
     "mirror_chad",
     "mirror_self",
     "pattern_monitor",
@@ -163,9 +165,11 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
     from coordinators.feeling import Feeling
     from coordinators.mirror_chad import MirrorChad
     from coordinators.mirror_self import MirrorSelf
+    from coordinators.neuromodulation import Neuromodulation
 
     return {
         "feeling": Feeling(),
+        "neuromodulation": Neuromodulation(),
         "mirror_chad": MirrorChad(),
         "mirror_self": MirrorSelf(),
         "curiosity": Curiosity(),
@@ -177,6 +181,7 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
             if name
             not in {
                 "feeling",
+                "neuromodulation",
                 "mirror_chad",
                 "mirror_self",
                 "curiosity",

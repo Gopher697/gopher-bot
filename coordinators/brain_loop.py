@@ -17,6 +17,7 @@ BACKGROUND_INTERVALS = {
     "mirror_self": 120.0,
     "pattern_monitor": 120.0,
     "curiosity": 180.0,
+    "dream": 300.0,
     "drive": 86400.0,
 }
 DREAM_IDLE_SECONDS = 300.0
@@ -157,6 +158,7 @@ class BrainLoop:
 
 def _default_background_coordinators() -> dict[str, Coordinator]:
     from coordinators.curiosity import Curiosity
+    from coordinators.dream import Dream
     from coordinators.drive import Drive
     from coordinators.feeling import Feeling
     from coordinators.mirror_chad import MirrorChad
@@ -167,12 +169,20 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
         "mirror_chad": MirrorChad(),
         "mirror_self": MirrorSelf(),
         "curiosity": Curiosity(),
+        "dream": Dream(),
         "drive": Drive(),
         **{
             name: _NoopBackgroundCoordinator(name)
             for name in BACKGROUND_COORDINATORS
             if name
-            not in {"feeling", "mirror_chad", "mirror_self", "curiosity", "drive"}
+            not in {
+                "feeling",
+                "mirror_chad",
+                "mirror_self",
+                "curiosity",
+                "dream",
+                "drive",
+            }
         },
     }
 

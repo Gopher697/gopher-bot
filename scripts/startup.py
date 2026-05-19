@@ -135,10 +135,11 @@ def read_commitments(root: Path, state: StartupState) -> list:
 
 def query_world_model_summary() -> str:
     try:
-        from world_models import graph
+        from world_models import config, graph, vector_index
 
         driver = graph.connect()
         try:
+            vector_index.ensure_vector_index(driver, config.NEO4J_DATABASE)
             entities = graph.query_environment(driver, "global")
         finally:
             graph.close(driver)

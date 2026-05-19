@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 from collections.abc import Callable, Mapping
 from typing import Any
@@ -41,6 +42,7 @@ class BrainLoop:
         time_fn: Callable[[], float] = time.time,
         sleep_interval: float = 1.0,
         idle_threshold: float = DREAM_IDLE_SECONDS,
+        mirror_chad_queue: Any | None = None,
     ):
         self.coordinators = dict(coordinators or _default_background_coordinators())
         self.intervals = dict(BACKGROUND_INTERVALS)
@@ -54,12 +56,15 @@ class BrainLoop:
         self.last_errors: dict[str, str] = {}
         self.awareness: Any | None = None
         self.bid_queue: BidQueue | None = None
+        self.mirror_chad_queue = mirror_chad_queue
         self.running = False
         self._stop_requested = False
 
     def bind_awareness(self, awareness: Any) -> None:
         self.awareness = awareness
         self.bid_queue = awareness.bid_queue
+        if self.mirror_chad_queue is None:
+            self.mirror_chad_queue = getattr(awareness, "mirror_chad_queue", None)
         awareness_last_active = float(getattr(awareness, "last_active", 0.0) or 0.0)
         if awareness_last_active:
             self.last_active = awareness_last_active
@@ -131,15 +136,28 @@ class BrainLoop:
 
     async def _tick_coordinator(self, name: str, coordinator: Coordinator) -> None:
         try:
-            await coordinator.background_tick(self.bid_queue)
+            if name == "curiosity" and _accepts_mirror_queue(coordinator):
+                await coordinator.background_tick(self.bid_queue, self.mirror_chad_queue)
+            else:
+                await coordinator.background_tick(self.bid_queue)
             self.last_errors.pop(name, None)
         except Exception as exc:
             self.last_errors[name] = str(exc)
 
 
 def _default_background_coordinators() -> dict[str, Coordinator]:
+    from coordinators.curiosity import Curiosity
     from coordinators.feeling import Feeling
     return {
         "feeling": Feeling(),
-        **{name: _NoopBackgroundCoordinator(name) for name in BACKGROUND_COORDINATORS if name != "feeling"},
+        "curiosity": Curiosity(),
+        **{
+            name: _NoopBackgroundCoordinator(name)
+            for name in BACKGROUND_COORDINATORS
+            if name not in {"feeling", "curiosity"}
+        },
     }
+
+
+def _accepts_mirror_queue(coordinator: Coordinator) -> bool:
+    return len(inspect.signature(coordinator.background_tick).parameters) >= 2

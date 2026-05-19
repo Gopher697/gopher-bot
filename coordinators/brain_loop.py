@@ -8,10 +8,12 @@ from typing import Any
 
 from coordinators.base import Coordinator
 from coordinators.bid import BidQueue
+from coordinators.mirror_chad import INCUBATION_MAXLEN
 
 
 BACKGROUND_INTERVALS = {
     "feeling": 30.0,
+    "mirror_chad": 60.0,
     "pattern_monitor": 120.0,
     "curiosity": 180.0,
     "drive": 86400.0,
@@ -19,6 +21,7 @@ BACKGROUND_INTERVALS = {
 DREAM_IDLE_SECONDS = 300.0
 BACKGROUND_COORDINATORS = (
     "feeling",
+    "mirror_chad",
     "pattern_monitor",
     "curiosity",
     "drive",
@@ -56,15 +59,20 @@ class BrainLoop:
         self.last_errors: dict[str, str] = {}
         self.awareness: Any | None = None
         self.bid_queue: BidQueue | None = None
-        self.mirror_chad_queue = mirror_chad_queue
+        self._mirror_chad_queue_was_provided = mirror_chad_queue is not None
+        self.mirror_chad_queue = mirror_chad_queue or asyncio.Queue(
+            maxsize=INCUBATION_MAXLEN
+        )
         self.running = False
         self._stop_requested = False
 
     def bind_awareness(self, awareness: Any) -> None:
         self.awareness = awareness
         self.bid_queue = awareness.bid_queue
-        if self.mirror_chad_queue is None:
-            self.mirror_chad_queue = getattr(awareness, "mirror_chad_queue", None)
+        if not self._mirror_chad_queue_was_provided:
+            awareness_mirror_queue = getattr(awareness, "mirror_chad_queue", None)
+            if awareness_mirror_queue is not None:
+                self.mirror_chad_queue = awareness_mirror_queue
         awareness_last_active = float(getattr(awareness, "last_active", 0.0) or 0.0)
         if awareness_last_active:
             self.last_active = awareness_last_active
@@ -149,14 +157,17 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
     from coordinators.curiosity import Curiosity
     from coordinators.drive import Drive
     from coordinators.feeling import Feeling
+    from coordinators.mirror_chad import MirrorChad
+
     return {
         "feeling": Feeling(),
+        "mirror_chad": MirrorChad(),
         "curiosity": Curiosity(),
         "drive": Drive(),
         **{
             name: _NoopBackgroundCoordinator(name)
             for name in BACKGROUND_COORDINATORS
-            if name not in {"feeling", "curiosity", "drive"}
+            if name not in {"feeling", "mirror_chad", "curiosity", "drive"}
         },
     }
 

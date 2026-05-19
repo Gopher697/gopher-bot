@@ -15,7 +15,11 @@ awareness = Awareness()
 
 
 def respond(message: str) -> str:
-    packet = awareness.run(message)
+    packet = awareness.synchronous_run(message)
+    return response_from_packet(packet)
+
+
+def response_from_packet(packet: dict) -> str:
     return packet.get(
         "final_response",
         packet.get("reason_output", "No response generated"),

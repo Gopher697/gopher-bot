@@ -138,7 +138,8 @@ class BrainLoop:
 
 
 def _default_background_coordinators() -> dict[str, Coordinator]:
+    from coordinators.feeling import Feeling
     return {
-        name: _NoopBackgroundCoordinator(name)
-        for name in BACKGROUND_COORDINATORS
+        "feeling": Feeling(),
+        **{name: _NoopBackgroundCoordinator(name) for name in BACKGROUND_COORDINATORS if name != "feeling"},
     }

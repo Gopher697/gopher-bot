@@ -22,6 +22,7 @@ class Awareness:
         voice: Voice | Coordinator | None = None,
         bid_queue: BidQueue | None = None,
         time_fn: Callable[[], float] = time.time,
+        feeling: Coordinator | None = None,
     ):
         self.sensory = sensory or Sensory()
         self.memory = memory or Memory()
@@ -34,6 +35,7 @@ class Awareness:
         self.last_active = 0.0
         self._time_fn = time_fn
         self._activity_callbacks: list[Callable[[float], None]] = []
+        self.feeling = feeling  # may be None — Feeling is optional
 
     def synchronous_run(self, message: str, **packet_overrides) -> dict:
         self._mark_active()
@@ -54,7 +56,12 @@ class Awareness:
             self._drain_bids_into_packet(packet)
 
             packet = self.reason.process(packet)
-            return self.voice.process(packet)
+            packet = self.voice.process(packet)
+            if self.feeling is not None:
+                observable = _extract_feeling_text(packet)
+                if observable:
+                    self.feeling.observe(observable)
+            return packet
         finally:
             self.active_task_in_progress = False
             self._mark_active()
@@ -106,6 +113,15 @@ class Awareness:
             packet["memory_context"] = f"{memory_context}\n\n{bid_context}"
         else:
             packet["memory_context"] = bid_context
+
+
+def _extract_feeling_text(packet: dict) -> str:
+    parts = []
+    for key in ("message", "reason_output", "error"):
+        val = packet.get(key)
+        if val:
+            parts.append(str(val).strip())
+    return " ".join(parts)
 
 
 def _format_bid_context(bids: list[Bid]) -> str:

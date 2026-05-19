@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gopher-bot</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d0f12;
+      --panel: #161a20;
+      --ink: #e2e8f0;
+      --muted: #64748b;
+      --line: #2a303c;
+      --accent: #246bfe;
+      --accent-dark: #174fc5;
+      --danger: #ef4444;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      display: flex;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    main {
+      width: min(920px, 100%);
+      min-height: calc(100vh - 48px);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+      font-weight: 700;
+    }
+
+    #status {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    #history {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      overflow-y: auto;
+      min-height: 360px;
+      box-shadow: 0 12px 32px rgba(16, 24, 40, 0.08);
+    }
+
+    .message {
+      max-width: 78%;
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .message.user {
+      margin-left: auto;
+      background: var(--accent);
+      color: white;
+    }
+
+    .message.bot {
+      background: #1e2530;
+      border: 1px solid var(--line);
+    }
+
+    .message.system {
+      max-width: 100%;
+      background: #2a1a1a;
+      color: #fca5a5;
+      border: 1px solid #7f1d1d;
+      font-size: 14px;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    input {
+      min-width: 0;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 12px;
+      font: inherit;
+      outline: none;
+      background: #0d0f12;
+      color: var(--ink);
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      background: #0d0f12;
+    }
+
+    button {
+      border: 0;
+      border-radius: 6px;
+      padding: 12px 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+      background: var(--accent);
+    }
+
+    button:hover {
+      background: var(--accent-dark);
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.62;
+    }
+
+    #mic.recording {
+      background: var(--danger);
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 12px;
+      }
+
+      main {
+        min-height: calc(100vh - 24px);
+      }
+
+      header {
+        display: block;
+      }
+
+      form {
+        grid-template-columns: 1fr;
+      }
+
+      .message {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Gopher-bot</h1>
+      <div id="status">Ready</div>
+    </header>
+
+    <section id="history" aria-live="polite" aria-label="Conversation history"></section>
+
+    <form id="chat-form">
+      <input id="message" name="message" type="text" autocomplete="off" placeholder="Message Gopher-bot" aria-label="Message">
+      <button id="send" type="submit">Send</button>
+      <button id="mic" type="button">Mic</button>
+    </form>
+  </main>
+
+  <script>
+    const historyEl = document.getElementById("history");
+    const statusEl = document.getElementById("status");
+    const formEl = document.getElementById("chat-form");
+    const inputEl = document.getElementById("message");
+    const sendEl = document.getElementById("send");
+    const micEl = document.getElementById("mic");
+
+    let recorder = null;
+    let chunks = [];
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function addMessage(role, text) {
+      const item = document.createElement("div");
+      item.className = `message ${role}`;
+      item.textContent = text;
+      historyEl.appendChild(item);
+      historyEl.scrollTop = historyEl.scrollHeight;
+    }
+
+    function setBusy(isBusy) {
+      sendEl.disabled = isBusy;
+      inputEl.disabled = isBusy;
+    }
+
+    async function sendText(text) {
+      addMessage("user", text);
+      setBusy(true);
+      setStatus("Thinking");
+
+      try {
+        const response = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text })
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Chat request failed");
+        }
+        addMessage("bot", payload.response);
+      } catch (error) {
+        addMessage("system", error.message);
+      } finally {
+        setBusy(false);
+        setStatus("Ready");
+        inputEl.focus();
+      }
+    }
+
+    async function playBase64Mp3(base64Audio) {
+      const binary = atob(base64Audio);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const buffer = await audioContext.decodeAudioData(bytes.buffer);
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+      source.start();
+    }
+
+    async function sendVoice(audioBlob) {
+      setBusy(true);
+      micEl.disabled = true;
+      setStatus("Transcribing");
+
+      try {
+        const response = await fetch("/voice", {
+          method: "POST",
+          headers: { "Content-Type": audioBlob.type || "application/octet-stream" },
+          body: await audioBlob.arrayBuffer()
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Voice request failed");
+        }
+
+        addMessage("user", payload.transcript || "(no transcript)");
+        addMessage("bot", payload.response);
+        if (payload.audio) {
+          await playBase64Mp3(payload.audio);
+        }
+      } catch (error) {
+        addMessage("system", error.message);
+      } finally {
+        setBusy(false);
+        micEl.disabled = false;
+        setStatus("Ready");
+      }
+    }
+
+    formEl.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const text = inputEl.value.trim();
+      if (!text) {
+        return;
+      }
+      inputEl.value = "";
+      sendText(text);
+    });
+
+    micEl.addEventListener("click", async () => {
+      if (recorder && recorder.state === "recording") {
+        recorder.stop();
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        chunks = [];
+        recorder = new MediaRecorder(stream);
+        recorder.addEventListener("dataavailable", (event) => {
+          if (event.data.size > 0) {
+            chunks.push(event.data);
+          }
+        });
+        recorder.addEventListener("stop", () => {
+          stream.getTracks().forEach((track) => track.stop());
+          micEl.classList.remove("recording");
+          micEl.textContent = "Mic";
+          sendVoice(new Blob(chunks, { type: recorder.mimeType || "audio/webm" }));
+        });
+        recorder.start();
+        micEl.classList.add("recording");
+        micEl.textContent = "Stop";
+        setStatus("Recording");
+      } catch (error) {
+        addMessage("system", error.message);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .env
 .env.*
+world_models/config.py
 .venv/
 .pytest_cache/
 .tmp/

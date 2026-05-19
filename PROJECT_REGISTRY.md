@@ -18,11 +18,20 @@
 
 - Root: `D:\gopher-workbench-mcp`
 - Configured summary/entry file: `PROJECT.md`
-- Actual first file to read: `README.md` for setup/safety context, then `PROJECT.md` for the configured project summary.
-- Current authority status: Registered Workbench server project; `config\projects.yaml` defines boundary, `sops\` defines Workbench-wide SOP authority.
+- Actual first file to read: `AGENT_CHARTER.md` (constitutional law, read first for any coordinator startup per Article IX); then `AGENT_COMMITMENTS.md` (active obligations); then `README.md` for operational setup context; then `PROJECT.md` for project summary.
+- Current authority status: Registered Workbench server project; `config\projects.yaml` defines project boundary; `sops\` defines Workbench-wide SOP authority; `AGENT_CHARTER.md` governs all coordinators and overrides subordinate rules.
+- Governance layer (ratified 2026-05-18):
+  - `AGENT_CHARTER.md` — constitutional law; Ratified v0.6; authority: Chad Crouse (Gopher)
+  - `AGENT_COMMITMENTS.md` — standing goals and active obligations (commitment shape per charter Article VI)
+  - `COORDINATOR_REGISTRY.md` — named coordinator roles, backing agents, behavioral constraints (operational planning doc, not ratified doctrine)
+  - `proposals/pending/` — proposals awaiting human decision
+  - `proposals/resolved/` — decided proposals (approved/rejected/deferred)
+  - `proposals/PROPOSALS_README.md` — promotion mechanism documentation
+  - `logs/actions/YYYYMMDD.md` — append-only coordinator action logs
+  - `logs/pattern_observations/YYYYMMDD.md` — Pattern Monitor observation logs (non-authoritative evidence)
 - Related external notes/spaces: `D:\GopherVault\10-Projects\MCP Workbench.md` may contain reference notes but is not automatically more authoritative than this repo.
-- Historical/reference/staging areas: `notes\sessions\`, `logs\`, `.tmp\`, pytest/cache/test workspace folders.
-- Project-specific warnings: Distinguish `README.md` operational setup notes from `PROJECT.md` project summary and from `sops\` SOP authority.
+- Historical/reference/staging areas: `notes\sessions\`, `.tmp\`, pytest/cache/test workspace folders. `logs\` is NOT a staging area — log files are append-only and governed by the charter.
+- Project-specific warnings: Distinguish `README.md` operational setup notes from `PROJECT.md` project summary and from `sops\` SOP authority. `AGENT_CHARTER.md` supersedes `DAO_CONSTITUTION.md` (deleted). Coordinator agents must complete Article IX startup sequence before operating with coordinator authority.
 - Open authority questions: Whether `README.md` "Current Local Setup" is canonical current state or a dated snapshot; whether GopherVault MCP Workbench notes should be mirrored into this repo.
 
 ### mcp-sandbox
@@ -63,11 +72,22 @@
 - Root: `D:\Worldbox Xianni workspace`
 - Configured summary/entry file: `PROJECT.md`
 - Actual first file to read: `PROJECT.md`, then `notes\worldbox-xianni-sop.md` for project-specific operating rules when relevant.
-- Current authority status: Registered project workspace; `PROJECT.md` is the configured entrypoint and project-specific SOP notes apply only inside this project.
-- Related external notes/spaces: None observed beyond workspace reports/reference folders.
+- Current authority status: Registered project workspace; `PROJECT.md` is the configured entrypoint and project-specific SOP notes apply only inside this project. Source Git operations should use the paired `worldbox-xianni-repo` entry.
+- Related external notes/spaces: Nested source repo `worldbox-xianni-repo`.
 - Historical/reference/staging areas: `reports\`, `backups\`, `reference_author_0.4.2\`, `reference_user_handtranslated\`, `notes\sessions\`
-- Project-specific warnings: Do not modify live mod or reference folders unless explicitly requested; distinguish workspace repo, reference folders, reports, backups, and live deployment paths.
+- Project-specific warnings: Do not modify live mod or reference folders unless explicitly requested; distinguish workspace repo, source repo, reference folders, reports, backups, and live deployment paths.
 - Open authority questions: Whether `notes\worldbox-xianni-sop.md` should remain project-specific only or have any generalized Workbench SOP candidates extracted later.
+
+### worldbox-xianni-repo
+
+- Root: `D:\Worldbox Xianni workspace\repo_github`
+- Configured summary/entry file: `README.md`
+- Actual first file to read: `README.md`, then `docs\CURRENT_STATE.md`; for live-path safety and reference-folder authority also read `D:\Worldbox Xianni workspace\PROJECT.md`.
+- Current authority status: Registered nested Git/source repo for WorldBox Xianni. Use this entry for MCP Git/status/search operations against source files.
+- Related external notes/spaces: Parent workspace `worldbox-xianni`.
+- Historical/reference/staging areas: ignored `reports\`, ignored `build_staging\`, `docs\planning\` mirrored planning/audit files.
+- Project-specific warnings: Live mod files under `D:\SteamLibrary\steamapps\common\worldbox\Mods\Xianni` are deployment targets only. Do not deploy, overwrite live package assets, or trust ignored reports as current validation unless freshly checked.
+- Open authority questions: Whether future Workbench sessions should primarily route source-code tasks to `worldbox-xianni-repo` and broader package/reference tasks to `worldbox-xianni`.
 
 ### cultivation-gsg
 
@@ -111,6 +131,7 @@
 - Related external notes/spaces: None observed beyond Workbench registration.
 - Historical/reference/staging areas: `notes\sessions\`
 - Project-specific warnings: Keep game-specific observations, run logs, adapter details, save notes, and strategy content in the relevant game's own workspace.
+- Planned additions: `TEACHING_MODE.md` — structured protocol for game-learning sessions (corrections → proposals, learning vs. knowing behavior). Tracked as commitment C-003 in `AGENT_COMMITMENTS.md`.
 - Open authority questions: None identified beyond normal session-note promotion rules.
 
 ### worldbox-agent-workspace

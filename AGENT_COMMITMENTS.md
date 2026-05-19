@@ -1,7 +1,7 @@
 # Agent Commitments
 
 **Governed by:** Persistent Agent Charter (`AGENT_CHARTER.md`) Article VI
-**Last updated:** 2026-05-18
+**Last updated:** 2026-05-18 (C-002 schema + module complete; tests passing)
 **Authority:** Chad Crouse (Gopher)
 
 All entries must conform to the commitment shape defined in the charter. Entries that
@@ -34,11 +34,11 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 | `id` | C-002 |
 | `created` | 2026-05-18 |
 | `owner` | gopher-workbench-mcp |
-| `status` | blocked |
+| `status` | active |
 | `description` | Design and implement the persistent knowledge graph that serves as the neurosymbolic brain's long-term memory. Candidates: Neo4j (richest graph queries), SQLite with relationship tables (local, portable), Datalog (rule-based inference). The graph stores world models, coordinator knowledge, and patterns across sessions. |
 | `scope` | global — the persistent memory substrate for all coordinators |
 | `completion_criteria` | At least one coordinator can read from and propose writes to the graph through the promotion mechanism. World model data survives session boundaries. |
-| `review_trigger` | After C-001 is fully complete and at least one coordinator has completed a live startup sequence |
+| `review_trigger` | After first coordinator (beyond startup.py) reads from and writes to graph during a real session |
 | `blocking_proposals` | none |
 
 ---

@@ -14,7 +14,7 @@ BACKGROUND_INTERVALS = {
     "feeling": 30.0,
     "pattern_monitor": 120.0,
     "curiosity": 180.0,
-    "drive": 3600.0,
+    "drive": 86400.0,
 }
 DREAM_IDLE_SECONDS = 300.0
 BACKGROUND_COORDINATORS = (
@@ -136,7 +136,7 @@ class BrainLoop:
 
     async def _tick_coordinator(self, name: str, coordinator: Coordinator) -> None:
         try:
-            if name == "curiosity" and _accepts_mirror_queue(coordinator):
+            if _accepts_mirror_queue(coordinator):
                 await coordinator.background_tick(self.bid_queue, self.mirror_chad_queue)
             else:
                 await coordinator.background_tick(self.bid_queue)
@@ -147,14 +147,16 @@ class BrainLoop:
 
 def _default_background_coordinators() -> dict[str, Coordinator]:
     from coordinators.curiosity import Curiosity
+    from coordinators.drive import Drive
     from coordinators.feeling import Feeling
     return {
         "feeling": Feeling(),
         "curiosity": Curiosity(),
+        "drive": Drive(),
         **{
             name: _NoopBackgroundCoordinator(name)
             for name in BACKGROUND_COORDINATORS
-            if name not in {"feeling", "curiosity"}
+            if name not in {"feeling", "curiosity", "drive"}
         },
     }
 

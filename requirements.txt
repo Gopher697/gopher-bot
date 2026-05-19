@@ -1,0 +1,20 @@
+# Gopher-bot coordinator framework dependencies
+# Install with: pip install -r requirements.txt
+
+# Knowledge graph
+neo4j>=5.0
+
+# LLM APIs
+anthropic>=0.25
+openai>=1.0
+
+# Web interface
+flask>=3.0
+flask-socketio>=5.0
+
+# MCP server
+mcp>=1.0.0
+PyYAML>=6.0
+
+# Dev / testing
+pytest>=8.0

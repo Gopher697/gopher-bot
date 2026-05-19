@@ -59,18 +59,18 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 
 ---
 
-### C-004 — Build Discord coordinator bot ecosystem
+### C-004 — Build coordinator architecture and web interface
 
 | Field | Value |
 |---|---|
 | `id` | C-004 |
 | `created` | 2026-05-18 |
 | `owner` | gopher-workbench-mcp |
-| `status` | blocked |
-| `description` | Build Claude API-powered and Codex-powered Discord bots for coordinator roles. Each coordinator gets a dedicated Discord channel. Absorbs Vaultbot into the Memory coordinator when Memory is operational. Named by function/purpose (Memory, Reason, Hands, etc.). |
-| `scope` | global — Discord interface layer for the whole system |
-| `completion_criteria` | At least one non-Vaultbot coordinator bot is operational, completing Article IX startup and processing at least one request. |
-| `review_trigger` | After C-001 is complete and governance foundation is stable |
+| `status` | active |
+| `description` | Build the full coordinator architecture on a self-hosted web interface (not Discord — privacy decision made 2026-05-18). Includes: async bid-gating Awareness hub, background brain loop running coordinators on independent cadences, all planned coordinators implemented as async workers, web UI for Chad interaction (voice + text), and audit panel for coordinator activity. Absorbs Vaultbot into Memory when Memory is operational. |
+| `scope` | global — interface and coordinator execution layer for the whole system |
+| `completion_criteria` | Background brain loop running alongside Flask. At least three background coordinators (Feeling, Pattern Monitor, Curiosity) submitting bids to Awareness independently of Chad input. Voice responding both reactively (to Chad messages) and proactively (from coordinator bids). Audit panel shows live coordinator activity. |
+| `review_trigger` | After first proactive Voice output surfaces from background brain without Chad prompt |
 | `blocking_proposals` | none |
 
 ---

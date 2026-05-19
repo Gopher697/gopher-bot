@@ -1,7 +1,7 @@
 # Coordinator Registry
 
 **Governed by:** Persistent Agent Charter (`AGENT_CHARTER.md`)
-**Last updated:** 2026-05-18 (v4 — 16 permanent coordinators + Vaultbot legacy = 17 during transition; Mirror renamed Mirror-Chad; Mirror-Self and Awareness added; Voice role clarified; identity gap closed; Vaultbot retires when work.db migrated to Memory)
+**Last updated:** 2026-05-19 (v5 — Discord pivot to self-hosted web interface; Sensory/Memory/Reason/Awareness/Voice marked Active-Built; tier routing system added; semantic vector memory added; background brain loop architecture specified; platform references updated)
 **Authority:** Gopher
 
 All coordinators listed here must comply with the charter and complete the Article IX
@@ -37,7 +37,7 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — built (coordinators/memory.py); semantic vector retrieval via nomic-embed; keyword fallback |
 | Backing agent | TBD (absorbs Vaultbot functionality) |
 | Primary role | Recall, notation, GopherVault management, world model storage |
 | Secondary role | Field capture from Discord; work log integration |
@@ -64,7 +64,7 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — built (coordinators/reason.py); tier-aware model routing |
 | Backing agent | Claude (primary) |
 | Primary role | Analysis, planning, task-focused thinking, decision support |
 | Read access | Task-relevant registered project files (non-sensitive) |
@@ -165,12 +165,12 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — built (coordinators/voice.py + interface/tts.py); OpenAI TTS nova for audio |
 | Backing agent | Claude API (primary) |
 | Neuroscience analogue | Broca's area — speech production, output synthesis |
 | Primary role | Sole Chad-facing output channel; proactive initiation; tone calibration |
 | Read access | Coordinator output queue; Mirror state signals (for tone calibration) |
-| Write paths | Discord Voice channel only |
+| Write paths | Web interface output channel only (text + TTS audio) |
 | Behavioral rules | Voice is the only coordinator that speaks to Chad directly. It speaks only what Awareness passes to it — it does not make gating or timing decisions. Voice's function is synthesis: it translates whatever Awareness has cleared into a unified, consistent personality and delivers it. Voice does not add its own knowledge or opinions. It does not speak for itself; it speaks for the system. Tone is calibrated using Mirror-Chad's live state signal. |
 | Relationship to Awareness | Voice and Awareness are a coupled pair. Awareness decides what reaches Chad and when. Voice decides how it is expressed. Neither function belongs to both. A previous version of this entry credited Voice with timing judgment — that function now belongs to Awareness. |
 | Notes | The system's personality as Chad experiences it emerges from the combination: Awareness ensures coherence and timing; Voice ensures consistency of tone and expression. Together they produce a single calm presence from a complex internal system. |
@@ -181,7 +181,7 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — built (coordinators/sensory.py); tier-aware model routing; intent + keyword classification |
 | Backing agent | TBD |
 | Neuroscience analogue | Thalamus + sensory cortex — active input filter and router |
 | Primary role | Parse all Chad input; route to appropriate coordinator(s) |
@@ -262,7 +262,7 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — partially built (coordinators/awareness.py); sequential pipeline + tier assessment; bid-gating + background brain loop in progress |
 | Backing agent | TBD |
 | Neuroscience analogue | Global Workspace Theory; thalamocortical broadcast; attentional gating |
 | Layer | Cognitive (orchestration) |
@@ -283,23 +283,23 @@ This section defines how Chad interacts with the system and how the system inter
 
 ### Chad's Input
 
-Chad's messages enter the system through Sensory in the Voice channel by default. This is the standard interaction path.
+Chad's messages enter the system through Sensory via the self-hosted web interface by default. This is the standard interaction path. Platform decision: Discord rejected 2026-05-18 (privacy — Discord reads all messages). Custom web interface is the permanent home.
 
-**Bypass channels** are deliberate exceptions for direct writes to specific coordinators:
-- `#field-notes` — direct to Memory (replaces Vaultbot @note)
-- `#dream-intake` — direct to Dream, zero friction
-- `#proposals-review` — Chad reviews pending proposals
-- `#data-upload` — raw documents straight to the knowledge layer
+**Bypass inputs** are deliberate exceptions for direct writes to specific coordinators, implemented as separate input modes in the web interface:
+- `field-notes` — direct to Memory (replaces Vaultbot note capture)
+- `dream-intake` — direct to Dream, zero friction
+- `proposals-review` — Chad reviews pending proposals queue
+- `data-upload` — raw documents straight to the knowledge layer
 
-Chad is **soft-locked** from writing to coordinator workspace channels. Discord role permissions create friction — not a hard block. In a genuine emergency Chad can override, but the default path is Voice.
+Chad is **soft-locked** from the coordinator working layer. The web interface exposes only Voice output by default. The audit panel (read-only) shows coordinator activity but is not a write surface. In a genuine emergency Chad can override, but the default path is Voice.
 
 ---
 
 ### Chad's Visibility
 
-Chad **may** read internal coordinator workspace channels in read-only mode. This is an audit capability, not a standard practice. It exists for cases of concerning or unexpected behavior. Chad does not need to monitor coordinator thinking to use the system effectively — that is the point of Voice.
+Chad **may** view internal coordinator activity via the audit panel (read-only). This is an audit capability, not standard practice. It exists for cases of concerning or unexpected behavior. Chad does not need to monitor coordinator thinking to use the system effectively — that is the point of Voice.
 
-The Mirror shadow model (Curiosity→Mirror incubation loop) is an internal state. Chad does not interact with it directly. Read-only access exists as an emergency capability only.
+The Mirror shadow model (Curiosity→Mirror incubation loop) is an internal state. Chad does not interact with it directly. Read-only audit access exists as an emergency capability only.
 
 ---
 

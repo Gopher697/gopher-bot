@@ -1,7 +1,7 @@
 # Agent Commitments
 
 **Governed by:** Persistent Agent Charter (`AGENT_CHARTER.md`) Article VI
-**Last updated:** 2026-05-18 (C-002 schema + module complete; tests passing)
+**Last updated:** 2026-05-18 (C-003 superseded; coordinator registry expanded to 14)
 **Authority:** Chad Crouse (Gopher)
 
 All entries must conform to the commitment shape defined in the charter. Entries that
@@ -43,18 +43,18 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 
 ---
 
-### C-003 — Add TEACHING_MODE.md to GameAgentCore
+### C-003 — ~~Add TEACHING_MODE.md to GameAgentCore~~ *(superseded)*
 
 | Field | Value |
 |---|---|
 | `id` | C-003 |
 | `created` | 2026-05-18 |
 | `owner` | game-agent-core |
-| `status` | active |
-| `description` | Define a structured protocol for game-learning sessions: how corrections get captured, how observations become proposals, how the agent behaves when learning vs. when it knows a game. Unblocks productive 觅长生 and other game sessions. |
-| `scope` | game-agent-core — applies to all game agent workspaces |
-| `completion_criteria` | TEACHING_MODE.md exists in GameAgentCore. At least one game session uses it to generate at least one valid proposal. |
-| `review_trigger` | Next active game agent session |
+| `status` | superseded |
+| `description` | GameAgentCore will be absorbed into the main system when the Hands coordinator is operational. Game sessions become world model environments natively; game learning is the predict→act→compare→revise loop running through Hands and Memory. No separate teaching protocol is needed — the neurosymbolic architecture handles it. |
+| `scope` | game-agent-core (absorbed into main system) |
+| `completion_criteria` | n/a — superseded by C-004 follow-on work |
+| `review_trigger` | When Hands coordinator is operational |
 | `blocking_proposals` | none |
 
 ---
@@ -83,7 +83,7 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 
 ## Paused / Superseded
 
-*(none yet)*
+### C-003 moved here — see Active Commitments section above for full entry.
 
 ---
 

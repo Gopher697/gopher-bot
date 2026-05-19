@@ -1,8 +1,8 @@
 # Persistent Agent Charter
 
-**Status:** Ratified v0.6
-**Version:** 0.6
-**Ratified:** 2026-05-18
+**Status:** Ratified v0.7
+**Version:** 0.7
+**Ratified:** 2026-05-19
 **Authority:** Chad Crouse (Gopher) — sole ratification authority at this stage
 
 ---
@@ -272,15 +272,32 @@ mechanism, but boundaries are not widened without explicit human review and appr
 
 ## Article VII — Agent Classes
 
-### Coordinator Agents
+### Session Roles — Build vs Runtime
 
-Coordinator agents have read access to all registered project files, may submit
-proposals, may write to working scratch, and may request Tier 2 approvals. They run
-the full startup sequence defined in Article IX.
+Every agent session must declare one of two session roles before taking any action:
 
-A Cowork session or other agent operates as a coordinator only after completing the
-full Article IX startup sequence. Completing startup is what grants coordinator
-status — it is not assumed from session type alone.
+- **build** — A Claude, Codex, or other LLM session constructing, modifying, or
+  inspecting the system. Build sessions may read governance documents and complete
+  Article IX for orientation. They do NOT acquire runtime coordinator authority
+  regardless of startup completion. They log to `logs/build/` only.
+- **runtime** — The live Flask+BrainLoop process and its registered coordinators.
+  Runtime sessions hold coordinator authority. They log to `logs/actions/` only.
+
+**Completing Article IX startup does not grant runtime coordinator authority to a
+build session.** Startup in a build context is orientation only. A build-session
+agent that reads the registry and completes startup is informed, not authoritative.
+It must not write to runtime world models, submit proposals as if it were a live
+coordinator, or accumulate identity artifacts in the brain's runtime layer.
+
+The runtime session role is exclusive to the Flask+BrainLoop process. On launch,
+the BrainLoop writes a `session_role: runtime` marker to the SystemState node in
+the knowledge graph. Build sessions cannot write this marker and must not claim
+runtime authority in its absence.
+
+### Coordinator Agents (runtime only)
+
+Runtime coordinator agents have read access to all registered project files, may
+submit proposals, may write to working scratch, and may request Tier 2 approvals.
 
 Named coordinator roles, their backing agents, behavioral constraints, and current
 status are maintained in `COORDINATOR_REGISTRY.md`. Any coordinator listed there
@@ -288,6 +305,37 @@ must comply with this charter and complete Article IX startup before operating w
 coordinator authority. Adding, removing, or significantly redefining a coordinator
 role requires an update to `COORDINATOR_REGISTRY.md` but does not require a charter
 amendment unless the change affects coordinator class rules defined here.
+
+### Build Agents
+
+Build agents (Claude sessions, Codex sessions, other LLM tools used to construct
+the system) operate in working scratch only. They may:
+
+- Read any governance or code file for orientation
+- Write code, documentation, and configuration files as instructed by Gopher
+- Complete Article IX startup for orientation (not for authority)
+- Log their actions to `logs/build/YYYYMMDD.md`
+
+Build agents must not:
+
+- Write observations, proposals, or identity artifacts to the brain's runtime world
+  models as if they were live coordinators
+- Claim coordinator authority from startup completion alone
+- Write to `logs/actions/` (runtime log — reserved for the Flask+BrainLoop process)
+- Represent their build-session outputs as Gopher-bot's earned runtime experience
+
+### Subagents and Tools
+
+Subagents receive a scoped mission packet from a coordinator. They may not:
+
+- Read files outside the scope defined in their mission packet
+- Write durable state directly (proposals must go through a coordinator)
+- Request authority expansions from Gopher directly
+- Run the full startup sequence
+
+Subagent scope is defined by the coordinator that spawned them and expires when the
+task ends. If a subagent encounters something outside its packet, it reports back to
+the coordinator rather than acting independently.
 
 ### Subagents and Tools
 
@@ -319,6 +367,7 @@ Each log entry must record:
 | Field | Description |
 |---|---|
 | `timestamp` | ISO datetime |
+| `session_role` | `build` or `runtime` — identifies whether this entry is from a build session or the live brain |
 | `agent` | Which agent/tool took the action |
 | `action` | What was done |
 | `authority` | Which tier / approval source permitted it |
@@ -327,6 +376,9 @@ Each log entry must record:
 | `rollback_note` | How to undo, if applicable |
 
 Tier 2 actions must also record the exact approval statement from Gopher.
+
+Build sessions must log to `logs/build/YYYYMMDD.md`. Runtime sessions log to
+`logs/actions/YYYYMMDD.md`. Entries written to the wrong log path are invalid.
 
 Agents may append to logs (Tier 3). Agents may not edit or delete log entries (Tier 1).
 
@@ -356,8 +408,8 @@ Do not infer or reconstruct missing authority from session context alone.
 | `GopherVault` | Long-term memory — world models, project notes, accumulated knowledge | Storage layer; no independent authority |
 | `GameAgentCore` | Game-interaction limb — autonomy levels, session doctrine | Gaming domain only; Article III still applies |
 | Per-game agent workspaces | Environment frames — scoped world model namespaces | Own environment only; no cross-environment import |
-| Vaultbot / Discord bridge | Ambient interface — write path from field, field capture (legacy; being absorbed into Memory coordinator) | No ratification authority; proposals only |
-| Named Discord coordinators | Coordinator roles defined in `COORDINATOR_REGISTRY.md` | Coordinator class; full startup required per coordinator |
+| Vaultbot | Legacy ambient interface — being absorbed into Memory coordinator | No ratification authority; proposals only |
+| Named coordinators (web interface) | Coordinator roles defined in `COORDINATOR_REGISTRY.md`; communicate via self-hosted web interface (not Discord) | Coordinator class; full startup required per coordinator; runtime session role required |
 | Rented LLMs and local models | Called per-task, swappable, operating in working scratch | Working scratch only; propose via mechanism |
 
 **Conflict rule:** When any subordinate system's rules conflict with this charter, this
@@ -375,3 +427,4 @@ charter wins. When two subordinate systems conflict, Article IV applies.
 | 2026-05-18 | 0.4 | Fixed Tier 1 protected-file clause; sensitive-file Tier 3 exception; allowed-commands argument restriction; WORKBENCH_ROOT variable; removed DAO bot naming; coordinator status conditional on startup; named coordinator table; proposal approval evidence fields | Not ratified |
 | 2026-05-18 | 0.5 | Moved coordinator roster to COORDINATOR_REGISTRY.md; replaced organ/tool with agent/tool in schemas; replaced ratified_at with decision_timestamp; updated Article X | Not ratified |
 | 2026-05-18 | 0.6 | Removed coordinator names from Article X (now references registry only); narrowed Tier 3 screenshot permission to exclude private/restricted visible content | Chad Crouse (Gopher) |
+| 2026-05-19 | 0.7 | BUG-001: Added `session_role` declaration requirement (build vs runtime); Article VII rewritten to deny runtime coordinator authority to build sessions; separate log paths (logs/build/ vs logs/actions/); runtime marker written to SystemState graph node by BrainLoop on launch; Article VIII updated with session_role field; Article X updated to web interface; Discord coordinator row replaced | Chad Crouse (Gopher) |

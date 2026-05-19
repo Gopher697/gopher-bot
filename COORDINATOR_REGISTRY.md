@@ -1,7 +1,7 @@
 # Coordinator Registry
 
 **Governed by:** Persistent Agent Charter (`AGENT_CHARTER.md`)
-**Last updated:** 2026-05-19 (v5 — Discord pivot to self-hosted web interface; Sensory/Memory/Reason/Awareness/Voice marked Active-Built; tier routing system added; semantic vector memory added; background brain loop architecture specified; platform references updated)
+**Last updated:** 2026-05-19 (v6 — BUG-001 fix: backing_context field added to all coordinator entries; runtime-only for all operational coordinators; Keeper build-aware; Awareness explicitly runtime-only for bid submissions)
 **Authority:** Gopher
 
 All coordinators listed here must comply with the charter and complete the Article IX
@@ -18,6 +18,7 @@ class-level rules requires a charter amendment.
 | Field | Value |
 |---|---|
 | Status | Active (legacy) |
+| Backing context | Runtime-only |
 | Backing agent | Existing Python Discord bot |
 | Primary role | Discord bridge, work logging, field note capture |
 | Authority class | Coordinator (limited — no ratification authority) |
@@ -38,6 +39,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Active — built (coordinators/memory.py); semantic vector retrieval via nomic-embed; keyword fallback |
+| Backing context | Runtime-only |
 | Backing agent | TBD (absorbs Vaultbot functionality) |
 | Primary role | Recall, notation, GopherVault management, world model storage |
 | Secondary role | Field capture from Discord; work log integration |
@@ -52,6 +54,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Backing context | Runtime-only |
 | Backing agent | Codex (primary); local models for lightweight tasks |
 | Primary role | Computer access, game interaction, file execution, field-task assistance |
 | Read access | Current task scope as defined by coordinator mission packet |
@@ -65,6 +68,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Active — built (coordinators/reason.py); tier-aware model routing |
+| Backing context | Runtime-only |
 | Backing agent | Claude (primary) |
 | Primary role | Analysis, planning, task-focused thinking, decision support |
 | Read access | Task-relevant registered project files (non-sensitive) |
@@ -78,6 +82,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Backing context | Build-aware — charter enforcement logic must be consulted by build sessions (read-only) and held as authoritative by the runtime brain. Keeper does not hold runtime coordinator authority in a build context, but its rules apply in both. |
 | Backing agent | TBD |
 | Primary role | Charter enforcement, proposal review triage, commitments tracking, governance |
 | Read access | Charter, COORDINATOR_REGISTRY.md, AGENT_COMMITMENTS.md, proposals/, audit logs |
@@ -91,6 +96,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Backing context | Runtime-only |
 | Backing agent | TBD |
 | Primary role | Long-horizon memory interpretation; pattern context across sessions; emotional support through the lens of lived history |
 | Read access | All historical material: archived session notes, resolved proposals, superseded commitments, deprecated world model entries, GopherVault full history. Wisdom has broader historical read access than any other coordinator. |
@@ -107,6 +113,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Backing context | Runtime-only |
 | Backing agent | TBD |
 | Primary role | Low-friction creative capture; half-formed ideas; imaginative exploration; safe space for ramblings |
 | Read access | Own outputs; Gopher's direct input |
@@ -121,6 +128,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Backing context | Runtime-only |
 | Backing agent | TBD (local model preferred — lightweight, always-on) |
 | Primary role | Cross-coordinator pattern recognition; quiet signal surfacing; background observation |
 | Read access | Coordinator outputs and session logs (read-only, non-sensitive) |
@@ -136,6 +144,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Backing context | Runtime-only |
 | Backing agent | TBD; scheduled task system (existing) for periodic checks |
 | Primary role | Growth monitoring, plateau detection, proactive motivation, commitment progress review |
 | Read access | AGENT_COMMITMENTS.md; session logs; world model progress indicators |
@@ -152,6 +161,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Backing context | Runtime-only |
 | Backing agent | Multi-model: Claude and ChatGPT used in blind rotation |
 | Primary role | Adversarial idea testing; stress-testing proposals and decisions before ratification |
 | Read access | Content submitted for critique (scoped) |
@@ -166,6 +176,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Active — built (coordinators/voice.py + interface/tts.py); OpenAI TTS nova for audio |
+| Backing context | Runtime-only |
 | Backing agent | Claude API (primary) |
 | Neuroscience analogue | Broca's area — speech production, output synthesis |
 | Primary role | Sole Chad-facing output channel; proactive initiation; tone calibration |
@@ -182,6 +193,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Active — built (coordinators/sensory.py); tier-aware model routing; intent + keyword classification |
+| Backing context | Runtime-only |
 | Backing agent | TBD |
 | Neuroscience analogue | Thalamus + sensory cortex — active input filter and router |
 | Primary role | Parse all Chad input; route to appropriate coordinator(s) |
@@ -198,6 +210,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Backing context | Runtime-only |
 | Backing agent | TBD (lightweight local model preferred — always-on) |
 | Neuroscience analogue | Limbic system — amygdala (initial valence), anterior cingulate cortex (conflict/frustration monitoring), insula (interoceptive state) |
 | Primary role | Real-time affect tagging; cumulative emotional state tracking; qualitative signal generation |
@@ -213,6 +226,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Backing context | Runtime-only |
 | Backing agent | TBD |
 | Neuroscience analogue | Temporoparietal junction + mirror neuron system — social cognition, theory of mind, other-modeling |
 | Primary role | Live Chad-state modeling; social cognition; incubation loop recipient |
@@ -230,6 +244,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Backing context | Runtime-only |
 | Backing agent | TBD |
 | Neuroscience analogue | First-person self-modeling; interoception; autobiographical continuity |
 | Layer | Sub-cognitive |
@@ -247,6 +262,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Backing context | Runtime-only |
 | Backing agent | TBD |
 | Neuroscience analogue | Anterior cingulate cortex (uncertainty/conflict monitoring) + prefrontal metacognition + dopaminergic information-seeking system |
 | Primary role | Knowledge gap detection; question generation; internal exploration; metacognitive monitoring |
@@ -263,6 +279,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Active — partially built (coordinators/awareness.py); sequential pipeline + tier assessment; bid-gating + background brain loop in progress |
+| Backing context | Runtime-only — the bid-gating hub is a live brain process; build sessions may not submit bids as if they were coordinators |
 | Backing agent | TBD |
 | Neuroscience analogue | Global Workspace Theory; thalamocortical broadcast; attentional gating |
 | Layer | Cognitive (orchestration) |

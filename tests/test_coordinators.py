@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib
 
 
@@ -53,7 +54,7 @@ def test_awareness_runs_pipeline_in_order_without_api_calls():
         voice=Voice(),
     )
 
-    packet = awareness.run("What does Gopher remember?")
+    packet = awareness.synchronous_run("What does Gopher remember?")
 
     assert packet["message"] == "What does Gopher remember?"
     assert packet["input_type"] == "text"
@@ -87,10 +88,81 @@ def test_awareness_skips_to_voice_when_error_is_present():
         voice=Voice(),
     )
 
-    packet = awareness.run("hello")
+    packet = awareness.synchronous_run("hello")
 
     assert packet["error"] == "classification failed"
     assert packet["final_response"] == "fallback response."
+
+
+def test_awareness_drains_pending_bids_into_reason_context():
+    from coordinators.awareness import Awareness
+    from coordinators.base import Coordinator
+    from coordinators.bid import PRIORITY_PATTERN, Bid
+    from coordinators.voice import Voice
+
+    captured = {}
+
+    class SensoryStep(Coordinator):
+        name = "sensory"
+
+        def process(self, packet):
+            packet["keywords"] = ["gopher"]
+            return packet
+
+    class MemoryStep(Coordinator):
+        name = "memory"
+
+        def process(self, packet):
+            packet["memory_context"] = "Known graph context"
+            return packet
+
+    class ReasonStep(Coordinator):
+        name = "reason"
+
+        def process(self, packet):
+            captured["memory_context"] = packet["memory_context"]
+            captured["background_bids"] = packet["background_bids"]
+            packet["reason_output"] = "used bid context"
+            return packet
+
+    awareness = Awareness(
+        sensory=SensoryStep(),
+        memory=MemoryStep(),
+        reason=ReasonStep(),
+        voice=Voice(),
+    )
+    awareness.bid_queue.submit(
+        Bid("pattern_monitor", "A repeated pattern is visible.", PRIORITY_PATTERN, 10.0)
+    )
+
+    packet = awareness.synchronous_run("What should I know?")
+
+    assert packet["final_response"] == "used bid context."
+    assert "Known graph context" in captured["memory_context"]
+    assert "Background coordinator bids:" in captured["memory_context"]
+    assert "pattern_monitor" in captured["memory_context"]
+    assert captured["background_bids"][0]["content"] == "A repeated pattern is visible."
+    assert awareness.bid_queue.qsize() == 0
+
+
+def test_awareness_gate_bids_respects_active_task_state():
+    from coordinators.awareness import Awareness
+    from coordinators.bid import PRIORITY_CURIOSITY, Bid
+
+    awareness = Awareness()
+    awareness.bid_queue.submit(
+        Bid("curiosity", "unresolved question", PRIORITY_CURIOSITY, 20.0)
+    )
+
+    awareness.active_task_in_progress = True
+    assert asyncio.run(awareness.gate_bids()) == []
+    assert awareness.bid_queue.qsize() == 1
+
+    awareness.active_task_in_progress = False
+    gated = asyncio.run(awareness.gate_bids())
+
+    assert [bid.content for bid in gated] == ["unresolved question"]
+    assert awareness.bid_queue.qsize() == 0
 
 
 def test_memory_process_uses_retrieved_context_without_connecting_to_graph():
@@ -279,7 +351,7 @@ def test_bot_respond_uses_awareness_pipeline(monkeypatch):
     bot = importlib.import_module("interface.bot")
 
     class FakeAwareness:
-        def run(self, message):
+        def synchronous_run(self, message):
             return {"final_response": f"handled: {message}"}
 
     monkeypatch.setattr(bot, "awareness", FakeAwareness())

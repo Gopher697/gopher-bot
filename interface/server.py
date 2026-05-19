@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import base64
+import asyncio
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -10,18 +12,23 @@ from flask_socketio import SocketIO, emit
 
 
 ROOT = Path(__file__).resolve().parents[1]
+INTERFACE_DIR = Path(__file__).resolve().parent
 STARTUP_SCRIPT = ROOT / "scripts" / "startup.py"
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+if str(INTERFACE_DIR) not in sys.path:
+    sys.path.insert(0, str(INTERFACE_DIR))
 
-import bot  # noqa: E402
-import stt  # noqa: E402
-import tts  # noqa: E402
+from coordinators.brain_loop import BrainLoop  # noqa: E402
+from interface import bot, stt, tts  # noqa: E402
 
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 socketio = SocketIO(app, cors_allowed_origins="*")
+brain_loop = BrainLoop()
+_brain_thread: threading.Thread | None = None
+_brain_thread_lock = threading.Lock()
 
 
 def run_startup_script() -> None:
@@ -48,6 +55,32 @@ def run_startup_script() -> None:
         )
 
 
+def start_brain_loop() -> BrainLoop:
+    global _brain_thread
+    with _brain_thread_lock:
+        if _brain_thread is not None and _brain_thread.is_alive():
+            return brain_loop
+
+        _brain_thread = threading.Thread(
+            target=_run_brain_loop_thread,
+            name="gopher-brain-loop",
+            daemon=True,
+        )
+        _brain_thread.start()
+        return brain_loop
+
+
+def stop_brain_loop() -> None:
+    brain_loop.stop()
+
+
+def _run_brain_loop_thread() -> None:
+    try:
+        asyncio.run(brain_loop.start(bot.awareness))
+    except Exception:
+        app.logger.exception("Brain loop stopped unexpectedly")
+
+
 def _message_from_json() -> tuple[str | None, tuple | None]:
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
@@ -58,6 +91,11 @@ def _message_from_json() -> tuple[str | None, tuple | None]:
         return None, (jsonify({"error": "message must be a non-empty string"}), 400)
 
     return message.strip(), None
+
+
+def _process_message(message: str) -> str:
+    packet = bot.awareness.synchronous_run(message)
+    return bot.response_from_packet(packet)
 
 
 @app.get("/")
@@ -72,12 +110,23 @@ def chat():
         return error
 
     try:
-        response = bot.respond(message)
+        response = _process_message(message)
     except Exception:
         app.logger.exception("Chat request failed")
         return jsonify({"error": "Chat request failed"}), 500
 
     return jsonify({"response": response})
+
+
+@app.get("/brain-status")
+def brain_status():
+    return jsonify(
+        {
+            "running": bool(brain_loop.running),
+            "last_ticks": dict(brain_loop.last_ticks),
+            "pending_bids": bot.awareness.bid_queue.qsize(),
+        }
+    )
 
 
 @app.post("/voice")
@@ -88,7 +137,7 @@ def voice():
 
     try:
         transcript = stt.transcribe(audio_bytes)
-        response = bot.respond(transcript)
+        response = _process_message(transcript)
         audio = tts.speak(response)
     except Exception:
         app.logger.exception("Voice request failed")
@@ -111,7 +160,7 @@ def handle_message(data):
         return
 
     try:
-        response = bot.respond(text.strip())
+        response = _process_message(text.strip())
     except Exception:
         app.logger.exception("WebSocket message failed")
         emit("response", {"text": "The message could not be processed."})
@@ -122,11 +171,15 @@ def handle_message(data):
 
 if __name__ == "__main__":
     run_startup_script()
-    socketio.run(
-        app,
-        host="0.0.0.0",
-        port=5000,
-        debug=False,
-        use_reloader=False,
-        allow_unsafe_werkzeug=True,
-    )
+    start_brain_loop()
+    try:
+        socketio.run(
+            app,
+            host="0.0.0.0",
+            port=5000,
+            debug=False,
+            use_reloader=False,
+            allow_unsafe_werkzeug=True,
+        )
+    finally:
+        stop_brain_loop()

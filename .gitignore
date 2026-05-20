@@ -3,6 +3,7 @@ __pycache__/
 .env
 .env.*
 world_models/config.py
+world_models/neuromodulation_state.json
 .venv/
 .pytest_cache/
 .tmp/

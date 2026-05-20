@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import asyncio
+import itertools
 import subprocess
 import sys
 import threading
@@ -27,6 +28,9 @@ from interface import bot, stt, tts  # noqa: E402
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 socketio = SocketIO(app, cors_allowed_origins="*")
+_proactive_messages: list[dict[str, object]] = []
+_proactive_message_lock = threading.Lock()
+_next_proactive_message_id = itertools.count(1)
 
 
 AUDIT_TEMPLATE = """
@@ -464,7 +468,18 @@ def _emit_audit_update(payload: dict) -> None:
     socketio.emit("audit_update", payload)
 
 
-brain_loop = BrainLoop(audit_event_emitter=_emit_audit_update)
+def _emit_proactive_response(text: str) -> None:
+    message = {"id": next(_next_proactive_message_id), "text": text}
+    with _proactive_message_lock:
+        _proactive_messages.append(message)
+        del _proactive_messages[:-100]
+    socketio.emit("response", message)
+
+
+brain_loop = BrainLoop(
+    audit_event_emitter=_emit_audit_update,
+    proactive_response_emitter=_emit_proactive_response,
+)
 _brain_thread: threading.Thread | None = None
 _brain_thread_lock = threading.Lock()
 
@@ -580,6 +595,15 @@ def _audit_payload_from_log_entry(entry: dict) -> dict:
     }
 
 
+def _unread_proactive_messages(since: int) -> list[dict[str, object]]:
+    with _proactive_message_lock:
+        return [
+            dict(message)
+            for message in _proactive_messages
+            if _safe_int(message.get("id"), 0) > since
+        ]
+
+
 @app.get("/")
 def index():
     return send_from_directory(app.static_folder, "index.html")
@@ -601,6 +625,12 @@ def audit_log():
             ]
         }
     )
+
+
+@app.get("/proactive-messages")
+def proactive_messages():
+    since = max(0, _safe_int(request.args.get("since"), 0))
+    return jsonify({"messages": _unread_proactive_messages(since)})
 
 
 @app.post("/chat")

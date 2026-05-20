@@ -17,7 +17,7 @@ def speak(text: str) -> bytes:
     client = OpenAI(api_key=config.OPENAI_API_KEY)
     response = client.audio.speech.create(
         model="tts-1",
-        voice="nova",
+        voice="fable",
         input=text,
     )
 

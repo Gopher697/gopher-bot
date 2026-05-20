@@ -80,6 +80,26 @@ def test_wandering_gap_is_silently_dropped_when_mirror_chad_queue_is_none():
     assert list(curiosity.state.wandering_queue) == ["Why does this matter?"]
 
 
+def test_graph_unavailable_fallback_submits_synthetic_bid_to_awareness_queue(monkeypatch):
+    from coordinators.bid import BidQueue
+    from coordinators.curiosity import Curiosity
+
+    awareness_queue = BidQueue()
+    curiosity = Curiosity()
+    monkeypatch.setattr(
+        curiosity,
+        "_graph_gap_detector",
+        lambda: (_ for _ in ()).throw(RuntimeError("graph unavailable")),
+    )
+
+    asyncio.run(curiosity.background_tick(awareness_queue))
+
+    pending = awareness_queue.get_pending()
+    assert len(pending) == 1
+    assert pending[0].source == "curiosity"
+    assert pending[0].priority == 4
+
+
 def test_grounded_queue_full_new_grounded_gap_is_dropped_without_bid():
     from coordinators.bid import BidQueue
     from coordinators.curiosity import Curiosity

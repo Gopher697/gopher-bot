@@ -75,6 +75,22 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 
 ---
 
+### C-005 — Interface architecture: phased ambient OS presence
+
+| Field | Value |
+|---|---|
+| `id` | C-005 |
+| `created` | 2026-05-19 |
+| `owner` | gopher-workbench-mcp |
+| `status` | active |
+| `description` | Build the interface layer in three phases toward a purpose-built AI-native execution environment. Phase 1 (done): Flask + SocketIO web app with voice and text, BrainLoop daemon thread, static frontend. Phase 2: Tauri desktop wrapper giving Gopher-bot OS-level ambient awareness — Sensory receives passive screen/file/app context without explicit Chad input; Hands and Sensory designed for system-level access from day one. Phase 3 (the dream): NixOS-based custom Linux environment where coordinators are first-class system services with MAC enforcement (AppArmor/SELinux), the knowledge graph is the persistence primitive, build/runtime separation is a kernel-level privilege boundary, and the interface is a spatial navigator through the knowledge graph rather than a chat window. |
+| `scope` | global — interface and execution environment for the whole system |
+| `completion_criteria` | Phase 1: Flask server running with BrainLoop, voice + text endpoints live (done). Phase 2: Tauri app wrapping Flask; Sensory receiving passive OS-level context; Hands built with policy interception designed for system-scope. Phase 3: NixOS distro config committing coordinator services, MAC profiles, and graph-as-persistence layout. |
+| `review_trigger` | When Hands coordinator (Task 29) is being designed — must account for Phase 2 system-level access patterns before implementation. |
+| `blocking_proposals` | none |
+
+---
+
 ## Closed Commitments
 
 *(none yet)*

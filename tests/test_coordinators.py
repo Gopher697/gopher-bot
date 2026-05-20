@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import sys
+from pathlib import Path
+from types import SimpleNamespace
 
 
 def test_tier_config_returns_expected_models():
@@ -29,6 +32,45 @@ def test_voice_formats_reason_output_as_final_response():
     packet = Voice().process({"reason_output": "  Hello, Gopher\n\n"})
 
     assert packet["final_response"] == "Hello, Gopher."
+
+
+def test_voice_exports_system_prompt_for_personality_contract():
+    from coordinators.voice import VOICE_SYSTEM_PROMPT
+
+    assert "You are Gopher-bot" in VOICE_SYSTEM_PROMPT
+    assert "You address your user as Gopher" in VOICE_SYSTEM_PROMPT
+    assert "be useful" in VOICE_SYSTEM_PROMPT
+
+
+def test_tts_uses_fable_voice(monkeypatch):
+    import interface.tts as tts
+
+    calls = {}
+
+    class FakeSpeech:
+        def create(self, **kwargs):
+            calls.update(kwargs)
+            return SimpleNamespace(content=b"audio")
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            calls["client_kwargs"] = kwargs
+            self.audio = SimpleNamespace(speech=FakeSpeech())
+
+    monkeypatch.setitem(sys.modules, "openai", SimpleNamespace(OpenAI=FakeOpenAI))
+    monkeypatch.setattr(tts.config, "OPENAI_API_KEY", "test-key", raising=False)
+
+    audio = tts.speak("Hello")
+
+    assert audio == b"audio"
+    assert calls["voice"] == "fable"
+
+
+def test_gitignore_excludes_local_world_model_runtime_files():
+    entries = set(Path(".gitignore").read_text(encoding="utf-8").splitlines())
+
+    assert "world_models/config.py" in entries
+    assert "world_models/neuromodulation_state.json" in entries
 
 
 def test_awareness_runs_pipeline_in_order_without_api_calls():

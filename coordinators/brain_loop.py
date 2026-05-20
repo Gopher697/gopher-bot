@@ -11,7 +11,7 @@ from coordinators.base import (
     append_coordinator_log_entry,
     build_coordinator_log_entry,
 )
-from coordinators.bid import BidQueue
+from coordinators.bid import PRIORITY_PATTERN, BidQueue
 from coordinators.mirror_chad import INCUBATION_MAXLEN
 
 
@@ -26,6 +26,7 @@ BACKGROUND_INTERVALS = {
     "drive": 86400.0,
 }
 DREAM_IDLE_SECONDS = 300.0
+PROACTIVE_VOICE_RATE_LIMIT_SECONDS = 60.0
 BACKGROUND_COORDINATORS = (
     "feeling",
     "neuromodulation",
@@ -47,6 +48,8 @@ class _NoopBackgroundCoordinator(Coordinator):
 
 
 class BrainLoop:
+    proactive_voice_enabled = True
+
     def __init__(
         self,
         coordinators: Mapping[str, Coordinator] | None = None,
@@ -57,6 +60,8 @@ class BrainLoop:
         mirror_chad_queue: Any | None = None,
         coordinator_log_writer: Callable[[dict[str, Any]], None] | None = None,
         audit_event_emitter: Callable[[dict[str, Any]], None] | None = None,
+        proactive_response_emitter: Callable[[str], None] | None = None,
+        proactive_voice_enabled: bool | None = None,
     ):
         self.coordinators = dict(coordinators or _default_background_coordinators())
         self.intervals = dict(BACKGROUND_INTERVALS)
@@ -78,6 +83,10 @@ class BrainLoop:
             coordinator_log_writer or append_coordinator_log_entry
         )
         self.audit_event_emitter = audit_event_emitter
+        self.proactive_response_emitter = proactive_response_emitter
+        if proactive_voice_enabled is not None:
+            self.proactive_voice_enabled = bool(proactive_voice_enabled)
+        self.last_proactive_voice_at: float | None = None
         self.running = False
         self._stop_requested = False
 
@@ -131,6 +140,7 @@ class BrainLoop:
                 continue
             await self._tick_coordinator(name, coordinator)
             self.last_ticks[name] = now
+            await self._surface_proactive_voice()
 
     def _sync_last_active_from_awareness(self) -> None:
         if self.awareness is None:
@@ -212,6 +222,69 @@ class BrainLoop:
         except Exception:
             return
 
+    async def _surface_proactive_voice(self) -> None:
+        if not self.proactive_voice_enabled:
+            return
+        if self.awareness is None or self.proactive_response_emitter is None:
+            return
+        if bool(getattr(self.awareness, "active_task_in_progress", False)):
+            return
+
+        now = self.time_fn()
+        if (
+            self.last_proactive_voice_at is not None
+            and now - self.last_proactive_voice_at < PROACTIVE_VOICE_RATE_LIMIT_SECONDS
+        ):
+            return
+
+        gate_bids = getattr(self.awareness, "gate_bids", None)
+        if not callable(gate_bids):
+            return
+
+        try:
+            gated = gate_bids()
+            bids = await gated if inspect.isawaitable(gated) else gated
+        except Exception:
+            return
+
+        for bid in list(bids or []):
+            if not _is_proactive_priority(bid):
+                continue
+            response = self._voice_response_for_bid(bid)
+            if not response:
+                continue
+            try:
+                self.proactive_response_emitter(response)
+            except Exception:
+                return
+            self.last_proactive_voice_at = now
+            return
+
+    def _voice_response_for_bid(self, bid: Any) -> str:
+        voice = getattr(self.awareness, "voice", None)
+        process = getattr(voice, "process", None)
+        content = str(getattr(bid, "content", "") or "").strip()
+        if not content:
+            return ""
+        if not callable(process):
+            return content
+
+        packet = {
+            "reason_output": content,
+            "input_type": "background_bid",
+            "proactive": True,
+            "source_bid": {
+                "coordinator_name": getattr(bid, "coordinator_name", None),
+                "priority": getattr(bid, "priority", None),
+                "timestamp": getattr(bid, "timestamp", None),
+            },
+        }
+        try:
+            packet = process(packet)
+        except Exception:
+            return content
+        return str(packet.get("final_response") or packet.get("reason_output") or "").strip()
+
 
 def _default_background_coordinators() -> dict[str, Coordinator]:
     from coordinators.curiosity import Curiosity
@@ -252,6 +325,13 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
 
 def _accepts_mirror_queue(coordinator: Coordinator) -> bool:
     return len(inspect.signature(coordinator.background_tick).parameters) >= 2
+
+
+def _is_proactive_priority(bid: Any) -> bool:
+    try:
+        return int(getattr(bid, "priority")) <= PRIORITY_PATTERN
+    except (TypeError, ValueError):
+        return False
 
 
 def _audit_update_payload(entry: dict[str, Any]) -> dict[str, Any]:

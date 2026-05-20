@@ -110,7 +110,7 @@ class Curiosity(Coordinator):
             return [
                 {
                     "question": _SYNTHETIC_GAPS[index],
-                    "grounded": False,
+                    "grounded": True,
                     "source": "synthetic",
                 }
             ]

@@ -211,6 +211,161 @@ def test_brain_loop_emits_audit_update_after_each_background_tick():
     ]
 
 
+def test_brain_loop_surfaces_high_priority_bid_to_voice_proactively():
+    from coordinators.awareness import Awareness
+    from coordinators.base import Coordinator
+    from coordinators.bid import PRIORITY_PATTERN, Bid, BidQueue
+    from coordinators.brain_loop import BrainLoop
+
+    current_time = [6000.0]
+    emitted = []
+    backfilled = []
+
+    class BiddingCoordinator(Coordinator):
+        name = "pattern_monitor"
+
+        def process(self, packet):
+            return packet
+
+        async def background_tick(self, bid_queue):
+            bid_queue.submit(
+                Bid(self.name, "Pattern crossed threshold", PRIORITY_PATTERN, current_time[0])
+            )
+
+    class FakeVoice(Coordinator):
+        name = "voice"
+
+        def process(self, packet):
+            packet["final_response"] = f"Voice says: {packet['reason_output']}"
+            return packet
+
+    awareness = Awareness(
+        voice=FakeVoice(),
+        bid_queue=BidQueue(),
+        coordinator_log_acceptance_updater=lambda bid, accepted: backfilled.append(
+            (bid.coordinator_name, accepted)
+        ),
+    )
+    brain_loop = BrainLoop(
+        coordinators={"pattern_monitor": BiddingCoordinator()},
+        intervals={"pattern_monitor": 90.0},
+        time_fn=lambda: current_time[0],
+        sleep_interval=0,
+        coordinator_log_writer=lambda entry: None,
+        proactive_response_emitter=emitted.append,
+    )
+    brain_loop.bind_awareness(awareness)
+
+    asyncio.run(brain_loop.tick_once())
+
+    assert brain_loop.proactive_voice_enabled is True
+    assert emitted == ["Voice says: Pattern crossed threshold"]
+    assert backfilled == [("pattern_monitor", True)]
+
+
+def test_brain_loop_rate_limits_proactive_voice_outputs():
+    from coordinators.awareness import Awareness
+    from coordinators.base import Coordinator
+    from coordinators.bid import PRIORITY_PATTERN, Bid, BidQueue
+    from coordinators.brain_loop import BrainLoop
+
+    current_time = [7000.0]
+    emitted = []
+
+    class BiddingCoordinator(Coordinator):
+        name = "pattern_monitor"
+
+        def __init__(self):
+            self.count = 0
+
+        def process(self, packet):
+            return packet
+
+        async def background_tick(self, bid_queue):
+            self.count += 1
+            bid_queue.submit(
+                Bid(
+                    self.name,
+                    f"Pattern crossed threshold {self.count}",
+                    PRIORITY_PATTERN,
+                    current_time[0],
+                )
+            )
+
+    class FakeVoice(Coordinator):
+        name = "voice"
+
+        def process(self, packet):
+            packet["final_response"] = packet["reason_output"]
+            return packet
+
+    awareness = Awareness(
+        voice=FakeVoice(),
+        bid_queue=BidQueue(),
+        coordinator_log_acceptance_updater=lambda bid, accepted: None,
+    )
+    coordinator = BiddingCoordinator()
+    brain_loop = BrainLoop(
+        coordinators={"pattern_monitor": coordinator},
+        intervals={"pattern_monitor": 0.0},
+        time_fn=lambda: current_time[0],
+        sleep_interval=0,
+        coordinator_log_writer=lambda entry: None,
+        proactive_response_emitter=emitted.append,
+    )
+    brain_loop.bind_awareness(awareness)
+
+    asyncio.run(brain_loop.tick_once())
+    current_time[0] += 59.0
+    asyncio.run(brain_loop.tick_once())
+    current_time[0] += 1.0
+    asyncio.run(brain_loop.tick_once())
+
+    assert emitted == [
+        "Pattern crossed threshold 1",
+        "Pattern crossed threshold 2",
+    ]
+
+
+def test_brain_loop_does_not_surface_low_priority_bids_proactively():
+    from coordinators.awareness import Awareness
+    from coordinators.base import Coordinator
+    from coordinators.bid import PRIORITY_DRIVE, Bid, BidQueue
+    from coordinators.brain_loop import BrainLoop
+
+    current_time = [8000.0]
+    emitted = []
+
+    class BiddingCoordinator(Coordinator):
+        name = "drive"
+
+        def process(self, packet):
+            return packet
+
+        async def background_tick(self, bid_queue):
+            bid_queue.submit(
+                Bid(self.name, "Routine drive check", PRIORITY_DRIVE, current_time[0])
+            )
+
+    awareness = Awareness(
+        bid_queue=BidQueue(),
+        coordinator_log_acceptance_updater=lambda bid, accepted: None,
+    )
+    brain_loop = BrainLoop(
+        coordinators={"drive": BiddingCoordinator()},
+        intervals={"drive": 0.0},
+        time_fn=lambda: current_time[0],
+        sleep_interval=0,
+        coordinator_log_writer=lambda entry: None,
+        proactive_response_emitter=emitted.append,
+    )
+    brain_loop.bind_awareness(awareness)
+
+    asyncio.run(brain_loop.tick_once())
+
+    assert emitted == []
+
+
 def test_dream_ticks_only_after_idle_threshold():
     from coordinators.base import Coordinator
     from coordinators.bid import BidQueue
@@ -364,3 +519,34 @@ def test_audit_log_endpoint_returns_normalized_recent_entries(monkeypatch):
             }
         ]
     }
+
+
+def test_chat_interface_listens_for_proactive_responses():
+    from interface import server
+
+    client = server.app.test_client()
+
+    response = client.get("/")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "/socket.io/socket.io.js" in html
+    assert 'socket.on("response"' in html
+    assert "/proactive-messages" in html
+
+
+def test_proactive_messages_endpoint_returns_unread_messages(monkeypatch):
+    from interface import server
+
+    monkeypatch.setattr(server, "_proactive_messages", [])
+    monkeypatch.setattr(server, "_next_proactive_message_id", iter([1, 2]))
+    server._emit_proactive_response("First")
+    server._emit_proactive_response("Second")
+
+    client = server.app.test_client()
+
+    response = client.get("/proactive-messages?since=1")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload == {"messages": [{"id": 2, "text": "Second"}]}

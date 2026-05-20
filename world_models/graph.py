@@ -363,6 +363,52 @@ def delete_observation(
         return session.execute_write(write)
 
 
+def get_recent_observations(
+    driver,
+    environment: str,
+    hours: float = 24.0,
+) -> list[dict]:
+    """
+    Return Observation nodes created within the last `hours` hours.
+
+    Used by Dream NREM to identify recent observations for consolidation.
+    Returns nodes in ascending created_at order (oldest first).
+
+    ISO-8601 strings sort lexicographically in the same order as the
+    timestamps they represent, so string comparison is safe here.
+
+    Args:
+        driver:      Active Neo4j driver.
+        environment: Graph environment scope.
+        hours:       Look-back window in hours (default 24.0).
+
+    Returns:
+        List of property dicts for matching Observation nodes.
+    """
+    from datetime import datetime, timezone, timedelta
+
+    since = (
+        datetime.now(timezone.utc) - timedelta(hours=hours)
+    ).isoformat()
+
+    def read(tx):
+        result = tx.run(
+            """
+            MATCH (observation:Observation {environment: $environment})
+            WHERE coalesce(observation.status, 'active') = 'active'
+              AND observation.created_at >= $since
+            RETURN properties(observation) AS observation
+            ORDER BY observation.created_at ASC
+            """,
+            environment=environment,
+            since=since,
+        )
+        return [record["observation"] for record in result]
+
+    with _session(driver) as session:
+        return session.execute_read(read)
+
+
 def add_media(
     driver,
     file_path,

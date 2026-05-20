@@ -1112,3 +1112,263 @@ def test_retrieve_keyword_context_query_contains_status_filter():
     assert "status" in source, (
         "_retrieve_keyword_context must filter by observation.status"
     )
+
+
+# ---------------------------------------------------------------------------
+# Temporal packet enrichment tests
+# ---------------------------------------------------------------------------
+
+def test_synchronous_run_packet_contains_temporal_fields():
+    """synchronous_run() injects temporal fields into the packet."""
+    from coordinators.awareness import Awareness
+
+    responses = []
+
+    class FakeCoordinator:
+        def process(self, packet):
+            responses.append(dict(packet))
+            return packet
+
+    class FakeVoice(FakeCoordinator):
+        pass
+
+    class FakeMemory(FakeCoordinator):
+        pass
+
+    class FakeReason(FakeCoordinator):
+        pass
+
+    class FakeSensory(FakeCoordinator):
+        pass
+
+    fake_time = [1_000_000.0]
+
+    def time_fn():
+        return fake_time[0]
+
+    awareness = Awareness(
+        sensory=FakeSensory(),
+        memory=FakeMemory(),
+        reason=FakeReason(),
+        voice=FakeVoice(),
+        time_fn=time_fn,
+    )
+
+    awareness.run("hello")
+
+    packet = responses[-1]
+    assert "current_time" in packet
+    assert "process_started_at" in packet
+    assert "session_age_seconds" in packet
+    assert "time_since_last_interaction" in packet
+    assert "time_since_last_nrem" in packet
+    assert "time_since_last_autonomous_activity" in packet
+
+
+def test_session_age_increases_over_time():
+    """session_age_seconds reflects elapsed time since Awareness init."""
+    from coordinators.awareness import Awareness
+
+    class FakeCoordinator:
+        def process(self, packet): return packet
+
+    class FakeVoice(FakeCoordinator): pass
+    class FakeMemory(FakeCoordinator): pass
+    class FakeReason(FakeCoordinator): pass
+    class FakeSensory(FakeCoordinator): pass
+
+    fake_time = [1_000_000.0]
+
+    def time_fn():
+        return fake_time[0]
+
+    awareness = Awareness(
+        sensory=FakeSensory(),
+        memory=FakeMemory(),
+        reason=FakeReason(),
+        voice=FakeVoice(),
+        time_fn=time_fn,
+    )
+
+    ages = []
+
+    class CapturingCoordinator:
+        def process(self, packet):
+            ages.append(packet.get("session_age_seconds"))
+            return packet
+
+    awareness.reason = CapturingCoordinator()
+
+    fake_time[0] = 1_000_060.0    # 60 seconds later
+    awareness.run("first message")
+
+    fake_time[0] = 1_000_120.0    # 120 seconds later
+    awareness.run("second message")
+
+    assert ages[1] > ages[0]
+    assert ages[0] == pytest.approx(60.0)
+    assert ages[1] == pytest.approx(120.0)
+
+
+def test_time_since_last_interaction_is_none_on_first_message():
+    """First message has no prior input — time_since_last_interaction is None."""
+    from coordinators.awareness import Awareness
+
+    captured = []
+
+    class Capturing:
+        def process(self, packet):
+            captured.append(packet.get("time_since_last_interaction"))
+            return packet
+
+    class FakeVoice:
+        def process(self, packet): return packet
+
+    class FakeSensory:
+        def process(self, packet): return packet
+
+    class FakeMemory:
+        def process(self, packet): return packet
+
+    awareness = Awareness(
+        sensory=FakeSensory(),
+        memory=FakeMemory(),
+        reason=Capturing(),
+        voice=FakeVoice(),
+        time_fn=lambda: 1_000_000.0,
+    )
+    awareness.run("first message")
+    assert captured[0] is None
+
+
+def test_time_since_last_interaction_tracks_gap():
+    """time_since_last_interaction reports seconds since previous interaction."""
+    from coordinators.awareness import Awareness
+
+    captured = []
+    fake_time = [1_000_000.0]
+
+    class Capturing:
+        def process(self, packet):
+            captured.append(packet.get("time_since_last_interaction"))
+            return packet
+
+    class FakeVoice:
+        def process(self, packet): return packet
+
+    class FakeSensory:
+        def process(self, packet): return packet
+
+    class FakeMemory:
+        def process(self, packet): return packet
+
+    awareness = Awareness(
+        sensory=FakeSensory(),
+        memory=FakeMemory(),
+        reason=Capturing(),
+        voice=FakeVoice(),
+        time_fn=lambda: fake_time[0],
+    )
+
+    awareness.run("first")                  # sets last_interaction_time
+
+    fake_time[0] = 1_000_045.0             # 45 seconds later
+    awareness.run("second")
+
+    assert captured[0] is None             # first message has no prior input
+    assert captured[1] == pytest.approx(45.0)
+
+
+def test_time_since_last_nrem_is_none_before_dream_runs():
+    """time_since_last_nrem is None until Dream NREM sets last_nrem_time."""
+    from coordinators.awareness import Awareness
+
+    captured = []
+
+    class Capturing:
+        def process(self, packet):
+            captured.append(packet.get("time_since_last_nrem"))
+            return packet
+
+    class FakeVoice:
+        def process(self, packet): return packet
+
+    class FakeSensory:
+        def process(self, packet): return packet
+
+    class FakeMemory:
+        def process(self, packet): return packet
+
+    awareness = Awareness(
+        sensory=FakeSensory(),
+        memory=FakeMemory(),
+        reason=Capturing(),
+        voice=FakeVoice(),
+    )
+    awareness.run("hello")
+    assert captured[0] is None
+
+
+def test_packet_contains_process_started_at():
+    """process_started_at is an ISO string set at Awareness init."""
+    from coordinators.awareness import Awareness
+
+    captured = []
+
+    class Capturing:
+        def process(self, packet):
+            captured.append(packet)
+            return packet
+
+    class FakeVoice:
+        def process(self, packet): return packet
+
+    class FakeSensory:
+        def process(self, packet): return packet
+
+    class FakeMemory:
+        def process(self, packet): return packet
+
+    awareness = Awareness(
+        sensory=FakeSensory(),
+        memory=FakeMemory(),
+        reason=Capturing(),
+        voice=FakeVoice(),
+        time_fn=lambda: 1_000_000.0,
+    )
+    awareness.run("hello")
+    assert "process_started_at" in captured[0]
+    assert isinstance(captured[0]["process_started_at"], str)
+    # Should be a parseable ISO timestamp
+    from datetime import datetime
+    datetime.fromisoformat(captured[0]["process_started_at"])
+
+
+def test_time_since_last_autonomous_activity_is_present():
+    """time_since_last_autonomous_activity is in the packet."""
+    from coordinators.awareness import Awareness
+
+    captured = []
+
+    class Capturing:
+        def process(self, packet):
+            captured.append(packet)
+            return packet
+
+    class FakeVoice:
+        def process(self, packet): return packet
+
+    class FakeSensory:
+        def process(self, packet): return packet
+
+    class FakeMemory:
+        def process(self, packet): return packet
+
+    awareness = Awareness(
+        sensory=FakeSensory(),
+        memory=FakeMemory(),
+        reason=Capturing(),
+        voice=FakeVoice(),
+    )
+    awareness.run("hello")
+    assert "time_since_last_autonomous_activity" in captured[0]

@@ -13,6 +13,7 @@ from coordinators.reason import Reason
 from coordinators.sensory import Sensory
 from coordinators.tier_config import DEFAULT_TIER
 from coordinators.voice import Voice
+from utils.time_utils import now_iso, unix_to_iso
 
 if TYPE_CHECKING:
     from coordinators.hands import Hands
@@ -38,11 +39,15 @@ class Awareness:
         )
         self.voice = voice or Voice()
         self.hands = hands
+        self._time_fn = time_fn
         self.session_id: str = _uuid.uuid4().hex
+        self.session_start: float = self._time_fn()
+        self.last_interaction_time: float = 0.0     # 0.0 = no prior interaction this session
+        self.last_nrem_time: float = 0.0            # 0.0 = NREM has not run yet
+                                                    # Dream Phase 2 (Task 47) updates this
         self.bid_queue = bid_queue or BidQueue()
         self.active_task_in_progress = False
         self.last_active = 0.0
-        self._time_fn = time_fn
         self._activity_callbacks: list[Callable[[float], None]] = []
         self.feeling = feeling  # may be None — Feeling is optional
         self.coordinator_log_acceptance_updater = (
@@ -56,6 +61,32 @@ class Awareness:
         packet = {"message": message, "input_type": "text"}
         packet.update(packet_overrides)
         packet["session_id"] = self.session_id
+
+        # --- Temporal context -----------------------------------------------
+        now = self._time_fn()
+        time_since_input = (
+            now - self.last_interaction_time
+            if self.last_interaction_time > 0.0
+            else None        # None = first interaction this session
+        )
+        time_since_nrem = (
+            now - self.last_nrem_time
+            if self.last_nrem_time > 0.0
+            else None        # None = NREM has not run yet
+        )
+        time_since_autonomous = (
+            now - self.last_active
+            if self.last_active > 0.0
+            else None
+        )
+        packet["current_time"] = unix_to_iso(now)
+        packet["process_started_at"] = unix_to_iso(self.session_start)
+        packet["session_age_seconds"] = now - self.session_start
+        packet["time_since_last_interaction"] = time_since_input
+        packet["time_since_last_nrem"] = time_since_nrem
+        packet["time_since_last_autonomous_activity"] = time_since_autonomous
+        self.last_interaction_time = now
+        # ---------------------------------------------------------------------
         try:
             self.assess_tier(packet)
 

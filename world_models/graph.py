@@ -45,6 +45,23 @@ def _merge_names(entity_names: Optional[Iterable[str]]) -> List[str]:
     return list(dict.fromkeys(entity_names))
 
 
+def _observation_properties(
+    content: str,
+    environment: str,
+    coordinator: str,
+    confidence: float = 1.0,
+) -> Dict[str, Any]:
+    return {
+        "content": content,
+        "environment": environment,
+        "coordinator": coordinator,
+        "confidence": float(confidence),
+        "created_at": _now_iso(),
+        "status": "active",
+        "training_candidate": None,
+    }
+
+
 def connect():
     return GraphDatabase.driver(
         config.NEO4J_URI,
@@ -79,14 +96,7 @@ def add_observation(
     confidence=1.0,
     entity_names=None,
 ):
-    props = {
-        "content": content,
-        "environment": environment,
-        "coordinator": coordinator,
-        "confidence": float(confidence),
-        "created_at": _now_iso(),
-        "status": "active",
-    }
+    props = _observation_properties(content, environment, coordinator, confidence)
     names = _merge_names(entity_names)
 
     def write(tx):

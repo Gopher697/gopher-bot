@@ -145,6 +145,45 @@ def test_awareness_drains_pending_bids_into_reason_context():
     assert awareness.bid_queue.qsize() == 0
 
 
+def test_awareness_backfills_accepted_for_drained_bids():
+    from coordinators.awareness import Awareness
+    from coordinators.base import Coordinator
+    from coordinators.bid import PRIORITY_PATTERN, Bid
+    from coordinators.voice import Voice
+
+    backfilled = []
+
+    class PassthroughStep(Coordinator):
+        name = "passthrough"
+
+        def process(self, packet):
+            return packet
+
+    class ReasonStep(Coordinator):
+        name = "reason"
+
+        def process(self, packet):
+            packet["reason_output"] = "handled bid"
+            return packet
+
+    awareness = Awareness(
+        sensory=PassthroughStep(),
+        memory=PassthroughStep(),
+        reason=ReasonStep(),
+        voice=Voice(),
+        coordinator_log_acceptance_updater=lambda bid, accepted: backfilled.append(
+            (bid.coordinator_name, bid.timestamp, accepted)
+        ),
+    )
+    awareness.bid_queue.submit(
+        Bid("pattern_monitor", "A repeated pattern is visible.", PRIORITY_PATTERN, 10.0)
+    )
+
+    awareness.synchronous_run("What should I know?")
+
+    assert backfilled == [("pattern_monitor", 10.0, True)]
+
+
 def test_awareness_gate_bids_respects_active_task_state():
     from coordinators.awareness import Awareness
     from coordinators.bid import PRIORITY_CURIOSITY, Bid

@@ -117,6 +117,50 @@ def test_brain_loop_calls_background_tick_with_shared_bid_queue():
     assert bid_queue.get_pending()[0].content == "pattern crossed threshold"
 
 
+def test_brain_loop_writes_enriched_log_entry_for_each_tick():
+    from coordinators.base import Coordinator
+    from coordinators.bid import BidQueue
+    from coordinators.brain_loop import BrainLoop
+
+    current_time = [3000.0]
+    log_entries = []
+
+    class FakeBackground(Coordinator):
+        name = "feeling"
+
+        def process(self, packet):
+            return packet
+
+        async def background_tick(self, bid_queue):
+            return None
+
+    awareness = SimpleNamespace(
+        bid_queue=BidQueue(),
+        last_active=current_time[0],
+    )
+    brain_loop = BrainLoop(
+        coordinators={"feeling": FakeBackground()},
+        intervals={"feeling": 30.0},
+        time_fn=lambda: current_time[0],
+        sleep_interval=0,
+        coordinator_log_writer=log_entries.append,
+    )
+    brain_loop.bind_awareness(awareness)
+
+    asyncio.run(brain_loop.tick_once())
+
+    assert len(log_entries) == 1
+    entry = log_entries[0]
+    assert entry["coordinator_name"] == "feeling"
+    assert entry["timestamp"] == 3000.0
+    assert entry["confidence"] == 0.0
+    assert entry["accepted"] is None
+    assert entry["outcome_quality"] is None
+    assert entry["tier_used"] is None
+    assert entry["actual_cost_usd"] == 0.0
+    assert entry["reasoning_trace"] is None
+
+
 def test_dream_ticks_only_after_idle_threshold():
     from coordinators.base import Coordinator
     from coordinators.bid import BidQueue

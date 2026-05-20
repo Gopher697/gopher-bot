@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict
 import time
 from collections.abc import Callable
+from typing import Any
 
-from coordinators.base import Coordinator
+from coordinators.base import Coordinator, backfill_coordinator_log_acceptance
 from coordinators.bid import Bid, BidQueue
 from coordinators.memory import Memory
 from coordinators.reason import Reason
@@ -23,6 +24,7 @@ class Awareness:
         bid_queue: BidQueue | None = None,
         time_fn: Callable[[], float] = time.time,
         feeling: Coordinator | None = None,
+        coordinator_log_acceptance_updater: Callable[[Any, bool], None] | None = None,
     ):
         self.sensory = sensory or Sensory()
         self.memory = memory or Memory()
@@ -36,6 +38,10 @@ class Awareness:
         self._time_fn = time_fn
         self._activity_callbacks: list[Callable[[float], None]] = []
         self.feeling = feeling  # may be None — Feeling is optional
+        self.coordinator_log_acceptance_updater = (
+            coordinator_log_acceptance_updater
+            or _default_coordinator_log_acceptance_updater
+        )
 
     def synchronous_run(self, message: str, **packet_overrides) -> dict:
         self._mark_active()
@@ -72,7 +78,9 @@ class Awareness:
     async def gate_bids(self) -> list[Bid]:
         if self.active_task_in_progress or self.bid_queue.empty():
             return []
-        return self.bid_queue.get_pending()
+        bids = self.bid_queue.get_pending()
+        self._mark_bids_accepted(bids)
+        return bids
 
     def assess_tier(self, packet: dict) -> dict:
         if "tier" in packet:
@@ -101,6 +109,7 @@ class Awareness:
 
     def _drain_bids_into_packet(self, packet: dict) -> None:
         bids = self.bid_queue.get_pending()
+        self._mark_bids_accepted(bids)
         packet["background_bids"] = [asdict(bid) for bid in bids]
         bid_context = _format_bid_context(bids)
         packet["bid_context"] = bid_context
@@ -113,6 +122,13 @@ class Awareness:
             packet["memory_context"] = f"{memory_context}\n\n{bid_context}"
         else:
             packet["memory_context"] = bid_context
+
+    def _mark_bids_accepted(self, bids: list[Any]) -> None:
+        for bid in bids:
+            try:
+                self.coordinator_log_acceptance_updater(bid, True)
+            except Exception:
+                continue
 
 
 def _extract_feeling_text(packet: dict) -> str:
@@ -137,3 +153,10 @@ def _format_bid_context(bids: list[Bid]) -> str:
             f"- {bid.coordinator_name} (priority {bid.priority}): {content}"
         )
     return "\n".join(lines).strip()
+
+
+def _default_coordinator_log_acceptance_updater(bid: Any, accepted: bool) -> None:
+    coordinator_name = getattr(bid, "coordinator_name", "")
+    timestamp = getattr(bid, "timestamp", 0.0)
+    # TODO: improve bid-to-log matching with stable bid IDs instead of approximate timestamp matching.
+    backfill_coordinator_log_acceptance(coordinator_name, timestamp, accepted)

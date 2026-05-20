@@ -83,6 +83,17 @@ def test_add_observation(environment):
         graph.close(driver)
 
 
+def test_observation_properties_include_training_candidate_default():
+    props = graph._observation_properties(
+        "Observed entity appeared in test.",
+        "test",
+        "pytest",
+        0.7,
+    )
+
+    assert props["training_candidate"] is None
+
+
 def test_add_media(environment):
     driver = new_driver()
     try:

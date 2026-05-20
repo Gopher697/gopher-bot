@@ -6,7 +6,11 @@ import time
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from coordinators.base import Coordinator
+from coordinators.base import (
+    Coordinator,
+    append_coordinator_log_entry,
+    build_coordinator_log_entry,
+)
 from coordinators.bid import BidQueue
 from coordinators.mirror_chad import INCUBATION_MAXLEN
 
@@ -16,7 +20,7 @@ BACKGROUND_INTERVALS = {
     "neuromodulation": 30.0,
     "mirror_chad": 60.0,
     "mirror_self": 120.0,
-    "pattern_monitor": 120.0,
+    "pattern_monitor": 90.0,
     "curiosity": 180.0,
     "dream": 300.0,
     "drive": 86400.0,
@@ -51,6 +55,7 @@ class BrainLoop:
         sleep_interval: float = 1.0,
         idle_threshold: float = DREAM_IDLE_SECONDS,
         mirror_chad_queue: Any | None = None,
+        coordinator_log_writer: Callable[[dict[str, Any]], None] | None = None,
     ):
         self.coordinators = dict(coordinators or _default_background_coordinators())
         self.intervals = dict(BACKGROUND_INTERVALS)
@@ -67,6 +72,9 @@ class BrainLoop:
         self._mirror_chad_queue_was_provided = mirror_chad_queue is not None
         self.mirror_chad_queue = mirror_chad_queue or asyncio.Queue(
             maxsize=INCUBATION_MAXLEN
+        )
+        self.coordinator_log_writer = (
+            coordinator_log_writer or append_coordinator_log_entry
         )
         self.running = False
         self._stop_requested = False
@@ -148,6 +156,11 @@ class BrainLoop:
         return last_tick is None or now - last_tick >= self.idle_threshold
 
     async def _tick_coordinator(self, name: str, coordinator: Coordinator) -> None:
+        if self.bid_queue is None:
+            raise RuntimeError("BrainLoop must be bound to Awareness before ticking")
+
+        submitted_before = self.bid_queue.qsize()
+        error: str | None = None
         try:
             if _accepts_mirror_queue(coordinator):
                 await coordinator.background_tick(self.bid_queue, self.mirror_chad_queue)
@@ -155,7 +168,36 @@ class BrainLoop:
                 await coordinator.background_tick(self.bid_queue)
             self.last_errors.pop(name, None)
         except Exception as exc:
-            self.last_errors[name] = str(exc)
+            error = str(exc)
+            self.last_errors[name] = error
+        finally:
+            submitted_after = self.bid_queue.qsize()
+            self._write_coordinator_log(
+                build_coordinator_log_entry(
+                    name,
+                    self.time_fn(),
+                    confidence=getattr(coordinator, "last_confidence", 0.0),
+                    tier_used=getattr(coordinator, "last_tier_used", None),
+                    actual_cost_usd=getattr(
+                        coordinator,
+                        "last_actual_cost_usd",
+                        0.0,
+                    ),
+                    reasoning_trace=getattr(
+                        coordinator,
+                        "last_reasoning_trace",
+                        None,
+                    ),
+                    error=error,
+                    submitted_bid_count=max(0, submitted_after - submitted_before),
+                )
+            )
+
+    def _write_coordinator_log(self, entry: dict[str, Any]) -> None:
+        try:
+            self.coordinator_log_writer(entry)
+        except Exception:
+            return
 
 
 def _default_background_coordinators() -> dict[str, Coordinator]:
@@ -166,12 +208,14 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
     from coordinators.mirror_chad import MirrorChad
     from coordinators.mirror_self import MirrorSelf
     from coordinators.neuromodulation import Neuromodulation
+    from coordinators.pattern_monitor import PatternMonitor
 
     return {
         "feeling": Feeling(),
         "neuromodulation": Neuromodulation(),
         "mirror_chad": MirrorChad(),
         "mirror_self": MirrorSelf(),
+        "pattern_monitor": PatternMonitor(),
         "curiosity": Curiosity(),
         "dream": Dream(),
         "drive": Drive(),
@@ -184,6 +228,7 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
                 "neuromodulation",
                 "mirror_chad",
                 "mirror_self",
+                "pattern_monitor",
                 "curiosity",
                 "dream",
                 "drive",

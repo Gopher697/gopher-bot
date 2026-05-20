@@ -1,7 +1,7 @@
 # Coordinator Registry
 
 **Governed by:** Persistent Agent Charter (`AGENT_CHARTER.md`)
-**Last updated:** 2026-05-19 (v6 — BUG-001 fix: backing_context field added to all coordinator entries; runtime-only for all operational coordinators; Keeper build-aware; Awareness explicitly runtime-only for bid submissions)
+**Last updated:** 2026-05-20 (v7 — Phase 1b: all built coordinators marked Active; model tier assignments added; Neuromodulation entry added; Wisdom absorbed into Memory; Hands framework registered)
 **Authority:** Gopher
 
 All coordinators listed here must comply with the charter and complete the Article IX
@@ -39,6 +39,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Active — built (coordinators/memory.py); semantic vector retrieval via nomic-embed; keyword fallback |
+| Model tier | Tier 1 for retrieval queries; nomic-embed local for vector embeddings (Tier 0) |
 | Backing context | Runtime-only |
 | Backing agent | TBD (absorbs Vaultbot functionality) |
 | Primary role | Recall, notation, GopherVault management, world model storage |
@@ -53,9 +54,10 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — built (coordinators/hands.py + coordinators/hands_policy.py); policy interception layer (whitelist/greylist/blacklist); snapshot/rollback on write errors; action logging to logs/actions/ |
+| Model tier | Tier 0 for policy classification; whitelist actions execute at Tier 1; greylist actions require Tier 2 Awareness approval before any LLM call |
 | Backing context | Runtime-only |
-| Backing agent | Codex (primary); local models for lightweight tasks |
+| Backing agent | Policy engine is Tier 0 (deterministic Python, no LLM); action execution tier varies by classification |
 | Primary role | Computer access, game interaction, file execution, field-task assistance |
 | Read access | Current task scope as defined by coordinator mission packet |
 | Write paths | Working scratch; Tier 2 approval required for all durable writes |
@@ -68,6 +70,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Active — built (coordinators/reason.py); tier-aware model routing |
+| Model tier | Tier 2 default; Tier 3 for complex tasks (NE neuromodulator escalates ceiling) |
 | Backing context | Runtime-only |
 | Backing agent | Claude (primary) |
 | Primary role | Analysis, planning, task-focused thinking, decision support |
@@ -82,6 +85,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Model tier | Tier 2 (governance reasoning requires reliable mid-tier judgment) |
 | Backing context | Build-aware — charter enforcement logic must be consulted by build sessions (read-only) and held as authoritative by the runtime brain. Keeper does not hold runtime coordinator authority in a build context, but its rules apply in both. |
 | Backing agent | TBD |
 | Primary role | Charter enforcement, proposal review triage, commitments tracking, governance |
@@ -95,7 +99,8 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Absorbed into Memory for Phase 1b — Wisdom's historical interpretation function will be handled by an enriched Memory coordinator until the system reaches the complexity that warrants a separate coordinator. Revisit at Stage 2 (Emergence) maturation. |
+| Model tier | N/A (not active in Phase 1b) |
 | Backing context | Runtime-only |
 | Backing agent | TBD |
 | Primary role | Long-horizon memory interpretation; pattern context across sessions; emotional support through the lens of lived history |
@@ -112,7 +117,8 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — Phase 1 scaffold built (coordinators/dream.py); intake + TRIAGE stub; Phase 2 deep build (graph integration + CONSOLIDATE/AUDIT) pending as Task 47 |
+| Model tier | Tier 1 for intake/triage; Tier 2 for consolidation passes (Phase 2) |
 | Backing context | Runtime-only |
 | Backing agent | TBD |
 | Primary role | Low-friction creative capture; half-formed ideas; imaginative exploration; safe space for ramblings |
@@ -127,14 +133,15 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — built (coordinators/pattern_monitor.py); 90s cadence; bid acceptance rate scan; reasoning pattern detection; training candidate scoring; god node detection stub |
+| Model tier | Tier 1 (log scanning and pattern matching are lightweight; no LLM calls in basic framework) |
 | Backing context | Runtime-only |
 | Backing agent | TBD (local model preferred — lightweight, always-on) |
 | Primary role | Cross-coordinator pattern recognition; quiet signal surfacing; background observation |
 | Read access | Coordinator outputs and session logs (read-only, non-sensitive) |
 | Write paths | `WORKBENCH_ROOT/logs/pattern_observations/YYYYMMDD.md`, append-only, non-authoritative. These logs are evidence, not durable knowledge — no coordinator is required to act on them. |
 | Behavioral rules | Pattern Monitor operates on a separate observation track from the standard proposal mechanism. Its outputs are flagged as pattern observations, not claims seeking promotion. It may not initiate action. It may not write to any durable knowledge layer. It surfaces observations to coordinators (especially Wisdom) who then decide whether to act. A pattern observation that recurs and earns coordinator attention may be formalized into a proper proposal by that coordinator — not by Pattern Monitor itself. |
-| Always-on requirement | Always-on or background operation requires Tier 2 approval and audit logging before activation. Pattern Monitor may not run as a persistent background process without explicit Gopher approval. |
+| Always-on requirement | Always-on operation approved 2026-05-20 (C-004). Pattern Monitor runs at 90s cadence inside BrainLoop. Audit logging is active via BrainLoop's audit_event_emitter. |
 | Notes | The value of Pattern Monitor is that it runs independently of the active task focus, seeing cross-system signals that task-focused coordinators may miss. Its architecture should reflect this: ideally a lightweight always-on process rather than a session-bound bot — but that requires Tier 2 approval first. Named "Pattern Monitor" in governance documents; UI label or personal name may differ. |
 
 ---
@@ -143,7 +150,8 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — built (coordinators/drive.py); budget threshold tracking; goal monitoring; daily cadence |
+| Model tier | Tier 1 (budget checks and goal monitoring are lightweight) |
 | Backing context | Runtime-only |
 | Backing agent | TBD; scheduled task system (existing) for periodic checks |
 | Primary role | Growth monitoring, plateau detection, proactive motivation, commitment progress review |
@@ -161,6 +169,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Planned |
+| Model tier | Tier 3 — blind rotation between Claude and GPT (adversarial evaluation requires top-tier models) |
 | Backing context | Runtime-only |
 | Backing agent | Multi-model: Claude and ChatGPT used in blind rotation |
 | Primary role | Adversarial idea testing; stress-testing proposals and decisions before ratification |
@@ -175,7 +184,8 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Active — built (coordinators/voice.py + interface/tts.py); OpenAI TTS nova for audio |
+| Status | Active — built (coordinators/voice.py + interface/tts.py); OpenAI TTS fable voice; VOICE_SYSTEM_PROMPT defines starting personality (direct, precise, masculine starting point — identity evolves over time) |
+| Model tier | Tier 2 for synthesis; TTS via OpenAI API |
 | Backing context | Runtime-only |
 | Backing agent | Claude API (primary) |
 | Neuroscience analogue | Broca's area — speech production, output synthesis |
@@ -193,6 +203,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Field | Value |
 |---|---|
 | Status | Active — built (coordinators/sensory.py); tier-aware model routing; intent + keyword classification |
+| Model tier | Tier 1 (intent classification and routing are lightweight) |
 | Backing context | Runtime-only |
 | Backing agent | TBD |
 | Neuroscience analogue | Thalamus + sensory cortex — active input filter and router |
@@ -209,7 +220,8 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — built (coordinators/feeling.py); async background worker; affect tagging + valence tracking |
+| Model tier | Tier 1 preferred (lightweight local model; no LLM calls for tagging) |
 | Backing context | Runtime-only |
 | Backing agent | TBD (lightweight local model preferred — always-on) |
 | Neuroscience analogue | Limbic system — amygdala (initial valence), anterior cingulate cortex (conflict/frustration monitoring), insula (interoceptive state) |
@@ -225,7 +237,8 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — built (coordinators/mirror_chad.py); live Chad-state model; incubation loop receiver from Curiosity |
+| Model tier | Tier 2 (nuanced social modeling requires mid-tier reasoning) |
 | Backing context | Runtime-only |
 | Backing agent | TBD |
 | Neuroscience analogue | Temporoparietal junction + mirror neuron system — social cognition, theory of mind, other-modeling |
@@ -243,7 +256,8 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — built (coordinators/mirror_self.py); self-model accumulation; identity record; inward gravitational center |
+| Model tier | Tier 2 (self-model depth requires mid-tier reasoning) |
 | Backing context | Runtime-only |
 | Backing agent | TBD |
 | Neuroscience analogue | First-person self-modeling; interoception; autobiographical continuity |
@@ -261,7 +275,8 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
+| Status | Active — built (coordinators/curiosity.py); grounded + wandering question streams; graph gap detection; synthetic fallback when graph unavailable |
+| Model tier | Tier 1 for gap scanning; Tier 2 for deep exploration passes |
 | Backing context | Runtime-only |
 | Backing agent | TBD |
 | Neuroscience analogue | Anterior cingulate cortex (uncertainty/conflict monitoring) + prefrontal metacognition + dopaminergic information-seeking system |
@@ -274,11 +289,30 @@ built. Each inherits full charter obligations from the moment it completes start
 
 ---
 
+### Neuromodulation
+
+| Field | Value |
+|---|---|
+| Status | Active — built (coordinators/neuromodulation.py); 4-channel substrate (DA, NE, 5HT, ACh); persistent state in world_models/neuromodulation_state.json |
+| Backing context | Runtime-only |
+| Model tier | Tier 0 — pure state machine; no LLM calls |
+| Neuroscience analogue | Diffuse neuromodulatory systems — dopamine (DA), norepinephrine (NE), serotonin (5HT), acetylcholine (ACh) |
+| Layer | Sub-cognitive (substrate) |
+| Primary role | Modulate coordinator behavior and tier routing based on system state |
+| Channel functions | DA (dopamine): reward signal, goal progress, motivation level. NE (norepinephrine): urgency and alertness — elevated NE raises tier ceiling, enabling escalation to higher-cost models. 5HT (serotonin): conservation and stability — elevated 5HT lowers tier ceiling, conserves budget. ACh (acetylcholine): attention and focus — modulates retrieval selectivity. |
+| Drive integration | Drive coordinator sets financial stress level; high financial stress elevates 5HT and suppresses NE, biasing the system toward conservation. Crisis state triggers shutdown suggestion (never unilateral). |
+| Tier routing | NE level determines tier ceiling: Normal → Tier 2 max; high urgency → Tier 3 allowed; 5HT + financial stress → Tier 1 ceiling enforced. |
+| Write paths | world_models/neuromodulation_state.json (runtime state only; gitignored) |
+| Notes | Neuromodulation is the substrate that makes tier routing dynamic rather than fixed. The same task can route to different model tiers depending on system state — urgent novel situations escalate; routine stable situations conserve. |
+
+---
+
 ### Awareness
 
 | Field | Value |
 |---|---|
-| Status | Active — partially built (coordinators/awareness.py); sequential pipeline + tier assessment; bid-gating + background brain loop in progress |
+| Status | Active — built (coordinators/awareness.py); sequential pipeline; async bid-gating hub; BrainLoop background coordination; proactive Voice output; C-004 complete 2026-05-20 |
+| Model tier | Tier 0 — Awareness is pure Python bid-gating logic; no LLM calls |
 | Backing context | Runtime-only — the bid-gating hub is a live brain process; build sessions may not submit bids as if they were coordinators |
 | Backing agent | TBD |
 | Neuroscience analogue | Global Workspace Theory; thalamocortical broadcast; attentional gating |
@@ -287,7 +321,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Read access | All coordinator output queues and bid submissions |
 | Write paths | Voice queue only; does not write to memory, graph, or any durable layer |
 | Behavioral rules | Awareness does not generate content — it gates and sequences what others produce. It runs the competition for the shared broadcast channel: every coordinator may submit a bid, Awareness decides what actually gets heard and when. It applies timing judgment: not mid-task, not floods, one thing when there is space for it. Awareness may hold a bid in queue indefinitely if timing is never right — it does not force surfacing. It does not editorialize, summarize, or rewrite bids; that is Voice's function. |
-| Priority order | When bids conflict: (1) safety/charter flags from Keeper, (2) Mirror-Chad state signals, (3) Mirror-Self state signals, (4) Curiosity grounded questions, (5) Pattern Monitor observations, (6) Drive check-ins, (7) everything else. Priority is a default, not a rule — Awareness may reorder based on context. |
+| Priority order | When bids conflict: (1) safety/charter flags from Keeper, (2) Hands alerts (blocked or pending-approval actions), (3) Mirror-Chad state signals, (4) Mirror-Self state signals, (5) Curiosity grounded questions, (6) Pattern Monitor observations, (7) Drive check-ins, (8) everything else. Priority is a default, not a rule — Awareness may reorder based on context. |
 | Notes | Awareness is what makes the system feel like one calm, coherent presence rather than a committee shouting. Without it, Voice would be overwhelmed making gating judgments while also handling synthesis, or coordinators would route directly to Voice and produce incoherence. Awareness is the orchestration layer that allows the rest of the system to be complex without Chad experiencing that complexity. |
 
 ---

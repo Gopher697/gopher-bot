@@ -323,6 +323,46 @@ def add_utterance(
     )
 
 
+def delete_observation(
+    driver,
+    content: str,
+    environment: str,
+) -> bool:
+    """
+    Hard-delete an Observation node and its embedding from the graph.
+
+    Because the embedding is stored as a property on the node itself,
+    Neo4j's vector index cascade removes the embedding entry automatically
+    when the node is deleted. No separate vector-index sync is required.
+
+    Args:
+        driver:      Active Neo4j driver.
+        content:     Exact content string of the observation to delete.
+        environment: Graph environment scope.
+
+    Returns:
+        True if a node was found and deleted, False if not found.
+    """
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (observation:Observation {
+                content: $content,
+                environment: $environment
+            })
+            WITH observation, elementId(observation) AS eid
+            DETACH DELETE observation
+            RETURN eid
+            """,
+            content=content,
+            environment=environment,
+        )
+        return result.single() is not None
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
 def add_media(
     driver,
     file_path,

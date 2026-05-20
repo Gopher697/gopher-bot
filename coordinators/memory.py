@@ -57,6 +57,7 @@ class Memory(Coordinator):
                     YIELD node AS observation, score
                     WHERE score > 0.65
                       AND coalesce(observation.environment, $environment) = $environment
+                      AND coalesce(observation.status, 'active') = 'active'
                     RETURN properties(observation) AS observation, score
                     ORDER BY score DESC
                     """,
@@ -88,6 +89,7 @@ class Memory(Coordinator):
                     )
                     OPTIONAL MATCH (observation:Observation {environment: $environment})
                         -[:OBSERVED]->(entity)
+                    WHERE coalesce(observation.status, 'active') = 'active'
                     WITH entity, collect(observation)[0..3] AS observations
                     RETURN properties(entity) AS entity,
                            [item IN observations WHERE item IS NOT NULL | properties(item)] AS observations
@@ -101,7 +103,8 @@ class Memory(Coordinator):
                 observation_records = session.run(
                     """
                     MATCH (observation:Observation {environment: $environment})
-                    WHERE any(term IN $terms WHERE
+                    WHERE coalesce(observation.status, 'active') = 'active'
+                      AND any(term IN $terms WHERE
                         toLower(coalesce(observation.content, "")) CONTAINS term OR
                         toLower(coalesce(observation.coordinator, "")) CONTAINS term
                     )
@@ -155,6 +158,35 @@ class Memory(Coordinator):
                 )
         except Exception:
             return
+        finally:
+            if driver is not None:
+                graph.close(driver)
+
+    def forget(
+        self,
+        content: str,
+        environment: str = "global",
+    ) -> bool:
+        """
+        Hard-delete an Observation node and its vector embedding from the graph.
+
+        Because the embedding is stored as a property on the Observation node,
+        Neo4j's vector index cascade removes the vector entry automatically
+        when the node is deleted. No separate sync step is needed.
+
+        Args:
+            content:     Exact content string of the observation to remove.
+            environment: Graph environment scope (default "global").
+
+        Returns:
+            True if the observation was found and deleted, False if not found.
+        """
+        driver = None
+        try:
+            driver = graph.connect()
+            return graph.delete_observation(driver, content, environment)
+        except Exception:
+            return False
         finally:
             if driver is not None:
                 graph.close(driver)

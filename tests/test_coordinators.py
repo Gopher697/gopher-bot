@@ -957,3 +957,158 @@ def test_two_awareness_instances_have_different_session_ids():
     a1 = Awareness(voice=None, memory=None, sensory=None)
     a2 = Awareness(voice=None, memory=None, sensory=None)
     assert a1.session_id != a2.session_id
+
+
+# ---------------------------------------------------------------------------
+# Vector deletion cascade tests (non-graph — no Neo4j required)
+# ---------------------------------------------------------------------------
+
+def test_delete_observation_returns_true_when_found():
+    """delete_observation() returns True when the node exists."""
+    from world_models import graph
+
+    class FakeTx:
+        def run(self, cypher, **kwargs):
+            return FakeResult(found=True)
+
+    class FakeResult:
+        def __init__(self, found):
+            self._found = found
+        def single(self):
+            return {"eid": "abc"} if self._found else None
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+        def execute_write(self, fn):
+            return fn(FakeTx())
+
+    class FakeDriver:
+        def session(self, **kwargs): return FakeSession()
+
+    result = graph.delete_observation(
+        FakeDriver(),
+        content="Gopher prefers dark mode.",
+        environment="global",
+    )
+    assert result is True
+
+
+def test_delete_observation_returns_false_when_not_found():
+    """delete_observation() returns False when the node does not exist."""
+    from world_models import graph
+
+    class FakeTx:
+        def run(self, cypher, **kwargs):
+            return FakeResult()
+
+    class FakeResult:
+        def single(self):
+            return None
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+        def execute_write(self, fn):
+            return fn(FakeTx())
+
+    class FakeDriver:
+        def session(self, **kwargs): return FakeSession()
+
+    result = graph.delete_observation(
+        FakeDriver(),
+        content="this observation does not exist",
+        environment="global",
+    )
+    assert result is False
+
+
+def test_memory_forget_calls_delete_observation(monkeypatch):
+    """Memory.forget() delegates to graph.delete_observation."""
+    from types import SimpleNamespace
+    import coordinators.memory as mem_module
+
+    deleted = []
+
+    def fake_delete_observation(driver, content, environment):
+        deleted.append({"content": content, "environment": environment})
+        return True
+
+    fake_graph = SimpleNamespace(
+        connect=lambda: "driver",
+        close=lambda d: None,
+        delete_observation=fake_delete_observation,
+    )
+
+    monkeypatch.setattr(mem_module, "graph", fake_graph)
+
+    from coordinators.memory import Memory
+    memory = Memory(embedder=None)
+    result = memory.forget("Gopher prefers dark mode.", environment="global")
+
+    assert result is True
+    assert len(deleted) == 1
+    assert deleted[0]["content"] == "Gopher prefers dark mode."
+    assert deleted[0]["environment"] == "global"
+
+
+def test_memory_forget_returns_false_on_exception(monkeypatch):
+    """Memory.forget() returns False and does not raise on graph errors."""
+    from types import SimpleNamespace
+    import coordinators.memory as mem_module
+
+    def fake_delete_observation(driver, content, environment):
+        raise RuntimeError("Neo4j unavailable")
+
+    fake_graph = SimpleNamespace(
+        connect=lambda: "driver",
+        close=lambda d: None,
+        delete_observation=fake_delete_observation,
+    )
+
+    monkeypatch.setattr(mem_module, "graph", fake_graph)
+
+    from coordinators.memory import Memory
+    memory = Memory(embedder=None)
+    result = memory.forget("anything", environment="global")
+    assert result is False
+
+
+def test_memory_forget_returns_false_when_not_found(monkeypatch):
+    """Memory.forget() returns False when the observation does not exist."""
+    from types import SimpleNamespace
+    import coordinators.memory as mem_module
+
+    fake_graph = SimpleNamespace(
+        connect=lambda: "driver",
+        close=lambda d: None,
+        delete_observation=lambda driver, content, environment: False,
+    )
+    monkeypatch.setattr(mem_module, "graph", fake_graph)
+
+    from coordinators.memory import Memory
+    memory = Memory(embedder=None)
+    result = memory.forget("nonexistent", environment="global")
+    assert result is False
+
+
+def test_retrieve_vector_context_query_contains_status_filter():
+    """The vector retrieval Cypher must filter by status = active."""
+    import inspect
+    from coordinators.memory import Memory
+
+    source = inspect.getsource(Memory._retrieve_vector_context)
+    assert "status" in source, (
+        "_retrieve_vector_context must filter by observation.status"
+    )
+
+
+def test_retrieve_keyword_context_query_contains_status_filter():
+    """The keyword retrieval Cypher must filter by status = active."""
+    import inspect
+    from coordinators.memory import Memory
+
+    source = inspect.getsource(Memory._retrieve_keyword_context)
+    assert "status" in source, (
+        "_retrieve_keyword_context must filter by observation.status"
+    )

@@ -27,9 +27,11 @@ from typing import Any
 from coordinators.base import PROJECT_ROOT, Coordinator
 from coordinators.bid import PRIORITY_HANDS, BidQueue
 from coordinators.hands_policy import PolicyDecision, classify_action
+from utils.audit_log import AuditLog
 
 
 HANDS_ACTION_LOG_PATH = PROJECT_ROOT / "logs" / "actions" / "hands_actions.jsonl"
+HANDS_AUDIT_LOG_PATH = PROJECT_ROOT / "logs" / "audit" / "hands_audit.jsonl"
 HANDS_SNAPSHOT_DIR = PROJECT_ROOT / "logs" / "actions" / ".snapshots"
 
 
@@ -58,7 +60,8 @@ class Hands(Coordinator):
         time_fn: Callable[[], float] = time.time,
         bid_queue: BidQueue | None = None,
     ) -> None:
-        self.action_log_writer = action_log_writer or _append_action_log
+        self.action_log_writer = action_log_writer
+        self._audit_log = AuditLog(HANDS_AUDIT_LOG_PATH)
         self.snapshot_fn = snapshot_fn or _read_file_bytes
         self.restore_fn = restore_fn or _write_file_bytes
         self.time_fn = time_fn
@@ -183,7 +186,17 @@ class Hands(Coordinator):
             "args_summary": _sanitise_args(args),
         }
         try:
-            self.action_log_writer(entry)
+            if self.action_log_writer is not None:
+                self.action_log_writer(entry)
+            else:
+                event_type = str(entry.get("policy_class") or "hands_action")
+                data = {
+                    key: value
+                    for key, value in entry.items()
+                    if key != "policy_class"
+                }
+                data = json.loads(json.dumps(data, default=str))
+                self._audit_log.append(event_type, data)
         except Exception:
             pass
 

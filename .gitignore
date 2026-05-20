@@ -11,6 +11,7 @@ pytest_tmp/
 test_workspaces/
 pytest-cache-files-*/
 logs/*.jsonl
+logs/audit/*.jsonl
 logs/actions/*.jsonl
 logs/pattern_monitor.jsonl
 notes/sessions/*.md

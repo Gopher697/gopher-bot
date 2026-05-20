@@ -128,6 +128,7 @@ class Memory(Coordinator):
         observation: str,
         environment: str = "global",
         confidence: float = 0.7,
+        source_type: str = "observed",
     ) -> None:
         content = observation.strip()
         if not content:
@@ -142,6 +143,7 @@ class Memory(Coordinator):
                 environment,
                 "Gopher-bot",
                 confidence=confidence,
+                source_type=source_type,
             )
             embedding = self.embedder.embed(content)
             if embedding is not None:

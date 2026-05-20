@@ -438,3 +438,93 @@ def test_bot_respond_uses_awareness_pipeline(monkeypatch):
     monkeypatch.setattr(bot, "awareness", FakeAwareness())
 
     assert bot.respond("hello") == "handled: hello"
+
+
+# ---------------------------------------------------------------------------
+# source_type schema tests (non-graph — no Neo4j required)
+# ---------------------------------------------------------------------------
+
+def test_observation_properties_includes_source_type_default():
+    from world_models.graph import _observation_properties
+
+    props = _observation_properties(
+        content="Gopher prefers dark mode",
+        environment="global",
+        coordinator="memory",
+    )
+
+    assert props["source_type"] == "observed"
+
+
+def test_observation_properties_accepts_all_valid_source_types():
+    from world_models.graph import VALID_SOURCE_TYPES, _observation_properties
+
+    for source_type in VALID_SOURCE_TYPES:
+        props = _observation_properties(
+            content="test",
+            environment="global",
+            coordinator="memory",
+            source_type=source_type,
+        )
+        assert props["source_type"] == source_type
+
+
+def test_observation_properties_rejects_invalid_source_type():
+    import pytest
+    from world_models.graph import _observation_properties
+
+    with pytest.raises(ValueError, match="source_type must be one of"):
+        _observation_properties(
+            content="test",
+            environment="global",
+            coordinator="memory",
+            source_type="untrusted",
+        )
+
+
+def test_memory_store_accepts_source_type_parameter(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    calls = []
+
+    def fake_add_observation(driver, content, environment, coordinator,
+                              confidence=1.0, entity_names=None,
+                              source_type="observed"):
+        calls.append({
+            "content": content,
+            "source_type": source_type,
+        })
+
+    fake_graph = SimpleNamespace(
+        connect=lambda: "driver",
+        close=lambda d: None,
+        add_observation=fake_add_observation,
+    )
+    fake_vector_index = SimpleNamespace(store_embedding=lambda *a, **k: None)
+    fake_embedder = SimpleNamespace(embed=lambda t: None)
+
+    import coordinators.memory as mem_module
+    monkeypatch.setattr(mem_module, "graph", fake_graph)
+    monkeypatch.setattr(mem_module, "vector_index", fake_vector_index)
+
+    from coordinators.memory import Memory
+    memory = Memory(embedder=fake_embedder)
+    memory.store(
+        "File contents from external source",
+        environment="global",
+        source_type="external_content",
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["source_type"] == "external_content"
+    assert calls[0]["content"] == "File contents from external source"
+
+
+def test_valid_source_types_contains_expected_values():
+    from world_models.graph import VALID_SOURCE_TYPES
+
+    assert "observed" in VALID_SOURCE_TYPES
+    assert "inferred" in VALID_SOURCE_TYPES
+    assert "proposed" in VALID_SOURCE_TYPES
+    assert "external_content" in VALID_SOURCE_TYPES

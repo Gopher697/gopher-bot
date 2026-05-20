@@ -10,6 +10,7 @@ from world_models import config
 
 
 MEDIA_TYPES = {"image", "screenshot", "document", "audio"}
+VALID_SOURCE_TYPES = {"observed", "inferred", "proposed", "external_content"}
 REL_TYPE_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
 
@@ -50,12 +51,19 @@ def _observation_properties(
     environment: str,
     coordinator: str,
     confidence: float = 1.0,
+    source_type: str = "observed",
 ) -> Dict[str, Any]:
+    if source_type not in VALID_SOURCE_TYPES:
+        raise ValueError(
+            f"source_type must be one of {sorted(VALID_SOURCE_TYPES)!r}, "
+            f"got {source_type!r}"
+        )
     return {
         "content": content,
         "environment": environment,
         "coordinator": coordinator,
         "confidence": float(confidence),
+        "source_type": source_type,
         "created_at": _now_iso(),
         "status": "active",
         "training_candidate": None,
@@ -95,8 +103,11 @@ def add_observation(
     coordinator,
     confidence=1.0,
     entity_names=None,
+    source_type="observed",
 ):
-    props = _observation_properties(content, environment, coordinator, confidence)
+    props = _observation_properties(
+        content, environment, coordinator, confidence, source_type
+    )
     names = _merge_names(entity_names)
 
     def write(tx):

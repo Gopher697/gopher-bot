@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from coordinators.base import Coordinator, backfill_coordinator_log_acceptance
 from coordinators.bid import Bid, BidQueue
@@ -12,6 +12,9 @@ from coordinators.reason import Reason
 from coordinators.sensory import Sensory
 from coordinators.tier_config import DEFAULT_TIER
 from coordinators.voice import Voice
+
+if TYPE_CHECKING:
+    from coordinators.hands import Hands
 
 
 class Awareness:
@@ -25,6 +28,7 @@ class Awareness:
         time_fn: Callable[[], float] = time.time,
         feeling: Coordinator | None = None,
         coordinator_log_acceptance_updater: Callable[[Any, bool], None] | None = None,
+        hands: "Hands | None" = None,
     ):
         self.sensory = sensory or Sensory()
         self.memory = memory or Memory()
@@ -32,6 +36,7 @@ class Awareness:
             memory=self.memory if isinstance(self.memory, Memory) else None
         )
         self.voice = voice or Voice()
+        self.hands = hands
         self.bid_queue = bid_queue or BidQueue()
         self.active_task_in_progress = False
         self.last_active = 0.0
@@ -62,6 +67,8 @@ class Awareness:
             self._drain_bids_into_packet(packet)
 
             packet = self.reason.process(packet)
+            if self.hands is not None and "action" in packet:
+                packet = self.hands.process(packet)
             packet = self.voice.process(packet)
             if self.feeling is not None:
                 observable = _extract_feeling_text(packet)

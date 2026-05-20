@@ -10,7 +10,9 @@ world_models/neuromodulation_state.json
 pytest_tmp/
 test_workspaces/
 pytest-cache-files-*/
-logs/
+logs/*.jsonl
+logs/actions/*.jsonl
+logs/pattern_monitor.jsonl
 notes/sessions/*.md
 config/projects.yaml
 config/allowed_commands.yaml

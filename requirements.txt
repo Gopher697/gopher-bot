@@ -12,9 +12,5 @@ openai>=1.0
 flask>=3.0
 flask-socketio>=5.0
 
-# MCP server
-mcp>=1.0.0
-PyYAML>=6.0
-
 # Dev / testing
 pytest>=8.0

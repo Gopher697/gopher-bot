@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Iterable, Optional, TextIO
 
 
-WORKBENCH_ROOT = Path(r"D:\gopher-workbench-mcp")
-PROJECT_NAME = "gopher-workbench-mcp"
+WORKBENCH_ROOT = Path(r"D:\gopher-bot")
+PROJECT_NAME = "gopher-bot"
 
 if str(WORKBENCH_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKBENCH_ROOT))

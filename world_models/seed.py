@@ -16,11 +16,11 @@ def main() -> int:
     try:
         project_id = graph.add_entity(
             driver,
-            name="gopher-workbench-mcp",
+            name="gopher-bot",
             entity_type="project",
             environment=ENVIRONMENT,
         )
-        print(f"Added entity gopher-workbench-mcp: {project_id}")
+        print(f"Added entity gopher-bot: {project_id}")
 
         charter_id = graph.add_entity(
             driver,
@@ -40,13 +40,13 @@ def main() -> int:
 
         governed_by = graph.relate(
             driver,
-            from_name="gopher-workbench-mcp",
+            from_name="gopher-bot",
             rel_type="GOVERNED_BY",
             to_name="AGENT_CHARTER.md",
             environment=ENVIRONMENT,
         )
         print(
-            "Added relationship gopher-workbench-mcp -[:GOVERNED_BY]-> "
+            "Added relationship gopher-bot -[:GOVERNED_BY]-> "
             f"AGENT_CHARTER.md: {governed_by}"
         )
 
@@ -68,7 +68,7 @@ def main() -> int:
             environment=ENVIRONMENT,
             coordinator="seed.py",
             confidence=1.0,
-            entity_names=["gopher-workbench-mcp", "AGENT_CHARTER.md"],
+            entity_names=["gopher-bot", "AGENT_CHARTER.md"],
         )
         print(f"Added observation: {observation_id}")
 

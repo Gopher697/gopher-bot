@@ -1,7 +1,0 @@
-# Projects are never auto-discovered. Add only folders you want assistants to see.
-projects:
-  - name: my-project
-    root: "D:/path/to/my-project"
-    summary_file: "PROJECT.md"
-    notes_dir: "notes"
-    session_notes_dir: "notes/sessions"

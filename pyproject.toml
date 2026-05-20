@@ -3,14 +3,17 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "gopher-workbench-mcp"
+name = "gopher-bot"
 version = "0.1.0"
-description = "A conservative local-only MCP server for project SOPs, notes, git state, and allowlisted commands."
+description = "Coordinator brain and local web interface for Gopher-bot."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "mcp>=1.0.0",
-  "PyYAML>=6.0",
+  "neo4j>=5.0",
+  "anthropic>=0.25",
+  "openai>=1.0",
+  "flask>=3.0",
+  "flask-socketio>=5.0",
 ]
 
 [project.optional-dependencies]
@@ -18,10 +21,9 @@ dev = [
   "pytest>=8.0",
 ]
 
-[project.scripts]
-gopher-workbench-mcp = "gopher_workbench_mcp.server:main"
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
 
+[tool.hatch.build.targets.wheel]
+packages = ["coordinators", "interface", "world_models"]

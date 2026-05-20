@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid as _uuid
 from dataclasses import asdict
 import time
 from collections.abc import Callable
@@ -37,6 +38,7 @@ class Awareness:
         )
         self.voice = voice or Voice()
         self.hands = hands
+        self.session_id: str = _uuid.uuid4().hex
         self.bid_queue = bid_queue or BidQueue()
         self.active_task_in_progress = False
         self.last_active = 0.0
@@ -53,6 +55,7 @@ class Awareness:
         self.active_task_in_progress = True
         packet = {"message": message, "input_type": "text"}
         packet.update(packet_overrides)
+        packet["session_id"] = self.session_id
         try:
             self.assess_tier(packet)
 

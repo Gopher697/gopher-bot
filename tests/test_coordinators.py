@@ -722,3 +722,238 @@ def test_update_edge_synaptic_weights_clamps_values():
     assert len(captured) == 1
     assert captured[0]["weight"] == pytest.approx(1.0)
     assert captured[0]["variance"] == pytest.approx(MIN_CONSOLIDATION_VARIANCE)
+
+
+# ---------------------------------------------------------------------------
+# Episode node tests (non-graph — no Neo4j required)
+# ---------------------------------------------------------------------------
+
+def test_episode_properties_utterance_defaults():
+    from world_models.graph import _episode_properties
+
+    props = _episode_properties(
+        episode_type="utterance",
+        content="Hello, Gopher.",
+        session_id="abc123",
+        environment="global",
+        coordinator="voice",
+    )
+
+    assert props["episode_type"] == "utterance"
+    assert props["immutable"] is True
+    assert props["coordinator"] == "voice"
+    assert props["tts_generated"] is False
+    assert props["accepted"] is False
+    assert props["score"] is None
+    assert "created_at" in props
+    assert props["source_type"] == "observed"
+
+
+def test_episode_properties_utterance_tts_flag():
+    from world_models.graph import _episode_properties
+
+    props = _episode_properties(
+        episode_type="utterance",
+        content="Hello.",
+        session_id="abc123",
+        environment="global",
+        coordinator="voice",
+        tts_generated=True,
+    )
+    assert props["tts_generated"] is True
+    assert props["immutable"] is True
+
+
+def test_episode_properties_reasoning_is_not_immutable():
+    from world_models.graph import _episode_properties
+
+    props = _episode_properties(
+        episode_type="reasoning",
+        content="Should I mention the anomaly?",
+        session_id="abc123",
+        environment="global",
+        coordinator="mirror_self",
+    )
+
+    assert props["immutable"] is False
+    assert props["episode_type"] == "reasoning"
+    assert props["tts_generated"] is False
+
+
+def test_episode_properties_reasoning_accepted_flag():
+    from world_models.graph import _episode_properties
+
+    props = _episode_properties(
+        episode_type="reasoning",
+        content="Bid accepted.",
+        session_id="s1",
+        environment="global",
+        coordinator="curiosity",
+        accepted=True,
+    )
+    assert props["accepted"] is True
+
+
+def test_episode_properties_rejects_invalid_type():
+    import pytest as _pytest
+    from world_models.graph import _episode_properties
+
+    with _pytest.raises(ValueError, match="episode_type must be one of"):
+        _episode_properties(
+            episode_type="hallucination",
+            content="test",
+            session_id="s1",
+            environment="global",
+            coordinator="voice",
+        )
+
+
+def test_episode_properties_rejects_non_voice_utterance():
+    import pytest as _pytest
+    from world_models.graph import _episode_properties
+
+    with _pytest.raises(ValueError, match="coordinator='voice'"):
+        _episode_properties(
+            episode_type="utterance",
+            content="test",
+            session_id="s1",
+            environment="global",
+            coordinator="curiosity",   # wrong coordinator for utterance
+        )
+
+
+def test_episode_properties_rejects_invalid_source_type():
+    import pytest as _pytest
+    from world_models.graph import _episode_properties
+
+    with _pytest.raises(ValueError, match="source_type must be one of"):
+        _episode_properties(
+            episode_type="reasoning",
+            content="test",
+            session_id="s1",
+            environment="global",
+            coordinator="memory",
+            source_type="unknown",
+        )
+
+
+def test_episode_properties_accepts_all_valid_types():
+    from world_models.graph import VALID_EPISODE_TYPES, _episode_properties
+
+    for ep_type in VALID_EPISODE_TYPES:
+        coordinator = "voice" if ep_type == "utterance" else "memory"
+        props = _episode_properties(
+            episode_type=ep_type,
+            content="test",
+            session_id="s1",
+            environment="global",
+            coordinator=coordinator,
+        )
+        assert props["episode_type"] == ep_type
+
+
+def test_valid_episode_types_contains_expected_values():
+    from world_models.graph import VALID_EPISODE_TYPES
+
+    assert "utterance" in VALID_EPISODE_TYPES
+    assert "reasoning" in VALID_EPISODE_TYPES
+    assert "action" in VALID_EPISODE_TYPES
+    assert "observation_group" in VALID_EPISODE_TYPES
+
+
+def test_add_utterance_uses_fake_driver():
+    """add_utterance() passes correct props including immutable=True."""
+    from world_models import graph
+
+    captured = []
+
+    class FakeTx:
+        def run(self, cypher, **kwargs):
+            captured.append(kwargs)
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+        def execute_write(self, fn):
+            return fn(FakeTx())
+
+    class FakeDriver:
+        def session(self, **kwargs): return FakeSession()
+
+    episode_id = graph.add_utterance(
+        FakeDriver(),
+        content="Good morning, Gopher.",
+        session_id="sess_001",
+        environment="global",
+        tts_generated=True,
+    )
+
+    assert isinstance(episode_id, str)
+    assert len(episode_id) == 32    # UUID hex
+    assert len(captured) == 1
+    props = captured[0]["props"]
+    assert props["episode_type"] == "utterance"
+    assert props["immutable"] is True
+    assert props["coordinator"] == "voice"
+    assert props["tts_generated"] is True
+    assert props["session_id"] == "sess_001"
+    assert "confidence" not in props
+
+
+def test_add_episode_reasoning_fake_driver():
+    """add_episode() for a reasoning episode has immutable=False."""
+    from world_models import graph
+
+    captured = []
+
+    class FakeTx:
+        def run(self, cypher, **kwargs):
+            captured.append(kwargs)
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+        def execute_write(self, fn):
+            return fn(FakeTx())
+
+    class FakeDriver:
+        def session(self, **kwargs): return FakeSession()
+
+    graph.add_episode(
+        FakeDriver(),
+        episode_type="reasoning",
+        content="Internal deliberation.",
+        session_id="sess_002",
+        environment="global",
+        coordinator="mirror_self",
+        accepted=True,
+    )
+
+    assert len(captured) == 1
+    props = captured[0]["props"]
+    assert props["immutable"] is False
+    assert props["accepted"] is True
+    assert props["tts_generated"] is False
+
+
+def test_awareness_session_id_is_set():
+    """Awareness generates a non-empty session_id on init."""
+    from coordinators.awareness import Awareness
+
+    awareness = Awareness(
+        voice=None,
+        memory=None,
+        sensory=None,
+    )
+    assert hasattr(awareness, "session_id")
+    assert isinstance(awareness.session_id, str)
+    assert len(awareness.session_id) > 0
+
+
+def test_two_awareness_instances_have_different_session_ids():
+    """Each Awareness startup produces a unique session_id."""
+    from coordinators.awareness import Awareness
+
+    a1 = Awareness(voice=None, memory=None, sensory=None)
+    a2 = Awareness(voice=None, memory=None, sensory=None)
+    assert a1.session_id != a2.session_id

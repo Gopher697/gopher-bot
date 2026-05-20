@@ -159,6 +159,81 @@ class Memory(Coordinator):
             if driver is not None:
                 graph.close(driver)
 
+    def record_utterance(
+        self,
+        content: str,
+        session_id: str,
+        environment: str = "global",
+        tts_generated: bool = False,
+    ) -> str:
+        """
+        Record what Voice actually said to Gopher as an immutable Utterance node.
+
+        This is ground truth — it cannot be revised after writing. Call this
+        immediately after Voice emits its response.
+
+        Args:
+            content:       The exact text Voice output.
+            session_id:    Current BrainLoop session UUID hex.
+            environment:   Graph environment scope.
+            tts_generated: Whether TTS audio was generated.
+
+        Returns:
+            The episode_id of the new node.
+        """
+        driver = graph.connect()
+        try:
+            return graph.add_utterance(
+                driver=driver,
+                content=content,
+                session_id=session_id,
+                environment=environment,
+                tts_generated=tts_generated,
+            )
+        finally:
+            graph.close(driver)
+
+    def record_reasoning(
+        self,
+        content: str,
+        session_id: str,
+        coordinator: str,
+        environment: str = "global",
+        accepted: bool = False,
+        source_type: str = "observed",
+    ) -> str:
+        """
+        Record a coordinator's internal reasoning trace as a Reasoning episode.
+
+        These are deliberations that Gopher never heard. They are mutable and
+        can be scored later for training corpus curation.
+
+        Args:
+            content:     The reasoning trace text.
+            session_id:  Current BrainLoop session UUID hex.
+            coordinator: Name of the coordinator that produced this.
+            environment: Graph environment scope.
+            accepted:    Whether the bid was accepted by Awareness.
+            source_type: One of VALID_SOURCE_TYPES (default "observed").
+
+        Returns:
+            The episode_id of the new node.
+        """
+        driver = graph.connect()
+        try:
+            return graph.add_episode(
+                driver=driver,
+                episode_type="reasoning",
+                content=content,
+                session_id=session_id,
+                environment=environment,
+                coordinator=coordinator,
+                source_type=source_type,
+                accepted=accepted,
+            )
+        finally:
+            graph.close(driver)
+
 
 def _normalize_keywords(keywords: Iterable[str]) -> list[str]:
     normalized = []

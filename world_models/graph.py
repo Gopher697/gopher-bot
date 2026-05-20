@@ -11,6 +11,7 @@ from world_models import config
 
 MEDIA_TYPES = {"image", "screenshot", "document", "audio"}
 VALID_SOURCE_TYPES = {"observed", "inferred", "proposed", "external_content"}
+VALID_EPISODE_TYPES = {"utterance", "reasoning", "action", "observation_group"}
 DEFAULT_EDGE_WEIGHT: float = 1.0
 DEFAULT_CONSOLIDATION_VARIANCE: float = 1.0   # σ²_ij; decreases as evidence accumulates
 MIN_CONSOLIDATION_VARIANCE: float = 0.01      # floor to avoid division by zero
@@ -71,6 +72,82 @@ def _observation_properties(
         "status": "active",
         "training_candidate": None,
     }
+
+
+def _episode_properties(
+    episode_type: str,
+    content: str,
+    session_id: str,
+    environment: str,
+    coordinator: str,
+    source_type: str = "observed",
+    *,
+    # Utterance-specific
+    tts_generated: bool = False,
+    # Reasoning-specific
+    accepted: bool = False,
+    score: float | None = None,
+) -> Dict[str, Any]:
+    """
+    Build the property dict for an Episode node.
+
+    Utterance episodes are immutable ground truth — what Voice said to Gopher.
+    Reasoning episodes record coordinator deliberation that was never expressed.
+
+    Args:
+        episode_type:  One of VALID_EPISODE_TYPES.
+        content:       The text content of the episode.
+        session_id:    UUID hex of the current BrainLoop session.
+        environment:   Graph environment scope.
+        coordinator:   Name of the coordinator that produced this episode.
+                       Must be "voice" for utterance episodes.
+        source_type:   One of VALID_SOURCE_TYPES (default "observed").
+        tts_generated: Utterance only — was TTS audio actually generated?
+        accepted:      Reasoning only — was this bid accepted by Awareness?
+        score:         Optional training-corpus score (None until curated).
+
+    Returns:
+        Property dict suitable for writing to Neo4j.
+
+    Raises:
+        ValueError: If episode_type or source_type is invalid, or if
+                    coordinator != "voice" for an utterance episode.
+    """
+    if episode_type not in VALID_EPISODE_TYPES:
+        raise ValueError(
+            f"episode_type must be one of {sorted(VALID_EPISODE_TYPES)!r}, "
+            f"got {episode_type!r}"
+        )
+    if source_type not in VALID_SOURCE_TYPES:
+        raise ValueError(
+            f"source_type must be one of {sorted(VALID_SOURCE_TYPES)!r}, "
+            f"got {source_type!r}"
+        )
+    if episode_type == "utterance" and coordinator != "voice":
+        raise ValueError(
+            f"Utterance episodes must have coordinator='voice', "
+            f"got {coordinator!r}"
+        )
+
+    immutable = episode_type == "utterance"
+
+    props: Dict[str, Any] = {
+        "episode_type": episode_type,
+        "content": content,
+        "session_id": session_id,
+        "environment": environment,
+        "coordinator": coordinator,
+        "source_type": source_type,
+        "immutable": immutable,
+        "created_at": _now_iso(),
+        "status": "active",
+        # Utterance fields
+        "tts_generated": tts_generated if episode_type == "utterance" else False,
+        # Reasoning fields
+        "accepted": accepted if episode_type == "reasoning" else False,
+        "score": score,
+    }
+    return props
 
 
 def connect():
@@ -142,6 +219,108 @@ def add_observation(
 
     with _session(driver) as session:
         return session.execute_write(write)
+
+
+def add_episode(
+    driver,
+    episode_type: str,
+    content: str,
+    session_id: str,
+    environment: str,
+    coordinator: str,
+    source_type: str = "observed",
+    tts_generated: bool = False,
+    accepted: bool = False,
+    score: float | None = None,
+) -> str:
+    """
+    Add an Episode node to the graph and return its episode_id.
+
+    Episode nodes record events that occurred within a session. Two types:
+
+    - **utterance**: what Voice said to Gopher (immutable ground truth).
+      coordinator must be "voice". Carries tts_generated flag.
+    - **reasoning**: coordinator deliberation not expressed to Gopher.
+      Carries accepted flag (was the bid accepted by Awareness?).
+
+    Args:
+        driver:        Active Neo4j driver.
+        episode_type:  One of VALID_EPISODE_TYPES.
+        content:       Text content of the episode.
+        session_id:    UUID hex of the current BrainLoop session.
+        environment:   Graph environment scope.
+        coordinator:   Name of the producing coordinator.
+        source_type:   One of VALID_SOURCE_TYPES (default "observed").
+        tts_generated: Utterance only — was audio generated?
+        accepted:      Reasoning only — was the bid accepted?
+        score:         Optional float for training curation (None by default).
+
+    Returns:
+        The episode_id (UUID hex string) of the new node.
+    """
+    import uuid
+    episode_id = uuid.uuid4().hex
+
+    props = _episode_properties(
+        episode_type=episode_type,
+        content=content,
+        session_id=session_id,
+        environment=environment,
+        coordinator=coordinator,
+        source_type=source_type,
+        tts_generated=tts_generated,
+        accepted=accepted,
+        score=score,
+    )
+    props["episode_id"] = episode_id
+
+    def write(tx):
+        tx.run(
+            """
+            CREATE (e:Episode $props)
+            """,
+            props=props,
+        )
+
+    with _session(driver) as session:
+        session.execute_write(write)
+
+    return episode_id
+
+
+def add_utterance(
+    driver,
+    content: str,
+    session_id: str,
+    environment: str,
+    tts_generated: bool = False,
+) -> str:
+    """
+    Convenience wrapper: add an immutable Utterance episode node.
+
+    Utterance episodes are what Voice actually said to Gopher. They are
+    ground truth — coordinator is always "voice", immutable is always True.
+
+    Args:
+        driver:        Active Neo4j driver.
+        content:       The exact text Voice output to Gopher.
+        session_id:    UUID hex of the current BrainLoop session.
+        environment:   Graph environment scope.
+        tts_generated: Was TTS audio actually generated for this output?
+
+    Returns:
+        The episode_id of the new Utterance node.
+    """
+    return add_episode(
+        driver=driver,
+        episode_type="utterance",
+        content=content,
+        session_id=session_id,
+        environment=environment,
+        coordinator="voice",
+        source_type="observed",
+        tts_generated=tts_generated,
+    )
 
 
 def add_media(

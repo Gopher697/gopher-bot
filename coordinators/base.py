@@ -28,6 +28,7 @@ def build_coordinator_log_entry(
     coordinator_name: str,
     timestamp: float,
     *,
+    event: str | None = None,
     confidence: float = 0.0,
     accepted: bool | None = None,
     outcome_quality: float | None = None,
@@ -40,6 +41,7 @@ def build_coordinator_log_entry(
     return {
         "coordinator_name": str(coordinator_name),
         "timestamp": float(timestamp),
+        "event": str(event or "tick"),
         "confidence": _clamp_unit(_safe_float(confidence, 0.0)),
         "accepted": accepted,
         "outcome_quality": outcome_quality,

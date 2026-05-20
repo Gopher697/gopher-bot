@@ -161,6 +161,56 @@ def test_brain_loop_writes_enriched_log_entry_for_each_tick():
     assert entry["reasoning_trace"] is None
 
 
+def test_brain_loop_emits_audit_update_after_each_background_tick():
+    from coordinators.base import Coordinator
+    from coordinators.bid import BidQueue
+    from coordinators.brain_loop import BrainLoop
+
+    current_time = [4000.0]
+    audit_updates = []
+
+    class FakeBackground(Coordinator):
+        name = "feeling"
+        last_confidence = 0.82
+        last_tier_used = "tier-2"
+        last_actual_cost_usd = 0.003
+        last_event = "background_tick"
+
+        def process(self, packet):
+            return packet
+
+        async def background_tick(self, bid_queue):
+            return None
+
+    awareness = SimpleNamespace(
+        bid_queue=BidQueue(),
+        last_active=current_time[0],
+    )
+    brain_loop = BrainLoop(
+        coordinators={"feeling": FakeBackground()},
+        intervals={"feeling": 30.0},
+        time_fn=lambda: current_time[0],
+        sleep_interval=0,
+        coordinator_log_writer=lambda entry: None,
+        audit_event_emitter=audit_updates.append,
+    )
+    brain_loop.bind_awareness(awareness)
+
+    asyncio.run(brain_loop.tick_once())
+
+    assert audit_updates == [
+        {
+            "timestamp": 4000.0,
+            "coordinator": "feeling",
+            "event": "background_tick",
+            "confidence": 0.82,
+            "tier_used": "tier-2",
+            "actual_cost_usd": 0.003,
+            "accepted": None,
+        }
+    ]
+
+
 def test_dream_ticks_only_after_idle_threshold():
     from coordinators.base import Coordinator
     from coordinators.bid import BidQueue
@@ -216,3 +266,101 @@ def test_brain_status_endpoint_reports_loop_state_without_starting_thread():
     assert payload["running"] is False
     assert isinstance(payload["last_ticks"], dict)
     assert isinstance(payload["pending_bids"], int)
+
+
+def test_brain_status_endpoint_includes_neuromodulator_levels(monkeypatch):
+    from interface import server
+
+    fake_neuromodulation = SimpleNamespace(
+        state=SimpleNamespace(
+            channels={
+                "DA": SimpleNamespace(tonic=0.5, phasic=0.25),
+                "NE": SimpleNamespace(tonic=0.4, phasic=0.0),
+                "5HT": SimpleNamespace(tonic=0.6, phasic=0.1),
+                "ACh": SimpleNamespace(tonic=0.5, phasic=0.2),
+            }
+        )
+    )
+    monkeypatch.setattr(
+        server,
+        "brain_loop",
+        SimpleNamespace(
+            running=False,
+            last_ticks={},
+            coordinators={"neuromodulation": fake_neuromodulation},
+        ),
+    )
+
+    client = server.app.test_client()
+
+    response = client.get("/brain-status")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["neuromodulators"] == {
+        "DA": 0.75,
+        "NE": 0.4,
+        "5HT": 0.7,
+        "ACh": 0.7,
+    }
+
+
+def test_audit_route_serves_read_only_coordinator_activity_panel():
+    from interface import server
+
+    client = server.app.test_client()
+
+    response = client.get("/audit")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Coordinator Activity" in html
+    assert "Brain Status" in html
+    for heading in ("Time", "Coordinator", "Event", "Confidence", "Tier", "Cost", "Accepted"):
+        assert f"<th>{heading}</th>" in html
+    assert "audit_update" in html
+    assert "/audit-log" in html
+    assert "DA" in html
+    assert "NE" in html
+    assert "5HT" in html
+    assert "ACh" in html
+    assert "<input" not in html
+
+
+def test_audit_log_endpoint_returns_normalized_recent_entries(monkeypatch):
+    from interface import server
+
+    monkeypatch.setattr(
+        server,
+        "read_coordinator_log_entries",
+        lambda limit: [
+            {
+                "timestamp": 4100.0,
+                "coordinator_name": "feeling",
+                "event": "tick",
+                "confidence": 0.6,
+                "tier_used": "tier-1",
+                "actual_cost_usd": 0.001,
+                "accepted": True,
+            }
+        ],
+    )
+    client = server.app.test_client()
+
+    response = client.get("/audit-log?limit=10")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload == {
+        "entries": [
+            {
+                "timestamp": 4100.0,
+                "coordinator": "feeling",
+                "event": "tick",
+                "confidence": 0.6,
+                "tier_used": "tier-1",
+                "actual_cost_usd": 0.001,
+                "accepted": True,
+            }
+        ]
+    }

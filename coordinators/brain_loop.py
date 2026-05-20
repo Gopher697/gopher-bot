@@ -56,6 +56,7 @@ class BrainLoop:
         idle_threshold: float = DREAM_IDLE_SECONDS,
         mirror_chad_queue: Any | None = None,
         coordinator_log_writer: Callable[[dict[str, Any]], None] | None = None,
+        audit_event_emitter: Callable[[dict[str, Any]], None] | None = None,
     ):
         self.coordinators = dict(coordinators or _default_background_coordinators())
         self.intervals = dict(BACKGROUND_INTERVALS)
@@ -76,6 +77,7 @@ class BrainLoop:
         self.coordinator_log_writer = (
             coordinator_log_writer or append_coordinator_log_entry
         )
+        self.audit_event_emitter = audit_event_emitter
         self.running = False
         self._stop_requested = False
 
@@ -172,30 +174,41 @@ class BrainLoop:
             self.last_errors[name] = error
         finally:
             submitted_after = self.bid_queue.qsize()
-            self._write_coordinator_log(
-                build_coordinator_log_entry(
-                    name,
-                    self.time_fn(),
-                    confidence=getattr(coordinator, "last_confidence", 0.0),
-                    tier_used=getattr(coordinator, "last_tier_used", None),
-                    actual_cost_usd=getattr(
-                        coordinator,
-                        "last_actual_cost_usd",
-                        0.0,
-                    ),
-                    reasoning_trace=getattr(
-                        coordinator,
-                        "last_reasoning_trace",
-                        None,
-                    ),
-                    error=error,
-                    submitted_bid_count=max(0, submitted_after - submitted_before),
-                )
+            entry = build_coordinator_log_entry(
+                name,
+                self.time_fn(),
+                event=getattr(coordinator, "last_event", None)
+                or ("error" if error else "tick"),
+                confidence=getattr(coordinator, "last_confidence", 0.0),
+                tier_used=getattr(coordinator, "last_tier_used", None),
+                actual_cost_usd=getattr(
+                    coordinator,
+                    "last_actual_cost_usd",
+                    0.0,
+                ),
+                reasoning_trace=getattr(
+                    coordinator,
+                    "last_reasoning_trace",
+                    None,
+                ),
+                error=error,
+                submitted_bid_count=max(0, submitted_after - submitted_before),
             )
+            self._write_coordinator_log(entry)
+            self._emit_audit_update(entry)
 
     def _write_coordinator_log(self, entry: dict[str, Any]) -> None:
         try:
             self.coordinator_log_writer(entry)
+        except Exception:
+            return
+
+    def _emit_audit_update(self, entry: dict[str, Any]) -> None:
+        if self.audit_event_emitter is None:
+            return
+
+        try:
+            self.audit_event_emitter(_audit_update_payload(entry))
         except Exception:
             return
 
@@ -239,3 +252,15 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
 
 def _accepts_mirror_queue(coordinator: Coordinator) -> bool:
     return len(inspect.signature(coordinator.background_tick).parameters) >= 2
+
+
+def _audit_update_payload(entry: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "timestamp": entry.get("timestamp"),
+        "coordinator": entry.get("coordinator_name"),
+        "event": entry.get("event"),
+        "confidence": entry.get("confidence"),
+        "tier_used": entry.get("tier_used"),
+        "actual_cost_usd": entry.get("actual_cost_usd"),
+        "accepted": entry.get("accepted"),
+    }

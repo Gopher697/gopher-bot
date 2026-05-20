@@ -66,7 +66,8 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 | `id` | C-004 |
 | `created` | 2026-05-18 |
 | `owner` | gopher-workbench-mcp |
-| `status` | active |
+| `status` | closed |
+| `closed` | 2026-05-20 |
 | `description` | Build the full coordinator architecture on a self-hosted web interface (not Discord — privacy decision made 2026-05-18). Includes: async bid-gating Awareness hub, background brain loop running coordinators on independent cadences, all planned coordinators implemented as async workers, web UI for Chad interaction (voice + text), and audit panel for coordinator activity. Absorbs Vaultbot into Memory when Memory is operational. |
 | `scope` | global — interface and coordinator execution layer for the whole system |
 | `completion_criteria` | Background brain loop running alongside Flask. At least three background coordinators (Feeling, Pattern Monitor, Curiosity) submitting bids to Awareness independently of Chad input. Voice responding both reactively (to Chad messages) and proactively (from coordinator bids). Audit panel shows live coordinator activity. |
@@ -93,7 +94,11 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 
 ## Closed Commitments
 
-*(none yet)*
+C-004 — closed 2026-05-20. All three completion criteria met: Pattern Monitor coordinator
+ticking at 90s cadence and submitting bids (commit 833708e); audit panel live at /audit
+with neuromodulator display and coordinator activity feed (commit 9adbe62); proactive
+Voice output from BrainLoop on high-priority bids, rate-limited 60s, first message
+verified in browser (this commit).
 
 ---
 

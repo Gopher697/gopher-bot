@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 
 def test_tier_config_returns_expected_models():
     from coordinators.tier_config import DEFAULT_TIER, get_tier_config
@@ -528,3 +530,195 @@ def test_valid_source_types_contains_expected_values():
     assert "inferred" in VALID_SOURCE_TYPES
     assert "proposed" in VALID_SOURCE_TYPES
     assert "external_content" in VALID_SOURCE_TYPES
+
+
+# ---------------------------------------------------------------------------
+# Two-Factor Synaptic Model tests (non-graph — no Neo4j required)
+# ---------------------------------------------------------------------------
+
+def test_fisher_information_basic():
+    from world_models.graph import fisher_information
+
+    # variance=1.0 → I=1.0
+    assert fisher_information(1.0) == pytest.approx(1.0)
+
+    # variance=0.5 → I=2.0
+    assert fisher_information(0.5) == pytest.approx(2.0)
+
+    # variance=2.0 → I=0.5
+    assert fisher_information(2.0) == pytest.approx(0.5)
+
+
+def test_fisher_information_clamps_at_minimum_variance():
+    from world_models.graph import MIN_CONSOLIDATION_VARIANCE, fisher_information
+
+    # At the floor, I = 1/MIN_CONSOLIDATION_VARIANCE
+    result = fisher_information(MIN_CONSOLIDATION_VARIANCE)
+    assert result == pytest.approx(1.0 / MIN_CONSOLIDATION_VARIANCE)
+
+
+def test_fisher_information_rejects_zero_variance():
+    import pytest as _pytest
+    from world_models.graph import fisher_information
+
+    with _pytest.raises(ValueError, match="consolidation_variance must be > 0"):
+        fisher_information(0.0)
+
+
+def test_fisher_information_rejects_negative_variance():
+    import pytest as _pytest
+    from world_models.graph import fisher_information
+
+    with _pytest.raises(ValueError):
+        fisher_information(-0.5)
+
+
+def test_stability_threshold_default_rigidity():
+    from world_models.graph import stability_threshold
+
+    # variance=1.0 → I=1.0 → lock_score=1.0 → threshold = 0.5 + 0.3*1.0*1.0 = 0.8
+    assert stability_threshold(1.0) == pytest.approx(0.8)
+
+
+def test_stability_threshold_high_variance_lowers_threshold():
+    from world_models.graph import stability_threshold
+
+    # variance=4.0 → I=0.25 → lock_score=0.25 → threshold = 0.5 + 0.3*0.25 = 0.575
+    assert stability_threshold(4.0) == pytest.approx(0.575)
+
+
+def test_stability_threshold_low_variance_caps_at_lock_score_one():
+    from world_models.graph import MIN_CONSOLIDATION_VARIANCE, stability_threshold
+
+    # Very low variance → I >> 1.0 → lock_score capped at 1.0 → threshold = 0.8
+    assert stability_threshold(MIN_CONSOLIDATION_VARIANCE) == pytest.approx(0.8)
+
+
+def test_stability_threshold_rigidity_scales_linearly():
+    from world_models.graph import stability_threshold
+
+    # rigidity=0.0 → threshold = 0.5 + 0 = 0.5
+    assert stability_threshold(1.0, rigidity=0.0) == pytest.approx(0.5)
+
+    # rigidity=2.0 → threshold = 0.5 + 0.3*1.0*2.0 = 1.1 (can exceed 1.0)
+    assert stability_threshold(1.0, rigidity=2.0) == pytest.approx(1.1)
+
+
+def test_relate_props_use_weight_and_consolidation_variance():
+    """Verify that relate() builds props with the two-factor fields."""
+    from world_models import graph
+
+    captured = []
+
+    class FakeTx:
+        def run(self, cypher, **kwargs):
+            captured.append(kwargs)
+            return FakeResult()
+
+    class FakeResult:
+        def single(self):
+            return None
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+        def execute_write(self, fn):
+            return fn(FakeTx())
+
+    class FakeDriver:
+        def session(self, **kwargs): return FakeSession()
+
+    graph.relate(
+        FakeDriver(),
+        from_name="Alice",
+        rel_type="KNOWS",
+        to_name="Bob",
+        environment="test",
+        weight=0.75,
+        consolidation_variance=0.5,
+    )
+
+    assert len(captured) == 1
+    props = captured[0]["props"]
+    assert props["weight"] == pytest.approx(0.75)
+    assert props["consolidation_variance"] == pytest.approx(0.5)
+    assert "confidence" not in props
+
+
+def test_relate_props_default_weight_and_variance():
+    """Default weight and variance are applied when not specified."""
+    from world_models import graph
+    from world_models.graph import DEFAULT_CONSOLIDATION_VARIANCE, DEFAULT_EDGE_WEIGHT
+
+    captured = []
+
+    class FakeTx:
+        def run(self, cypher, **kwargs):
+            captured.append(kwargs)
+            return FakeResult()
+
+    class FakeResult:
+        def single(self):
+            return None
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+        def execute_write(self, fn):
+            return fn(FakeTx())
+
+    class FakeDriver:
+        def session(self, **kwargs): return FakeSession()
+
+    graph.relate(
+        FakeDriver(),
+        from_name="Alice",
+        rel_type="KNOWS",
+        to_name="Bob",
+        environment="test",
+    )
+
+    assert len(captured) == 1
+    props = captured[0]["props"]
+    assert props["weight"] == pytest.approx(DEFAULT_EDGE_WEIGHT)
+    assert props["consolidation_variance"] == pytest.approx(DEFAULT_CONSOLIDATION_VARIANCE)
+
+
+def test_update_edge_synaptic_weights_clamps_values():
+    """update_edge_synaptic_weights clamps weight to [0,1] and variance to floor."""
+    from world_models import graph
+    from world_models.graph import MIN_CONSOLIDATION_VARIANCE
+
+    captured = []
+
+    class FakeTx:
+        def run(self, cypher, **kwargs):
+            captured.append(kwargs)
+            return FakeResult()
+
+    class FakeResult:
+        def single(self):
+            return {"element_id": "abc"}
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+        def execute_write(self, fn):
+            return fn(FakeTx())
+
+    class FakeDriver:
+        def session(self, **kwargs): return FakeSession()
+
+    graph.update_edge_synaptic_weights(
+        FakeDriver(),
+        from_name="Alice",
+        rel_type="KNOWS",
+        to_name="Bob",
+        environment="test",
+        new_weight=1.5,          # above 1.0 → clamped to 1.0
+        new_variance=-0.1,       # below floor → clamped to MIN
+    )
+
+    assert len(captured) == 1
+    assert captured[0]["weight"] == pytest.approx(1.0)
+    assert captured[0]["variance"] == pytest.approx(MIN_CONSOLIDATION_VARIANCE)

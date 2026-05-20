@@ -11,6 +11,9 @@ from world_models import config
 
 MEDIA_TYPES = {"image", "screenshot", "document", "audio"}
 VALID_SOURCE_TYPES = {"observed", "inferred", "proposed", "external_content"}
+DEFAULT_EDGE_WEIGHT: float = 1.0
+DEFAULT_CONSOLIDATION_VARIANCE: float = 1.0   # σ²_ij; decreases as evidence accumulates
+MIN_CONSOLIDATION_VARIANCE: float = 0.01      # floor to avoid division by zero
 REL_TYPE_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
 
@@ -203,7 +206,8 @@ def relate(
     rel_type,
     to_name,
     environment,
-    confidence=1.0,
+    weight=None,
+    consolidation_variance=None,
     properties=None,
 ):
     if not REL_TYPE_PATTERN.match(rel_type):
@@ -211,7 +215,12 @@ def relate(
 
     props = {
         "environment": environment,
-        "confidence": float(confidence),
+        "weight": float(weight if weight is not None else DEFAULT_EDGE_WEIGHT),
+        "consolidation_variance": float(
+            consolidation_variance
+            if consolidation_variance is not None
+            else DEFAULT_CONSOLIDATION_VARIANCE
+        ),
         "created_at": _now_iso(),
     }
     if properties:
@@ -230,6 +239,119 @@ def relate(
             to_name=to_name,
             environment=environment,
             props=props,
+        )
+        return result.single() is not None
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def fisher_information(consolidation_variance: float) -> float:
+    """
+    I_ij = 1 / σ²_ij
+
+    Returns the Fisher Information for a KG edge given its consolidation
+    variance. Higher Fisher Information = lower uncertainty = more resistance
+    to overwriting by new evidence.
+
+    Args:
+        consolidation_variance: The edge's σ²_ij. Must be > 0.
+
+    Returns:
+        Fisher Information value (>= 1/MIN_CONSOLIDATION_VARIANCE at floor).
+
+    Raises:
+        ValueError: If consolidation_variance <= 0.
+    """
+    if consolidation_variance <= 0.0:
+        raise ValueError(
+            f"consolidation_variance must be > 0, got {consolidation_variance!r}"
+        )
+    clamped = max(consolidation_variance, MIN_CONSOLIDATION_VARIANCE)
+    return 1.0 / clamped
+
+
+def stability_threshold(
+    consolidation_variance: float,
+    rigidity: float = 1.0,
+) -> float:
+    """
+    Return the minimum prediction error (PE) required to update this edge.
+
+    Formula: 0.5 + 0.3 × lock_score × rigidity
+    where lock_score = min(1.0, I_ij) = min(1.0, 1/σ²_ij)
+
+    A freshly-created edge (variance=1.0, I=1.0) has threshold ~0.8.
+    A fully-consolidated edge (variance→0, I→∞, capped at 1.0) has
+    threshold ~0.8 as well — the cap keeps it bounded.
+    An uncertain edge (variance>1.0, I<1.0) has threshold < 0.8, meaning
+    weaker evidence can still shift it.
+
+    Args:
+        consolidation_variance: The edge's current σ²_ij.
+        rigidity: Global rigidity factor ρ (default 1.0). Increase to make
+                  the whole graph more conservative; decrease to allow more
+                  rapid updating.
+
+    Returns:
+        PE threshold in range [0.5, 0.8] for rigidity=1.0.
+    """
+    lock_score = min(1.0, fisher_information(consolidation_variance))
+    return 0.5 + 0.3 * lock_score * float(rigidity)
+
+
+def update_edge_synaptic_weights(
+    driver,
+    from_name: str,
+    rel_type: str,
+    to_name: str,
+    environment: str,
+    new_weight: float,
+    new_variance: float,
+) -> bool:
+    """
+    Update the synaptic weight and consolidation_variance on an existing edge.
+
+    Called by Dream's NREM consolidation pass. Does not create a new edge —
+    only updates an existing one. Returns True if the edge was found and
+    updated, False otherwise.
+
+    Args:
+        driver:       Active Neo4j driver.
+        from_name:    Source entity name.
+        rel_type:     Relationship type (uppercase, e.g. "KNOWS").
+        to_name:      Target entity name.
+        environment:  Graph environment scope.
+        new_weight:   Updated weight value (clamped to [0.0, 1.0]).
+        new_variance: Updated consolidation_variance (clamped to
+                      [MIN_CONSOLIDATION_VARIANCE, inf)).
+
+    Returns:
+        True if the edge existed and was updated, False if not found.
+    """
+    if not REL_TYPE_PATTERN.match(rel_type):
+        raise ValueError(
+            "rel_type must be uppercase letters, numbers, and underscores"
+        )
+
+    clamped_weight = max(0.0, min(1.0, float(new_weight)))
+    clamped_variance = max(MIN_CONSOLIDATION_VARIANCE, float(new_variance))
+
+    def write(tx):
+        result = tx.run(
+            f"""
+            MATCH (source:Entity {{name: $from_name, environment: $environment}})
+            -[relationship:{rel_type}]->
+            (target:Entity {{name: $to_name, environment: $environment}})
+            SET relationship.weight = $weight,
+                relationship.consolidation_variance = $variance
+            RETURN elementId(relationship) AS element_id
+            """,
+            from_name=from_name,
+            to_name=to_name,
+            environment=environment,
+            weight=clamped_weight,
+            variance=clamped_variance,
         )
         return result.single() is not None
 

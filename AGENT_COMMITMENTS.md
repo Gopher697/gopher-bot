@@ -1,7 +1,7 @@
 # Agent Commitments
 
 **Governed by:** Persistent Agent Charter (`AGENT_CHARTER.md`) Article VI
-**Last updated:** 2026-05-18 (C-003 superseded; coordinator registry expanded to 14)
+**Last updated:** 2026-05-20 (C-004 closed; C-006 added — temporal self-awareness + inner defense)
 **Authority:** Chad Crouse (Gopher)
 
 All entries must conform to the commitment shape defined in the charter. Entries that
@@ -88,6 +88,22 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 | `scope` | global — interface and execution environment for the whole system |
 | `completion_criteria` | Phase 1: Flask server running with BrainLoop, voice + text endpoints live (done). Phase 2: Tauri app wrapping Flask; Sensory receiving passive OS-level context; Hands built with policy interception designed for system-scope. Phase 3: NixOS distro config committing coordinator services, MAC profiles, and graph-as-persistence layout. |
 | `review_trigger` | When Hands coordinator (Task 29) is being designed — must account for Phase 2 system-level access patterns before implementation. |
+| `blocking_proposals` | none |
+
+---
+
+### C-006 — Temporal self-awareness and inner defense
+
+| Field | Value |
+|---|---|
+| `id` | C-006 |
+| `created` | 2026-05-20 |
+| `owner` | gopher-workbench-mcp |
+| `status` | active |
+| `description` | Build the temporal self-awareness layer and close the inner defense loop. Two inseparable components: (1) **Temporal layer** — all coordinators gain access to real-world time via shared utils; BrainLoop packets carry current_time, session_age, time_since_last_nrem, and time_since_last_gopher_input; graph is queryable by time range; Dream has circadian NREM scheduling; audit log can answer "time since last action of type X." (2) **Inner defense** — Dream AUDIT runs verify_chain() autonomously during NREM and spikes NE + writes DreamLog alert on chain failure; Pattern Monitor detects coordinator behavioral drift vs. established baseline; Mirror-Self flags Reason outputs that deviate from the self-model; OpenTimestamps anchors the audit log chain head to Bitcoin nightly, grounding the AI's action timeline in external tamper-evident time. The inner defender has alerting authority only — no action authority. Without this commitment, trust escalation (Task 49) and autonomous idle operation (Task 48) cannot be safely designed. |
+| `scope` | global — temporal context affects all coordinators; inner defense is the prerequisite for unsupervised autonomous operation |
+| `completion_criteria` | (1) BrainLoop packets carry timestamp, session_age_seconds, time_since_last_nrem, time_since_last_gopher_input. (2) Dream AUDIT runs verify_chain() every NREM cycle and logs result to DreamLog. (3) OpenTimestamps .ots proof file written to logs/audit/timestamps/ nightly. (4) Pattern Monitor behavioral baseline active; drift >2σ submits high-priority bid to Awareness. (5) Mirror-Self self-model deviation logging active. |
+| `review_trigger` | Before trust escalation protocol (Task 49) is designed — trust requires a verified temporal track record the AI can read and reason over |
 | `blocking_proposals` | none |
 
 ---

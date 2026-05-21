@@ -12,6 +12,7 @@ from coordinators.reason import Reason
 from coordinators.sensory import Sensory
 from coordinators.tier_config import DEFAULT_TIER
 from coordinators.voice import Voice
+from coordinators.orientation import Orientation
 from utils.time_utils import now_iso, unix_to_iso
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ class Awareness:
         feeling: Coordinator | None = None,
         coordinator_log_acceptance_updater: Callable[[Any, bool], None] | None = None,
         hands: "Hands | None" = None,
+        orientation: Orientation | Coordinator | None = None,
     ):
         self.sensory = sensory or Sensory()
         self.memory = memory or Memory()
@@ -38,6 +40,7 @@ class Awareness:
         )
         self.voice = voice or Voice()
         self.hands = hands
+        self.orientation = orientation or Orientation()
         self._time_fn = time_fn
         self.session_id: str = _uuid.uuid4().hex
         self.session_start: float = self._time_fn()
@@ -98,6 +101,23 @@ class Awareness:
                 return self.voice.process(packet)
 
             self._drain_bids_into_packet(packet)
+
+            # --- Orientation: situation awareness digest ----------------------
+            # Runs after bid drain (needs background_bids for salience scoring)
+            # and before Reason (injects orientation_context into memory_context).
+            try:
+                packet = self.orientation.process(packet)
+                orientation_ctx = str(packet.get("orientation_context") or "").strip()
+                if orientation_ctx:
+                    memory_context = str(packet.get("memory_context") or "").strip()
+                    packet["memory_context"] = (
+                        f"{memory_context}\n\n{orientation_ctx}"
+                        if memory_context
+                        else orientation_ctx
+                    )
+            except Exception:
+                pass  # Orientation failure is non-fatal -- pipeline continues
+            # -----------------------------------------------------------------
 
             packet = self.reason.process(packet)
             if self.hands is not None and "action" in packet:

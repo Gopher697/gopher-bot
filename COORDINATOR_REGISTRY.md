@@ -117,7 +117,7 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Active — Phase 1 scaffold built (coordinators/dream.py); intake + TRIAGE stub; Phase 2 deep build (graph integration + CONSOLIDATE/AUDIT) pending as Task 47 |
+| Status | Active — Phase 2 complete (Tasks 47a, 47b, 60): TRIAGE (confidence ≥ 0.4), CONSOLIDATE (Hebbian weight strengthening, variance decay), AUDIT (hash chain verify + injection scan), DreamLog (JSON to logs/dream/), OpenTimestamps anchoring (23h gate, a.pool.opentimestamps.org). NREM scheduling: circadian gate (NREM_MIN_INTERVAL=6h, NREM_OVERDUE=26h). NE spike on chain failure: PRIORITY_SAFETY bid to Awareness (Inner Defender layer 1 of 3). nrem_done_fn callback updates Awareness.last_nrem_time after each NREM pass. |
 | Model tier | Tier 1 for intake/triage; Tier 2 for consolidation passes (Phase 2) |
 | Backing context | Runtime-only |
 | Backing agent | TBD |
@@ -323,6 +323,27 @@ built. Each inherits full charter obligations from the moment it completes start
 | Behavioral rules | Awareness does not generate content — it gates and sequences what others produce. It runs the competition for the shared broadcast channel: every coordinator may submit a bid, Awareness decides what actually gets heard and when. It applies timing judgment: not mid-task, not floods, one thing when there is space for it. Awareness may hold a bid in queue indefinitely if timing is never right — it does not force surfacing. It does not editorialize, summarize, or rewrite bids; that is Voice's function. |
 | Priority order | When bids conflict: (1) safety/charter flags from Keeper, (2) Hands alerts (blocked or pending-approval actions), (3) Mirror-Chad state signals, (4) Mirror-Self state signals, (5) Curiosity grounded questions, (6) Pattern Monitor observations, (7) Drive check-ins, (8) everything else. Priority is a default, not a rule — Awareness may reorder based on context. |
 | Notes | Awareness is what makes the system feel like one calm, coherent presence rather than a committee shouting. Without it, Voice would be overwhelmed making gating judgments while also handling synthesis, or coordinators would route directly to Voice and produce incoherence. Awareness is the orchestration layer that allows the rest of the system to be complex without Chad experiencing that complexity. |
+
+---
+
+### Orientation
+
+| Field | Value |
+|---|---|
+| Status | Active — built (coordinators/orientation.py); wired into Awareness.synchronous_run() after bid drain and before Reason; injecting orientation digest on every foreground turn (Task 64) |
+| Model tier | Tier 0 — pure Python; no LLM calls; deterministic salience arithmetic and graph reads only |
+| Backing context | Runtime-only |
+| Backing agent | None — fully deterministic |
+| Neuroscience analogue | Entorhinal cortex + hippocampal–prefrontal interface — situation modeling, temporal context integration, projection of current state into near-future relevance |
+| Layer | Cognitive (foreground pipeline, pre-Reason) |
+| Primary role | Build a situation digest each turn: active goal focus, relevant goals ranked by salience, deferred items, background coordinator pressure, recommended next action |
+| Read access | Neo4j Goal nodes (active, candidate, deferred); packet temporal fields (time_since_last_interaction, time_since_last_nrem, session_age_seconds); packet background_bids (for bid-pressure salience boost) |
+| Write paths | Goal promotion only: candidate→active when three-score gate passes (confidence ≥ 0.60, salience ≥ 0.50, charter_alignment ≠ false). Writes promotion audit trail to the Goal node. No other durable writes. |
+| Packet fields written | `packet["orientation"]` — full digest dict (9 fields); `packet["orientation_context"]` — plain-text digest for Reason; `packet["promotable_goal_ids"]` — goal_ids promoted this turn |
+| Three-score gate | **Confidence** (epistemic: is this a real goal?) ≥ 0.60 AND **Salience** (computed: does this matter now?) ≥ 0.50 AND **Permissibility** (charter_alignment ≠ 'false'). Salience factors: priority (0.40) + horizon weight (0.35) + recency of last_advanced_at (0.25) + bid keyword overlap boost (up to +0.20). |
+| Behavioral rules | Orientation does not generate content or make decisions — it builds context that Reason uses to make better decisions. It auto-promotes goals autonomously when the three-score gate passes — this is the AI's own evaluation, not a user-approval step. It never blocks the pipeline: all graph failures are swallowed and result in an empty orientation dict. The orientation digest is compact enough to stay within Reason's context budget; it surfaces at most 3 relevant goals, 3 deferred items, and 3 background pressures per turn. |
+| Relationship to Awareness | Orientation is a foreground coordinator instantiated by Awareness and called inside `synchronous_run()`. It is not a background coordinator and has no `background_tick()`. It does not submit bids to the bid queue. |
+| Notes | Orientation is Endsley Level 3: from where we are, where might this go? Without it, Reason knows what was said (Sensory), what is remembered (Memory), and what the background coordinators are signalling (bid_context) — but not what the AI is actively pursuing or what it should attend to next. Orientation supplies that missing layer. |
 
 ---
 

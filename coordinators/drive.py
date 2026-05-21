@@ -8,13 +8,17 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 
 from coordinators.base import Coordinator
+from coordinators.tier_config import (
+    SHUTDOWN_BUDGET_FRACTION,
+    TIER_COST_ESTIMATES,
+    get_tier_cost_estimate,
+)
 
 
 DRIVE_CADENCE_SECONDS = 86400
 BUDGET_WARNING_THRESHOLD = 0.80
 DRIVE_PRIORITY = 6
 DEFAULT_BUDGET_CEILING = 1.00
-TIER_COST_ESTIMATES = {1: 0.00, 2: 0.01, 3: 0.10}
 
 # Idle cultivation — Gopher absence threshold before Drive signals cultivation mode.
 IDLE_THRESHOLD_SECONDS = 1800           # 30 minutes
@@ -37,10 +41,11 @@ class DriveState:
     last_tick: datetime | None = None
     last_bid_content: str | None = None
     session_api_calls: dict[int, int] = field(
-        default_factory=lambda: {1: 0, 2: 0, 3: 0}
+        default_factory=lambda: {0: 0, 1: 0, 2: 0, 3: 0}
     )
     session_budget_used: float = 0.0
     budget_ceiling: float = DEFAULT_BUDGET_CEILING
+    shutdown_mode: bool = False
     stalled_commitment_ids: list[str] = field(default_factory=list)
     pending_budget_warning: str | None = None
     # Disk footprint (populated by background_tick via disk_usage_fn).
@@ -86,7 +91,7 @@ class Drive(Coordinator):
         self.state.session_api_calls.setdefault(tier, 0)
         self.state.session_api_calls[tier] += 1
         self.state.session_budget_used += (
-            float(cost) if cost is not None else TIER_COST_ESTIMATES.get(tier, 0.0)
+            float(cost) if cost is not None else get_tier_cost_estimate(tier)
         )
         self._update_pending_budget_warning()
 
@@ -137,16 +142,23 @@ class Drive(Coordinator):
         else:
             self.state.idle_since_seconds = None
 
+        budget_fraction = _budget_fraction(self.state)
+        self.state.shutdown_mode = budget_fraction >= SHUTDOWN_BUDGET_FRACTION
+        if "shutdown_mode" not in packet:
+            packet["shutdown_mode"] = self.state.shutdown_mode
+
         packet["drive_budget_status"] = {
             "session_budget_used": round(self.state.session_budget_used, 4),
             "budget_ceiling": self.state.budget_ceiling,
-            "budget_fraction": round(_budget_fraction(self.state), 4),
+            "budget_fraction": round(budget_fraction, 4),
             "api_calls_by_tier": dict(self.state.session_api_calls),
             "disk_total_bytes": self.state.disk_total_bytes,
             "disk_used_bytes": self.state.disk_used_bytes,
             "disk_free_bytes": self.state.disk_free_bytes,
             "disk_fraction": _disk_fraction(self.state),
             "idle_since_seconds": self.state.idle_since_seconds,
+            "shutdown_mode": self.state.shutdown_mode,
+            "budget_fraction_at_shutdown": SHUTDOWN_BUDGET_FRACTION,
         }
         return packet
 

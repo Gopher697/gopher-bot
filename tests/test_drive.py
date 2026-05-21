@@ -73,7 +73,7 @@ def test_multiple_api_calls_accumulate_correctly():
     drive.record_api_call(3)
     drive.record_api_call(2, cost=0.04)
 
-    assert drive.state.session_api_calls == {1: 0, 2: 2, 3: 1}
+    assert drive.state.session_api_calls == {0: 0, 1: 0, 2: 2, 3: 1}
     assert drive.state.session_budget_used == 0.15
 
 
@@ -358,7 +358,7 @@ def test_process_does_not_call_record_api_call_when_model_tier_key_is_absent():
     drive = Drive(commitments_reader=lambda: [], clock=_clock())
     drive.process({})
 
-    assert drive.state.session_api_calls == {1: 0, 2: 0, 3: 0}
+    assert drive.state.session_api_calls == {0: 0, 1: 0, 2: 0, 3: 0}
     assert drive.state.session_budget_used == 0.0
 
 
@@ -377,6 +377,8 @@ def test_drive_budget_status_contains_expected_keys():
         "disk_free_bytes",
         "disk_fraction",
         "idle_since_seconds",
+        "shutdown_mode",
+        "budget_fraction_at_shutdown",
     }
 
 
@@ -386,6 +388,44 @@ def test_budget_fraction_is_zero_when_no_api_calls_have_been_made():
     packet = Drive(commitments_reader=lambda: [], clock=_clock()).process({})
 
     assert packet["drive_budget_status"]["budget_fraction"] == 0.0
+
+
+def test_shutdown_mode_false_when_budget_low():
+    from coordinators.drive import Drive
+
+    packet = Drive(commitments_reader=lambda: [], clock=_clock()).process({})
+
+    assert packet["shutdown_mode"] is False
+
+
+def test_shutdown_mode_true_when_budget_at_ceiling():
+    from coordinators.drive import Drive
+    from coordinators.tier_config import SHUTDOWN_BUDGET_FRACTION
+
+    drive = Drive(commitments_reader=lambda: [], clock=_clock(), budget_ceiling=1.0)
+    drive.state.session_budget_used = 1.0 * SHUTDOWN_BUDGET_FRACTION
+    packet = drive.process({})
+
+    assert packet["shutdown_mode"] is True
+
+
+def test_shutdown_mode_not_overridden_if_already_set():
+    from coordinators.drive import Drive
+
+    drive = Drive(commitments_reader=lambda: [], clock=_clock())
+    packet = drive.process({"shutdown_mode": True})
+
+    assert packet["shutdown_mode"] is True
+
+
+def test_drive_budget_status_includes_shutdown_mode():
+    from coordinators.drive import Drive
+
+    packet = Drive(commitments_reader=lambda: [], clock=_clock()).process({})
+    status = packet["drive_budget_status"]
+
+    assert isinstance(status["shutdown_mode"], bool)
+    assert "budget_fraction_at_shutdown" in status
 
 
 # ── disk footprint + idle cultivation monitoring ────────────────────────────

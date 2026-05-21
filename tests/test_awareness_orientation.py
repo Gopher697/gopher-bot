@@ -174,3 +174,28 @@ def test_pipeline_completes_with_no_prior_memory_context():
     mem_ctx = str(result.get("memory_context") or "")
     # Orientation context alone is sufficient -- no crash
     assert "ORIENTATION" in mem_ctx
+
+
+def test_assess_tier_caps_to_local_in_shutdown_mode():
+    from coordinators.tier_config import TIER_LOCAL
+
+    aw = _make_awareness()
+    packet = {"message": "summarize this", "high_stakes": True, "shutdown_mode": True}
+    aw.assess_tier(packet)
+    assert packet["tier"] == TIER_LOCAL
+
+
+def test_assess_tier_adds_tier_name():
+    aw = _make_awareness()
+    packet = {"message": "hello"}
+    aw.assess_tier(packet)
+    assert "tier_name" in packet
+
+
+def test_assess_tier_tier_name_matches_tier():
+    from coordinators.tier_config import TIER_STANDARD
+
+    aw = _make_awareness()
+    packet = {"message": "what should Gopher-bot remember?", "tier": TIER_STANDARD}
+    aw.assess_tier(packet)
+    assert packet["tier_name"] == "standard"

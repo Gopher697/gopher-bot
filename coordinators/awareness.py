@@ -12,10 +12,10 @@ from coordinators.base import (
     build_turn_log_entry,
 )
 from coordinators.bid import Bid, BidQueue, PRIORITY_SAFETY
+from coordinators.drive import Drive
 from coordinators.memory import Memory
 from coordinators.reason import Reason
 from coordinators.sensory import Sensory
-from coordinators.tier_config import DEFAULT_TIER
 from coordinators.voice import Voice
 from coordinators.orientation import Orientation
 from coordinators.keeper import Keeper
@@ -43,6 +43,7 @@ class Awareness:
         keeper: Keeper | Coordinator | None = None,
         mirror_self: MirrorSelf | Coordinator | None = None,
         ethos: Ethos | Coordinator | None = None,
+        drive: Drive | Coordinator | None = None,
     ):
         self.sensory = sensory or Sensory()
         self.memory = memory or Memory()
@@ -55,6 +56,7 @@ class Awareness:
         self.keeper = keeper or Keeper()
         self.mirror_self = mirror_self or MirrorSelf()
         self.ethos = ethos or Ethos()
+        self.drive = drive or Drive()
         self._time_fn = time_fn
         self.session_id: str = _uuid.uuid4().hex
         self.session_start: float = self._time_fn()
@@ -107,6 +109,15 @@ class Awareness:
         self.last_interaction_time = now
         # ---------------------------------------------------------------------
         try:
+            # --- Drive: budget state + shutdown_mode -------------------------
+            # Must run before assess_tier so shutdown_mode is available before
+            # tier selection. Failure is non-fatal for the foreground pipeline.
+            try:
+                packet = self.drive.process(packet)
+            except Exception:
+                pass
+            # -----------------------------------------------------------------
+
             self.assess_tier(packet)
 
             packet = self.sensory.process(packet)
@@ -192,19 +203,35 @@ class Awareness:
         return bids
 
     def assess_tier(self, packet: dict) -> dict:
+        from coordinators.tier_config import (
+            DEFAULT_TIER,
+            TIER_ENHANCED,
+            TIER_LOCAL,
+            apply_shutdown_cap,
+            get_tier_name,
+        )
+
         if "tier" in packet:
+            shutdown_mode = bool(packet.get("shutdown_mode"))
+            packet["tier"] = apply_shutdown_cap(packet["tier"], shutdown_mode)
+            packet["tier_name"] = get_tier_name(packet["tier"])
             return packet
+
+        shutdown_mode = bool(packet.get("shutdown_mode"))
 
         if packet.get("high_stakes") is True:
-            packet["tier"] = 3
-            return packet
+            tier = TIER_ENHANCED
+        else:
+            message = str(packet.get("message", ""))
+            if len(message) < 100 and "?" not in message:
+                tier = TIER_LOCAL
+            else:
+                tier = DEFAULT_TIER
 
-        message = str(packet.get("message", ""))
-        if len(message) < 100 and "?" not in message:
-            packet["tier"] = 1
-            return packet
-
-        packet["tier"] = DEFAULT_TIER
+        tier = apply_shutdown_cap(tier, shutdown_mode)
+        packet["tier"] = tier
+        packet["tier_name"] = get_tier_name(tier)
+        packet["shutdown_mode"] = shutdown_mode
         return packet
 
     def add_activity_callback(self, callback: Callable[[float], None]) -> None:

@@ -104,6 +104,60 @@ _GOAL_STATUS_TRANSITIONS: dict[str, set[str]] = {
 }
 
 DEFAULT_MAX_CANDIDATE_AGE_SECONDS: float = 7 * 24 * 3600  # 7 days
+
+# ---------------------------------------------------------------------------
+# Epistemic chain node constants
+# ---------------------------------------------------------------------------
+
+VALID_SOURCE_TYPES_EPISTEMIC = {
+    "paper",          # academic / research paper
+    "book",           # book or long-form reference
+    "web",            # web page / article
+    "conversation",   # content of a prior conversation
+    "observation",    # first-person observation made by the AI
+    "internal",       # internally generated (e.g., dream synthesis)
+}
+
+VALID_CLAIM_STATUSES = {
+    "candidate",   # newly extracted; not yet evaluated
+    "supported",   # corroborated by multiple observations or claims
+    "refuted",     # contradicted by stronger evidence
+    "uncertain",   # insufficient evidence to resolve
+}
+
+VALID_BELIEF_STATUSES = {
+    "forming",     # accumulating supporting claims — not yet stable
+    "held",        # stable, current working truth
+    "challenged",  # contradictory evidence encountered
+    "abandoned",   # no longer held
+}
+
+VALID_PRINCIPLE_STATUSES = {
+    "proposed",    # derived but not yet adopted
+    "adopted",     # active — shapes reasoning
+    "deprecated",  # superseded or retired
+}
+
+VALID_PRINCIPLE_SCOPES = {
+    "reasoning",     # shapes how conclusions are drawn
+    "interaction",   # shapes how responses are formed
+    "values",        # shapes what is pursued or avoided
+    "knowledge",     # shapes what is believed about the world
+}
+
+VALID_DOCTRINE_STATUSES = {
+    "active",      # adopted and in effect
+    "deprecated",  # retired but preserved for history
+    "contested",   # under review; not yet resolved
+}
+
+VALID_LEARNING_EPISODE_TYPES = {
+    "ingestion",    # processed an external Source
+    "reflection",   # arose from internal synthesis (Dream/Archivist)
+    "conversation", # learned from a Gopher interaction
+    "autonomous",   # arose from background-loop reasoning
+}
+
 REL_TYPE_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
 
@@ -113,6 +167,10 @@ def _now_iso() -> str:
 
 def _session(driver):
     return driver.session(database=config.NEO4J_DATABASE)
+
+
+def _clamp_unit(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
 
 
 def _validate_goal_fields(fields: dict) -> None:
@@ -1685,6 +1743,731 @@ def link_episode_to_goal(
 
     with _session(driver) as session:
         session.execute_write(write)
+
+
+# ---------------------------------------------------------------------------
+# Epistemic memory chain substrate
+# ---------------------------------------------------------------------------
+
+def _source_properties(
+    title: str,
+    source_type: str,
+    environment: str,
+    *,
+    url: str | None = None,
+    author: str = "",
+    summary: str = "",
+) -> Dict[str, Any]:
+    if source_type not in VALID_SOURCE_TYPES_EPISTEMIC:
+        raise ValueError(
+            f"source_type must be one of {sorted(VALID_SOURCE_TYPES_EPISTEMIC)!r}, "
+            f"got {source_type!r}"
+        )
+    return {
+        "title": str(title).strip(),
+        "source_type": source_type,
+        "environment": environment,
+        "url": url,
+        "author": str(author).strip(),
+        "summary": str(summary).strip(),
+        "status": "active",
+        "created_at": _now_iso(),
+    }
+
+
+def _claim_properties(
+    content: str,
+    source_id: str,
+    environment: str,
+    coordinator: str,
+    *,
+    confidence: float = 0.5,
+    status: str = "candidate",
+) -> Dict[str, Any]:
+    if status not in VALID_CLAIM_STATUSES:
+        raise ValueError(
+            f"status must be one of {sorted(VALID_CLAIM_STATUSES)!r}, "
+            f"got {status!r}"
+        )
+    now = _now_iso()
+    return {
+        "content": str(content).strip(),
+        "source_id": str(source_id),
+        "environment": environment,
+        "coordinator": str(coordinator),
+        "confidence": _clamp_unit(float(confidence)),
+        "status": status,
+        "evidence_count": 0,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
+def _belief_properties(
+    content: str,
+    environment: str,
+    *,
+    confidence: float = 0.5,
+    status: str = "forming",
+) -> Dict[str, Any]:
+    if status not in VALID_BELIEF_STATUSES:
+        raise ValueError(
+            f"status must be one of {sorted(VALID_BELIEF_STATUSES)!r}, "
+            f"got {status!r}"
+        )
+    now = _now_iso()
+    return {
+        "content": str(content).strip(),
+        "environment": environment,
+        "confidence": _clamp_unit(float(confidence)),
+        "status": status,
+        "claim_count": 0,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
+def _principle_properties(
+    content: str,
+    environment: str,
+    scope: str,
+    *,
+    status: str = "proposed",
+) -> Dict[str, Any]:
+    if scope not in VALID_PRINCIPLE_SCOPES:
+        raise ValueError(
+            f"scope must be one of {sorted(VALID_PRINCIPLE_SCOPES)!r}, "
+            f"got {scope!r}"
+        )
+    if status not in VALID_PRINCIPLE_STATUSES:
+        raise ValueError(
+            f"status must be one of {sorted(VALID_PRINCIPLE_STATUSES)!r}, "
+            f"got {status!r}"
+        )
+    now = _now_iso()
+    return {
+        "content": str(content).strip(),
+        "environment": environment,
+        "scope": scope,
+        "status": status,
+        "belief_count": 0,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
+def _doctrine_properties(
+    content: str,
+    environment: str,
+    *,
+    version: int = 1,
+    parent_doctrine_id: str | None = None,
+    status: str = "active",
+) -> Dict[str, Any]:
+    if status not in VALID_DOCTRINE_STATUSES:
+        raise ValueError(
+            f"status must be one of {sorted(VALID_DOCTRINE_STATUSES)!r}, "
+            f"got {status!r}"
+        )
+    return {
+        "content": str(content).strip(),
+        "environment": environment,
+        "status": status,
+        "version": max(1, int(version)),
+        "parent_doctrine_id": parent_doctrine_id,
+        "immutable": False,
+        "adopted_at": None,
+        "created_at": _now_iso(),
+    }
+
+
+def _learning_episode_properties(
+    session_id: str,
+    environment: str,
+    coordinator: str,
+    learning_type: str,
+    *,
+    source_id: str | None = None,
+    turn_id: str | None = None,
+    summary: str = "",
+) -> Dict[str, Any]:
+    if learning_type not in VALID_LEARNING_EPISODE_TYPES:
+        raise ValueError(
+            f"learning_type must be one of {sorted(VALID_LEARNING_EPISODE_TYPES)!r}, "
+            f"got {learning_type!r}"
+        )
+    return {
+        "session_id": str(session_id),
+        "environment": environment,
+        "coordinator": str(coordinator),
+        "learning_type": learning_type,
+        "source_id": source_id,
+        "turn_id": turn_id,
+        "summary": str(summary).strip(),
+        "claim_count": 0,
+        "created_at": _now_iso(),
+    }
+
+
+def create_source(
+    driver,
+    title: str,
+    source_type: str,
+    environment: str,
+    *,
+    url: str | None = None,
+    author: str = "",
+    summary: str = "",
+) -> str:
+    import uuid
+
+    source_id = uuid.uuid4().hex
+    props = _source_properties(
+        title,
+        source_type,
+        environment,
+        url=url,
+        author=author,
+        summary=summary,
+    )
+    props["source_id"] = source_id
+
+    def write(tx):
+        tx.run("CREATE (s:Source $props)", props=props)
+
+    with _session(driver) as session:
+        session.execute_write(write)
+    return source_id
+
+
+def create_claim(
+    driver,
+    content: str,
+    source_id: str,
+    environment: str,
+    coordinator: str,
+    *,
+    confidence: float = 0.5,
+    status: str = "candidate",
+) -> str:
+    import uuid
+
+    claim_id = uuid.uuid4().hex
+    props = _claim_properties(
+        content,
+        source_id,
+        environment,
+        coordinator,
+        confidence=confidence,
+        status=status,
+    )
+    props["claim_id"] = claim_id
+
+    def write(tx):
+        tx.run("CREATE (c:Claim $props)", props=props)
+
+    with _session(driver) as session:
+        session.execute_write(write)
+    return claim_id
+
+
+def create_belief(
+    driver,
+    content: str,
+    environment: str,
+    *,
+    confidence: float = 0.5,
+    status: str = "forming",
+) -> str:
+    import uuid
+
+    belief_id = uuid.uuid4().hex
+    props = _belief_properties(
+        content,
+        environment,
+        confidence=confidence,
+        status=status,
+    )
+    props["belief_id"] = belief_id
+
+    def write(tx):
+        tx.run("CREATE (b:Belief $props)", props=props)
+
+    with _session(driver) as session:
+        session.execute_write(write)
+    return belief_id
+
+
+def create_principle(
+    driver,
+    content: str,
+    environment: str,
+    scope: str,
+    *,
+    status: str = "proposed",
+) -> str:
+    import uuid
+
+    principle_id = uuid.uuid4().hex
+    props = _principle_properties(
+        content,
+        environment,
+        scope,
+        status=status,
+    )
+    props["principle_id"] = principle_id
+
+    def write(tx):
+        tx.run("CREATE (p:Principle $props)", props=props)
+
+    with _session(driver) as session:
+        session.execute_write(write)
+    return principle_id
+
+
+def create_doctrine(
+    driver,
+    content: str,
+    environment: str,
+    *,
+    version: int = 1,
+    parent_doctrine_id: str | None = None,
+    status: str = "active",
+) -> str:
+    import uuid
+
+    doctrine_id = uuid.uuid4().hex
+    props = _doctrine_properties(
+        content,
+        environment,
+        version=version,
+        parent_doctrine_id=parent_doctrine_id,
+        status=status,
+    )
+    props["doctrine_id"] = doctrine_id
+
+    def write(tx):
+        tx.run("CREATE (d:Doctrine $props)", props=props)
+
+    with _session(driver) as session:
+        session.execute_write(write)
+    return doctrine_id
+
+
+def create_learning_episode(
+    driver,
+    session_id: str,
+    environment: str,
+    coordinator: str,
+    learning_type: str,
+    *,
+    source_id: str | None = None,
+    turn_id: str | None = None,
+    summary: str = "",
+) -> str:
+    import uuid
+
+    learning_id = uuid.uuid4().hex
+    props = _learning_episode_properties(
+        session_id,
+        environment,
+        coordinator,
+        learning_type,
+        source_id=source_id,
+        turn_id=turn_id,
+        summary=summary,
+    )
+    props["learning_id"] = learning_id
+
+    def write(tx):
+        tx.run("CREATE (l:LearningEpisode $props)", props=props)
+
+    with _session(driver) as session:
+        session.execute_write(write)
+    return learning_id
+
+
+def link_learning_episode_to_source(
+    driver,
+    learning_id: str,
+    source_id: str,
+    environment: str,
+) -> bool:
+    """Create (LearningEpisode)-[:PROCESSED]->(Source)."""
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (l:LearningEpisode {learning_id: $learning_id, environment: $environment})
+            MATCH (s:Source {source_id: $source_id, environment: $environment})
+            MERGE (l)-[:PROCESSED]->(s)
+            RETURN count(l) AS matched
+            """,
+            learning_id=learning_id,
+            source_id=source_id,
+            environment=environment,
+        )
+        record = result.single()
+        return bool(record and record["matched"] > 0)
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def link_source_to_claim(
+    driver,
+    source_id: str,
+    claim_id: str,
+    environment: str,
+) -> bool:
+    """Create (Source)-[:YIELDS]->(Claim)."""
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (s:Source {source_id: $source_id, environment: $environment})
+            MATCH (c:Claim {claim_id: $claim_id, environment: $environment})
+            MERGE (s)-[:YIELDS]->(c)
+            RETURN count(s) AS matched
+            """,
+            source_id=source_id,
+            claim_id=claim_id,
+            environment=environment,
+        )
+        record = result.single()
+        return bool(record and record["matched"] > 0)
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def link_learning_episode_to_claim(
+    driver,
+    learning_id: str,
+    claim_id: str,
+    environment: str,
+) -> bool:
+    """Create (LearningEpisode)-[:YIELDED]->(Claim)."""
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (l:LearningEpisode {learning_id: $learning_id, environment: $environment})
+            MATCH (c:Claim {claim_id: $claim_id, environment: $environment})
+            MERGE (l)-[:YIELDED]->(c)
+            RETURN count(l) AS matched
+            """,
+            learning_id=learning_id,
+            claim_id=claim_id,
+            environment=environment,
+        )
+        record = result.single()
+        return bool(record and record["matched"] > 0)
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def link_claim_to_belief(
+    driver,
+    claim_id: str,
+    belief_id: str,
+    environment: str,
+) -> bool:
+    """Create (Claim)-[:SUPPORTS]->(Belief) and increment claim_count once."""
+    now = _now_iso()
+
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (c:Claim {claim_id: $claim_id, environment: $environment})
+            MATCH (b:Belief {belief_id: $belief_id, environment: $environment})
+            MERGE (c)-[r:SUPPORTS]->(b)
+            ON CREATE SET b.claim_count = coalesce(b.claim_count, 0) + 1,
+                          b.updated_at = $now
+            RETURN count(r) AS matched
+            """,
+            claim_id=claim_id,
+            belief_id=belief_id,
+            environment=environment,
+            now=now,
+        )
+        record = result.single()
+        return bool(record and record["matched"] > 0)
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def link_belief_to_principle(
+    driver,
+    belief_id: str,
+    principle_id: str,
+    environment: str,
+) -> bool:
+    """Create (Belief)-[:GROUNDS]->(Principle) and increment belief_count once."""
+    now = _now_iso()
+
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (b:Belief {belief_id: $belief_id, environment: $environment})
+            MATCH (p:Principle {principle_id: $principle_id, environment: $environment})
+            MERGE (b)-[r:GROUNDS]->(p)
+            ON CREATE SET p.belief_count = coalesce(p.belief_count, 0) + 1,
+                          p.updated_at = $now
+            RETURN count(r) AS matched
+            """,
+            belief_id=belief_id,
+            principle_id=principle_id,
+            environment=environment,
+            now=now,
+        )
+        record = result.single()
+        return bool(record and record["matched"] > 0)
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def link_principle_to_doctrine(
+    driver,
+    principle_id: str,
+    doctrine_id: str,
+    environment: str,
+) -> bool:
+    """Create (Principle)-[:INSTANTIATES]->(Doctrine)."""
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (p:Principle {principle_id: $principle_id, environment: $environment})
+            MATCH (d:Doctrine {doctrine_id: $doctrine_id, environment: $environment})
+            MERGE (p)-[:INSTANTIATES]->(d)
+            RETURN count(p) AS matched
+            """,
+            principle_id=principle_id,
+            doctrine_id=doctrine_id,
+            environment=environment,
+        )
+        record = result.single()
+        return bool(record and record["matched"] > 0)
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def update_claim_status(
+    driver,
+    claim_id: str,
+    environment: str,
+    status: str,
+    *,
+    confidence: float | None = None,
+) -> bool:
+    if status not in VALID_CLAIM_STATUSES:
+        raise ValueError(
+            f"status must be one of {sorted(VALID_CLAIM_STATUSES)!r}, "
+            f"got {status!r}"
+        )
+    updates: dict[str, Any] = {"status": status, "updated_at": _now_iso()}
+    if confidence is not None:
+        updates["confidence"] = _clamp_unit(float(confidence))
+
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (c:Claim {claim_id: $claim_id, environment: $environment})
+            SET c += $updates
+            RETURN c.claim_id AS claim_id
+            """,
+            claim_id=claim_id,
+            environment=environment,
+            updates=updates,
+        )
+        return result.single() is not None
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def update_belief_status(
+    driver,
+    belief_id: str,
+    environment: str,
+    status: str,
+    *,
+    confidence: float | None = None,
+) -> bool:
+    if status not in VALID_BELIEF_STATUSES:
+        raise ValueError(
+            f"status must be one of {sorted(VALID_BELIEF_STATUSES)!r}, "
+            f"got {status!r}"
+        )
+    updates: dict[str, Any] = {"status": status, "updated_at": _now_iso()}
+    if confidence is not None:
+        updates["confidence"] = _clamp_unit(float(confidence))
+
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (b:Belief {belief_id: $belief_id, environment: $environment})
+            SET b += $updates
+            RETURN b.belief_id AS belief_id
+            """,
+            belief_id=belief_id,
+            environment=environment,
+            updates=updates,
+        )
+        return result.single() is not None
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def update_principle_status(
+    driver,
+    principle_id: str,
+    environment: str,
+    status: str,
+) -> bool:
+    if status not in VALID_PRINCIPLE_STATUSES:
+        raise ValueError(
+            f"status must be one of {sorted(VALID_PRINCIPLE_STATUSES)!r}, "
+            f"got {status!r}"
+        )
+    updates: dict[str, Any] = {"status": status, "updated_at": _now_iso()}
+
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (p:Principle {principle_id: $principle_id, environment: $environment})
+            SET p += $updates
+            RETURN p.principle_id AS principle_id
+            """,
+            principle_id=principle_id,
+            environment=environment,
+            updates=updates,
+        )
+        return result.single() is not None
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def adopt_doctrine(driver, doctrine_id: str, environment: str) -> bool:
+    """
+    Adopt a Doctrine node, making it immutable.
+
+    Raises ValueError if the Doctrine was already adopted and immutable.
+    """
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (d:Doctrine {doctrine_id: $doctrine_id, environment: $environment})
+            RETURN d.immutable AS immutable
+            """,
+            doctrine_id=doctrine_id,
+            environment=environment,
+        )
+        record = result.single()
+        if record is None:
+            return False
+        if record["immutable"] is True:
+            raise ValueError("Doctrine is already adopted and immutable")
+
+        tx.run(
+            """
+            MATCH (d:Doctrine {doctrine_id: $doctrine_id, environment: $environment})
+            SET d.status = 'active',
+                d.immutable = true,
+                d.adopted_at = $now
+            RETURN d.doctrine_id AS doctrine_id
+            """,
+            doctrine_id=doctrine_id,
+            environment=environment,
+            now=_now_iso(),
+        )
+        return True
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def deprecate_doctrine(driver, doctrine_id: str, environment: str) -> bool:
+    """Deprecate a Doctrine node without mutating content or immutability."""
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (d:Doctrine {doctrine_id: $doctrine_id, environment: $environment})
+            SET d.status = 'deprecated'
+            RETURN d.doctrine_id AS doctrine_id
+            """,
+            doctrine_id=doctrine_id,
+            environment=environment,
+        )
+        return result.single() is not None
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def get_active_doctrines(driver, environment: str) -> list[dict]:
+    def read(tx):
+        result = tx.run(
+            """
+            MATCH (d:Doctrine {environment: $environment, status: 'active', immutable: true})
+            RETURN properties(d) AS doctrine
+            ORDER BY d.adopted_at ASC
+            """,
+            environment=environment,
+        )
+        return [dict(r["doctrine"]) for r in result]
+
+    try:
+        with _session(driver) as session:
+            return session.execute_read(read)
+    except Exception:
+        return []
+
+
+def get_claims_for_source(
+    driver,
+    source_id: str,
+    environment: str,
+) -> list[dict]:
+    def read(tx):
+        result = tx.run(
+            """
+            MATCH (c:Claim {source_id: $source_id, environment: $environment})
+            RETURN properties(c) AS claim
+            ORDER BY c.created_at DESC
+            """,
+            source_id=source_id,
+            environment=environment,
+        )
+        return [dict(r["claim"]) for r in result]
+
+    with _session(driver) as session:
+        return session.execute_read(read)
+
+
+def get_beliefs_for_claim(
+    driver,
+    claim_id: str,
+    environment: str,
+) -> list[dict]:
+    def read(tx):
+        result = tx.run(
+            """
+            MATCH (c:Claim {claim_id: $claim_id, environment: $environment})
+                  -[:SUPPORTS]->(b:Belief {environment: $environment})
+            RETURN properties(b) AS belief
+            ORDER BY b.created_at DESC
+            """,
+            claim_id=claim_id,
+            environment=environment,
+        )
+        return [dict(r["belief"]) for r in result]
+
+    with _session(driver) as session:
+        return session.execute_read(read)
 
 
 def close(driver):

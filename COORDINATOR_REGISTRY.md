@@ -104,6 +104,29 @@ built. Each inherits full charter obligations from the moment it completes start
 
 ---
 
+### Ethos
+
+| Field | Value |
+|---|---|
+| Status | Active — built (coordinators/ethos.py); wired into Awareness.synchronous_run() after Mirror-Self and before Reason (Task 66) |
+| Model tier | Tier 0 — no LLM calls; reads Neo4j graph at foreground turn start |
+| Backing context | Runtime-only |
+| Backing agent | None — fully deterministic |
+| Neuroscience analogue | Ventromedial prefrontal / value-policy interface — stable behavioral constraints made available during action selection |
+| Layer | Cognitive + governance (foreground doctrine injection) |
+| Type | Foreground |
+| Foreground position | After Mirror-Self, before Reason |
+| Background cadence | None (reserved — no-op `background_tick`) |
+| Primary role | Behavioral doctrine injection. Reads adopted (immutable) Doctrine nodes from the epistemic memory chain and injects them as behavioral constraints into `memory_context` before Reason runs. |
+| Read access | Neo4j Doctrine nodes where `status='active'` and `immutable=True`; packet environment and memory_context |
+| Write paths | Packet fields only: `packet["doctrine_context"]` and `packet["active_doctrine_count"]`; appends doctrine context to memory_context. No durable writes. |
+| Packet fields written | `packet["doctrine_context"]` — formatted doctrine block for Reason; `packet["active_doctrine_count"]` — number of active doctrines loaded this turn |
+| Behavioral rules | Ethos consumes active Doctrine nodes only. It does not create, promote, mutate, or deprecate Doctrine nodes. It caps injection at 10 doctrines per turn to protect context length and never blocks the pipeline on graph failure. |
+| Relationship to Awareness | Awareness instantiates Ethos and calls it in the foreground pipeline after Mirror-Self and before Reason, so behavioral constraints are present before Reason chooses content or actions. |
+| Notes | Consumption side of the epistemic chain only. Archivist (Task 50) handles creation: LearningEpisode, Source, Claim, Belief, Principle promotion, and Doctrine proposals. Ethos only reads `status='active', immutable=True` Doctrine nodes. |
+
+---
+
 ### Wisdom
 
 | Field | Value |

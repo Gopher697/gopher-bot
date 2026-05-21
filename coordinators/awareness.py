@@ -20,6 +20,7 @@ from coordinators.voice import Voice
 from coordinators.orientation import Orientation
 from coordinators.keeper import Keeper
 from coordinators.mirror_self import MirrorSelf
+from coordinators.ethos import Ethos
 from utils.time_utils import now_iso, unix_to_iso
 
 if TYPE_CHECKING:
@@ -41,6 +42,7 @@ class Awareness:
         orientation: Orientation | Coordinator | None = None,
         keeper: Keeper | Coordinator | None = None,
         mirror_self: MirrorSelf | Coordinator | None = None,
+        ethos: Ethos | Coordinator | None = None,
     ):
         self.sensory = sensory or Sensory()
         self.memory = memory or Memory()
@@ -52,6 +54,7 @@ class Awareness:
         self.orientation = orientation or Orientation()
         self.keeper = keeper or Keeper()
         self.mirror_self = mirror_self or MirrorSelf()
+        self.ethos = ethos or Ethos()
         self._time_fn = time_fn
         self.session_id: str = _uuid.uuid4().hex
         self.session_start: float = self._time_fn()
@@ -153,6 +156,15 @@ class Awareness:
                 packet = self.mirror_self.process(packet)
             except Exception:
                 pass  # Mirror-Self failure is non-fatal -- pipeline continues
+            # -----------------------------------------------------------------
+
+            # --- Ethos: behavioral doctrine injection -------------------------
+            # Reads active immutable Doctrine nodes and injects doctrine_context
+            # into memory_context before Reason selects behavior.
+            try:
+                packet = self.ethos.process(packet)
+            except Exception:
+                pass  # Ethos failure is non-fatal -- pipeline continues
             # -----------------------------------------------------------------
 
             packet = self.reason.process(packet)

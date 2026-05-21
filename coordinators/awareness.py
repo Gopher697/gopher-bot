@@ -13,6 +13,7 @@ from coordinators.sensory import Sensory
 from coordinators.tier_config import DEFAULT_TIER
 from coordinators.voice import Voice
 from coordinators.orientation import Orientation
+from coordinators.keeper import Keeper
 from utils.time_utils import now_iso, unix_to_iso
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ class Awareness:
         coordinator_log_acceptance_updater: Callable[[Any, bool], None] | None = None,
         hands: "Hands | None" = None,
         orientation: Orientation | Coordinator | None = None,
+        keeper: Keeper | Coordinator | None = None,
     ):
         self.sensory = sensory or Sensory()
         self.memory = memory or Memory()
@@ -41,6 +43,7 @@ class Awareness:
         self.voice = voice or Voice()
         self.hands = hands
         self.orientation = orientation or Orientation()
+        self.keeper = keeper or Keeper()
         self._time_fn = time_fn
         self.session_id: str = _uuid.uuid4().hex
         self.session_start: float = self._time_fn()
@@ -117,6 +120,15 @@ class Awareness:
                     )
             except Exception:
                 pass  # Orientation failure is non-fatal -- pipeline continues
+            # -----------------------------------------------------------------
+
+            # --- Keeper: trust level gate -------------------------------------
+            # Runs after Orientation and before Reason so Reason receives the
+            # current autonomy constraints in the packet and memory context.
+            try:
+                packet = self.keeper.process(packet)
+            except Exception:
+                pass  # Keeper failure is non-fatal -- pipeline continues
             # -----------------------------------------------------------------
 
             packet = self.reason.process(packet)

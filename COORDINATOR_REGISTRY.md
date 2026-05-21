@@ -84,14 +84,23 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Planned |
-| Model tier | Tier 2 (governance reasoning requires reliable mid-tier judgment) |
-| Backing context | Build-aware — charter enforcement logic must be consulted by build sessions (read-only) and held as authoritative by the runtime brain. Keeper does not hold runtime coordinator authority in a build context, but its rules apply in both. |
-| Backing agent | TBD |
-| Primary role | Charter enforcement, proposal review triage, commitments tracking, governance |
-| Read access | Charter, COORDINATOR_REGISTRY.md, AGENT_COMMITMENTS.md, proposals/, audit logs |
-| Write paths | proposals/resolved/ (after decisions); audit logs (append only) |
-| Notes | Keeper does not make ratification decisions — Gopher does. Keeper surfaces what needs deciding and flags when the system is drifting from the charter. |
+| Status | Active — built (coordinators/keeper.py); wired into Awareness.synchronous_run() after Orientation and before Reason; registered as a BrainLoop background coordinator at 300s cadence (Task 49) |
+| Model tier | Tier 0 — pure Python state machine; no LLM calls, no graph writes |
+| Backing context | Runtime-only |
+| Backing agent | None — fully deterministic |
+| Neuroscience analogue | Prefrontal inhibitory control + governance gate — monitors safety evidence and constrains autonomy before action selection |
+| Layer | Cognitive + governance (foreground trust injection; background DreamLog monitoring) |
+| Type | Foreground + background |
+| Foreground position | After Orientation, before Reason |
+| Background cadence | 300s |
+| Primary role | Charter enforcement and autonomy trust management. Computes trust level from DreamLog clean NREM streak and inner defender alerts; injects trust_level into the packet before Reason; gates autonomous capability expansion. |
+| Read access | DreamLog JSON summaries in logs/dream/; packet defender_alerts; packet memory_context |
+| Write paths | Packet fields only during foreground processing; background trust-level bids to Awareness. No durable writes. |
+| Packet fields written | `packet["trust_level"]` — current autonomy trust level; `packet["keeper_context"]` — one-line trust summary appended to memory_context |
+| Trust levels | 0 reactive: acts only on Gopher input, no autonomous action permitted. 1 supervised: local graph writes permitted. 2 extended and 3 autonomous are reserved placeholders for future escalation steps. |
+| Behavioral rules | Keeper demotes immediately to reactive on any inner defender alert. Keeper elevates from reactive to supervised only after at least 3 consecutive clean NREM audit cycles. Trust level is independent of whether Gopher is currently present; idle state changes opportunity, not permission. Keeper never blocks the pipeline on failure. |
+| Relationship to Awareness | Awareness instantiates Keeper and calls it after Orientation, before Reason. Keeper is also a BrainLoop background coordinator that emits trust-level signal bids when trust state should be surfaced. |
+| Notes | Keeper does not make ratification decisions — Gopher does. It supplies the runtime trust gate that future autonomous cultivation loops must consult before taking local graph-writing or external actions. |
 
 ---
 

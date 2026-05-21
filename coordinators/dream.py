@@ -564,9 +564,9 @@ class Dream(Coordinator):
         self, awareness_queue, result: NREMResult
     ) -> None:
         """Submit a brief NREM completion summary as a Dream bid."""
+        import time as _time
         try:
-            from coordinators.bid import Bid
-            from coordinators.bid import PRIORITY_DEFAULT
+            from coordinators.bid import Bid, PRIORITY_DEFAULT
             bid = Bid(
                 coordinator_name=self.name,
                 content=(
@@ -574,9 +574,9 @@ class Dream(Coordinator):
                     f"strengthened={result.edges_strengthened}"
                 ),
                 priority=PRIORITY_DEFAULT,
-                timestamp=self._time_fn(),
+                timestamp=_time.time(),
             )
-            awareness_queue.put(bid)
+            _submit_bid_to_awareness_queue(awareness_queue, bid)
         except Exception:
             pass
 
@@ -590,6 +590,7 @@ class Dream(Coordinator):
         This is the inner defender's alerting action. It has alerting
         authority only; it cannot take any remedial action on its own.
         """
+        import time as _time
         try:
             from coordinators.bid import Bid, PRIORITY_SAFETY
             parts = []
@@ -605,13 +606,30 @@ class Dream(Coordinator):
             if not parts:
                 return
 
+            content = "[INNER DEFENDER — NE SPIKE] " + " | ".join(parts)
             bid = Bid(
                 coordinator_name=self.name,
-                content="[INNER DEFENDER — NE SPIKE] " + " | ".join(parts),
+                content=content,
                 priority=PRIORITY_SAFETY,
-                timestamp=self._time_fn(),
+                timestamp=_time.time(),
             )
-            awareness_queue.put(bid)
+            _submit_bid_to_awareness_queue(awareness_queue, bid)
+
+            # Append to the inner defender audit trail.
+            try:
+                from utils.inner_defender_log import log_defender_activation
+                log_defender_activation(
+                    layer="dream_audit",
+                    content=content,
+                    priority=PRIORITY_SAFETY,
+                    details={
+                        "chain_ok": audit.chain_ok,
+                        "chain_error_count": audit.chain_error_count,
+                        "injection_hits": audit.injection_hits,
+                    },
+                )
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -646,6 +664,14 @@ def _detect_tags(text: str) -> list[str]:
 def _append_unique(values: list[int], value: int) -> None:
     if value not in values:
         values.append(value)
+
+
+def _submit_bid_to_awareness_queue(awareness_queue, bid) -> None:
+    submit = getattr(awareness_queue, "submit", None)
+    if callable(submit):
+        submit(bid)
+        return
+    awareness_queue.put(bid)
 
 
 def _default_ots_post(hash_hex: str, proof_path: "pathlib.Path") -> bool:

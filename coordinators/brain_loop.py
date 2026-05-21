@@ -15,6 +15,8 @@ from coordinators.bid import PRIORITY_PATTERN, BidQueue
 from coordinators.mirror_chad import INCUBATION_MAXLEN
 
 
+_SENTINEL = object()   # used to distinguish "attr absent" from "attr is None"
+
 BACKGROUND_INTERVALS = {
     "feeling": 30.0,
     "neuromodulation": 30.0,
@@ -103,6 +105,18 @@ class BrainLoop:
         add_callback = getattr(awareness, "add_activity_callback", None)
         if callable(add_callback):
             add_callback(self.mark_active)
+
+        # Wire Dream's NREM completion callback → Awareness.last_nrem_time.
+        # Dream is instantiated with nrem_done_fn=None by default; set it
+        # here so Awareness always knows when NREM last ran.
+        _dream = self.coordinators.get("dream")
+        if _dream is not None and getattr(_dream, "nrem_done_fn", _SENTINEL) is None:
+            def _nrem_done_callback(ts: float, _aw=awareness) -> None:
+                try:
+                    _aw.last_nrem_time = ts
+                except Exception:
+                    pass
+            _dream.nrem_done_fn = _nrem_done_callback
 
     def mark_active(self, timestamp: float | None = None) -> None:
         self.last_active = float(timestamp if timestamp is not None else self.time_fn())

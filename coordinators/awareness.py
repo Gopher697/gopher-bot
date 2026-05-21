@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import uuid as _uuid
-from dataclasses import asdict
 import time
 from collections.abc import Callable
 from typing import Any, TYPE_CHECKING
 
 from coordinators.base import Coordinator, backfill_coordinator_log_acceptance
-from coordinators.bid import Bid, BidQueue
+from coordinators.bid import Bid, BidQueue, PRIORITY_SAFETY
 from coordinators.memory import Memory
 from coordinators.reason import Reason
 from coordinators.sensory import Sensory
@@ -151,18 +150,47 @@ class Awareness:
     def _drain_bids_into_packet(self, packet: dict) -> None:
         bids = self.bid_queue.get_pending()
         self._mark_bids_accepted(bids)
-        packet["background_bids"] = [asdict(bid) for bid in bids]
-        bid_context = _format_bid_context(bids)
+        packet["background_bids"] = [
+            {k: getattr(bid, k, None) for k in
+             ("coordinator_name", "content", "priority", "timestamp")}
+            for bid in bids
+        ]
+
+        # --- Separate inner defender alerts from normal coordinator bids ---
+        # PRIORITY_SAFETY bids are inner defender NE spikes — they must be
+        # visible to Reason before any other bid context so the threat level
+        # is unambiguous.
+        defender_bids = [
+            b for b in bids
+            if getattr(b, "priority", PRIORITY_SAFETY + 1) <= PRIORITY_SAFETY
+        ]
+        normal_bids = [
+            b for b in bids
+            if getattr(b, "priority", PRIORITY_SAFETY + 1) > PRIORITY_SAFETY
+        ]
+
+        defender_context = _format_defender_context(defender_bids)
+        bid_context = _format_bid_context(normal_bids)
+
+        packet["defender_alerts"] = defender_context   # "" when none active
         packet["bid_context"] = bid_context
 
-        if not bid_context:
+        # Build memory_context: defender alerts first, then normal bids.
+        parts = []
+        if defender_context:
+            parts.append(defender_context)
+        if bid_context:
+            parts.append(bid_context)
+        combined = "\n\n".join(parts)
+
+        if not combined:
             return
 
         memory_context = str(packet.get("memory_context") or "").strip()
         if memory_context:
-            packet["memory_context"] = f"{memory_context}\n\n{bid_context}"
+            packet["memory_context"] = f"{memory_context}\n\n{combined}"
         else:
-            packet["memory_context"] = bid_context
+            packet["memory_context"] = combined
 
     def _mark_bids_accepted(self, bids: list[Any]) -> None:
         for bid in bids:
@@ -193,6 +221,17 @@ def _format_bid_context(bids: list[Bid]) -> str:
         lines.append(
             f"- {bid.coordinator_name} (priority {bid.priority}): {content}"
         )
+    return "\n".join(lines).strip()
+
+
+def _format_defender_context(bids: list) -> str:
+    if not bids:
+        return ""
+    lines = ["⚠ INNER DEFENDER ALERT ⚠"]
+    for bid in bids:
+        content = str(getattr(bid, "content", "")).strip()
+        if content:
+            lines.append(f"  {content}")
     return "\n".join(lines).strip()
 
 

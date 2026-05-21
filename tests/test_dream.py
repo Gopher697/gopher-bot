@@ -227,7 +227,7 @@ def test_idle_decay_cycles_increments_by_one_per_tick():
     assert dream.state.idle_decay_cycles == 2
 
 
-# background_tick() - no Awareness bids
+# background_tick() - Awareness bids
 
 def test_awareness_queue_put_nowait_not_called_during_background_tick():
     queue = RecordingAwarenessQueue()
@@ -239,14 +239,17 @@ def test_awareness_queue_put_nowait_not_called_during_background_tick():
     assert queue.put_items == []
 
 
-def test_awareness_queue_submit_not_called_during_background_tick():
+def test_awareness_queue_submit_receives_nrem_summary_during_background_tick():
     queue = RecordingAwarenessQueue()
     dream = _dream()
     dream.intake("maybe")
 
     asyncio.run(dream.background_tick(queue))
 
-    assert queue.submitted == []
+    assert len(queue.submitted) == 1
+    bid = queue.submitted[0]
+    assert bid.coordinator_name == "dream"
+    assert "NREM complete" in bid.content
 
 
 # process()

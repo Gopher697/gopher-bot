@@ -409,6 +409,86 @@ def get_recent_observations(
         return session.execute_read(read)
 
 
+def record_system_event(
+    driver,
+    event_type: str,
+    environment: str,
+    details: str = "",
+) -> None:
+    """
+    Record a SystemEvent node in the graph.
+
+    SystemEvent nodes are Dream's persistent memory of its own operational
+    history — startup, shutdown, NREM completion, NREM skips. They survive
+    process restarts and allow Dream to reason about how long it was offline.
+
+    Args:
+        driver:      Active Neo4j driver.
+        event_type:  Short identifier: "startup", "shutdown", "nrem_complete",
+                     "nrem_skipped".
+        environment: Graph environment scope.
+        details:     Optional free-text detail string (e.g. counts summary).
+    """
+    def write(tx):
+        tx.run(
+            """
+            CREATE (e:SystemEvent {
+                event_type: $event_type,
+                environment: $environment,
+                timestamp:   $timestamp,
+                details:     $details
+            })
+            """,
+            event_type=event_type,
+            environment=environment,
+            timestamp=_now_iso(),
+            details=details,
+        )
+
+    with _session(driver) as session:
+        session.execute_write(write)
+
+
+def get_last_system_event(
+    driver,
+    event_type: str,
+    environment: str,
+) -> dict | None:
+    """
+    Return the most recent SystemEvent of the given type, or None.
+
+    Used by Dream on startup to determine how long it was offline and
+    whether NREM is overdue.
+
+    Args:
+        driver:      Active Neo4j driver.
+        event_type:  Event type to query (e.g. "nrem_complete").
+        environment: Graph environment scope.
+
+    Returns:
+        Property dict of the most recent matching event, or None.
+    """
+    def read(tx):
+        result = tx.run(
+            """
+            MATCH (e:SystemEvent {
+                event_type: $event_type,
+                environment: $environment
+            })
+            RETURN properties(e) AS event
+            ORDER BY e.timestamp DESC
+            LIMIT 1
+            """,
+            event_type=event_type,
+            environment=environment,
+        )
+        record = result.single()
+        return record["event"] if record else None
+
+    with _session(driver) as session:
+        return session.execute_read(read)
+
+
 def add_media(
     driver,
     file_path,
@@ -622,6 +702,62 @@ def update_edge_synaptic_weights(
 
     with _session(driver) as session:
         return session.execute_write(write)
+
+
+def get_edge_synaptic_weights(
+    driver,
+    from_name: str,
+    rel_type: str,
+    to_name: str,
+    environment: str,
+) -> dict | None:
+    """
+    Return the current weight and consolidation_variance for an edge.
+
+    Used by Dream CONSOLIDATE to read current values before applying
+    Hebbian strengthening. Returns None if the edge does not exist.
+
+    Args:
+        driver:      Active Neo4j driver.
+        from_name:   Source entity name.
+        rel_type:    Relationship type (uppercase, e.g. "KNOWS").
+        to_name:     Target entity name.
+        environment: Graph environment scope.
+
+    Returns:
+        Dict with keys "weight" and "consolidation_variance", or None.
+
+    Raises:
+        ValueError: If rel_type is not a valid relationship type pattern.
+    """
+    if not REL_TYPE_PATTERN.match(rel_type):
+        raise ValueError(
+            "rel_type must be uppercase letters, numbers, and underscores"
+        )
+
+    def read(tx):
+        result = tx.run(
+            f"""
+            MATCH (source:Entity {{name: $from_name, environment: $environment}})
+            -[relationship:{rel_type}]->
+            (target:Entity {{name: $to_name, environment: $environment}})
+            RETURN relationship.weight AS weight,
+                   relationship.consolidation_variance AS consolidation_variance
+            """,
+            from_name=from_name,
+            to_name=to_name,
+            environment=environment,
+        )
+        record = result.single()
+        if record is None:
+            return None
+        return {
+            "weight": record["weight"],
+            "consolidation_variance": record["consolidation_variance"],
+        }
+
+    with _session(driver) as session:
+        return session.execute_read(read)
 
 
 def query_environment(driver, environment):

@@ -1164,6 +1164,42 @@ def get_candidate_goals(
         return session.execute_read(read)
 
 
+def get_deferred_goals(
+    driver,
+    environment: str,
+    limit: int = 20,
+) -> list[dict]:
+    """
+    Return Goal nodes with status 'deferred', ordered by priority desc.
+
+    Deferred goals are temporarily suspended; Orientation surfaces them
+    as 'unresolved_items' and 'do_not_forget' in the orientation digest.
+
+    Args:
+        driver:      Active Neo4j driver.
+        environment: Graph environment scope.
+        limit:       Maximum number of results (default 20).
+
+    Returns:
+        List of property dicts for matching Goal nodes.
+    """
+    def read(tx):
+        result = tx.run(
+            """
+            MATCH (g:Goal {environment: $environment, status: 'deferred'})
+            RETURN properties(g) AS props
+            ORDER BY g.priority DESC
+            LIMIT $limit
+            """,
+            environment=environment,
+            limit=limit,
+        )
+        return [record["props"] for record in result]
+
+    with _session(driver) as session:
+        return session.execute_read(read)
+
+
 def transition_goal_status(
     driver,
     goal_id: str,

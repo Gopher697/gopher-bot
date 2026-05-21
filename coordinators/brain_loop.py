@@ -12,6 +12,7 @@ from coordinators.base import (
     build_coordinator_log_entry,
 )
 from coordinators.bid import PRIORITY_PATTERN, BidQueue
+from coordinators.archivist import ARCHIVIST_CADENCE_SECONDS
 from coordinators.keeper import KEEPER_CADENCE_SECONDS
 from coordinators.mirror_chad import INCUBATION_MAXLEN
 
@@ -27,6 +28,7 @@ BACKGROUND_INTERVALS = {
     "curiosity": 180.0,
     "dream": 300.0,
     "keeper": KEEPER_CADENCE_SECONDS,
+    "archivist": ARCHIVIST_CADENCE_SECONDS,
     "drive": 86400.0,
 }
 DREAM_IDLE_SECONDS = 300.0
@@ -41,6 +43,7 @@ BACKGROUND_COORDINATORS = (
     "drive",
     "dream",
     "keeper",
+    "archivist",
 )
 
 
@@ -304,6 +307,7 @@ class BrainLoop:
 
 
 def _default_background_coordinators() -> dict[str, Coordinator]:
+    from coordinators.archivist import Archivist
     from coordinators.curiosity import Curiosity
     from coordinators.dream import Dream
     from coordinators.drive import Drive
@@ -324,6 +328,7 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
         "dream": Dream(),
         "drive": Drive(),
         "keeper": Keeper(),
+        "archivist": Archivist(),
         **{
             name: _NoopBackgroundCoordinator(name)
             for name in BACKGROUND_COORDINATORS
@@ -338,6 +343,7 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
                 "dream",
                 "drive",
                 "keeper",
+                "archivist",
             }
         },
     }

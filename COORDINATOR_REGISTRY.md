@@ -127,6 +127,29 @@ built. Each inherits full charter obligations from the moment it completes start
 
 ---
 
+### Archivist
+
+| Field | Value |
+|---|---|
+| Status | Active — built (coordinators/archivist.py); registered as a BrainLoop background coordinator at 300s cadence (Task 50) |
+| Model tier | Tier 0 — no LLM calls; reads `logs/audit/turns.jsonl`; writes `logs/archivist/research.jsonl` and optional Neo4j nodes |
+| Backing context | Runtime-only |
+| Backing agent | None — fully deterministic |
+| Neuroscience analogue | Hippocampal indexing + cortical consolidation interface — marks salient experience for later durable knowledge formation |
+| Layer | Cognitive + memory substrate (background learning stream) |
+| Type | Foreground + background |
+| Foreground position | Not in Awareness foreground pipeline; `process()` only exposes session research count when called |
+| Background cadence | 300s |
+| Primary role | Self-discovered knowledge stream. Reads the turn audit log to identify noteworthy turns (active goal progress, low prediction accuracy, errors). Creates LearningEpisode and Source nodes in the epistemic graph. Maintains a flat research log as the primary artifact. |
+| Read access | `logs/audit/turns.jsonl`; packet/session state only if foreground `process()` is called |
+| Write paths | `logs/archivist/research.jsonl`; best-effort Neo4j Source and LearningEpisode nodes plus PROCESSED link. Background research-signal bids to Awareness. |
+| Packet fields written | `packet["archivist_research_count"]` — number of research entries created this process session |
+| Behavioral rules | Archivist only records noteworthy turns: active goal progress, low prediction accuracy, or errors. It processes at most 10 turns per tick, tracks the last processed turn_id, and treats graph writes as best-effort so research log persistence is the primary audit trail. |
+| Relationship to Ethos | Archivist is the creation side of the epistemic chain. Ethos is the consumption side that reads adopted immutable Doctrines at runtime. Archivist does not inject behavior into Reason. |
+| Notes | Claim extraction and Belief/Principle/Doctrine promotion are future enhancements. Archivist currently creates LearningEpisode and Source records plus a flat research log; it does not ratify claims or mutate Doctrine. |
+
+---
+
 ### Wisdom
 
 | Field | Value |

@@ -232,11 +232,21 @@ class WorldMapWindow(QMainWindow):
         windows = []
         win32gui.EnumWindows(win_enum_handler, windows)
 
-        # Clear old items
-        for title, items in self.window_items.items():
-            for item in items:
-                self.scene.removeItem(item)
+        # Clear old items — pop each entry and remove only the two QGraphicsItems.
+        # Using try/except per item because Qt may warn about scene mismatches when
+        # a previous refresh partially failed, and we don't want one bad item to
+        # block removal of the rest.
+        old_entries = list(self.window_items.values())
         self.window_items.clear()
+        for entry in old_entries:
+            try:
+                self.scene.removeItem(entry[0])   # rect_item
+            except Exception:
+                pass
+            try:
+                self.scene.removeItem(entry[1])   # text_item
+            except Exception:
+                pass
 
         # Draw new windows
         for hwnd, title, rect in windows:

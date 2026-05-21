@@ -6,6 +6,7 @@ import itertools
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template_string, request, send_from_directory
@@ -476,6 +477,33 @@ def _emit_proactive_response(text: str) -> None:
     socketio.emit("response", message)
 
 
+def _emit_persona_state(state: str, coordinator: str = "", focus_window: str = "") -> None:
+    now = time.time()
+    neuromods = _neuromodulator_levels(brain_loop)
+    
+    mapped_neuromods = {
+        "da": neuromods.get("DA", 0.0),
+        "ne": neuromods.get("NE", 0.0),
+        "serotonin": neuromods.get("5HT", 0.0),
+        "ach": neuromods.get("ACh", 0.0)
+    }
+    
+    payload = {
+        "state": state,
+        "coordinator": coordinator,
+        "focus_window": focus_window,
+        "neuromodulators": mapped_neuromods,
+        "timestamp": now
+    }
+    socketio.emit("state_update", payload, namespace="/persona")
+
+
+def trigger_reflex_alert(coordinator: str = "sensory", focus_window: str = "") -> None:
+    """Called by background sensor threads on motion or voice detection."""
+    brain_loop.interrupt_event.set()
+    _emit_persona_state("alert", coordinator=coordinator, focus_window=focus_window)
+
+
 brain_loop = BrainLoop(
     audit_event_emitter=_emit_audit_update,
     proactive_response_emitter=_emit_proactive_response,
@@ -681,6 +709,11 @@ def voice():
             "audio": base64.b64encode(audio).decode("ascii"),
         }
     )
+
+
+@socketio.on("connect", namespace="/persona")
+def handle_persona_connect() -> None:
+    _emit_persona_state("idle", "brain_loop", "")
 
 
 @socketio.on("message")

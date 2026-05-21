@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import threading
 import time
 from collections.abc import Callable, Mapping
 from typing import Any
@@ -97,6 +98,7 @@ class BrainLoop:
         self.last_proactive_voice_at: float | None = None
         self.running = False
         self._stop_requested = False
+        self.interrupt_event = threading.Event()
 
     def bind_awareness(self, awareness: Any) -> None:
         self.awareness = awareness
@@ -156,6 +158,11 @@ class BrainLoop:
         self._sync_last_active_from_awareness()
         now = self.time_fn()
         for name, coordinator in self.coordinators.items():
+            if self.interrupt_event.is_set():
+                self.interrupt_event.clear()
+                # Break out of the cycle to allow immediate reflex handling
+                break
+                
             if not self._should_tick(name, now):
                 continue
             await self._tick_coordinator(name, coordinator)

@@ -39,11 +39,15 @@ set DBMS_DIR=C:\Users\gophe\.Neo4jDesktop2\Data\dbmss\dbms-54750ef6-52b6-4e69-b3
 set NEO4J_BAT=%DBMS_DIR%\bin\neo4j.bat
 
 :: 1) System Java (Temurin 21 etc.) — JAVA_HOME already in environment
+:: Note: goto inside nested parenthesized if-blocks crashes cmd.exe (parse-time issue).
+:: Use a flag variable so the goto happens at the top level.
+set _USE_SYS_JAVA=0
 if defined JAVA_HOME (
-    if exist "%JAVA_HOME%\bin\java.exe" (
-        echo     Using system Java: %JAVA_HOME%
-        goto start_neo4j_bat
-    )
+    if exist "%JAVA_HOME%\bin\java.exe" set _USE_SYS_JAVA=1
+)
+if %_USE_SYS_JAVA%==1 (
+    echo     Using system Java: %JAVA_HOME%
+    goto start_neo4j_bat
 )
 
 :: 2) Cache JRE fallback — compute JAVA_HOME from bundled JRE path

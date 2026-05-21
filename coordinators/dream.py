@@ -57,6 +57,9 @@ DEFAULT_AUDIT_LOG_PATH = "logs/audit/hands_audit.jsonl"
 # DreamLog output directory.
 DREAM_LOG_DIR = "logs/dream"
 
+# OTS proof files — path must match AGENT_COMMITMENTS C-006 criterion (3).
+OTS_PROOF_DIR = "logs/audit/timestamps"
+
 _TAG_MARKERS = (
     ("idea", ("what if", "maybe", "could", "imagine", "idea", "concept")),
     ("question", ("why", "how", "what", "wonder", "?")),
@@ -107,6 +110,7 @@ class AuditResult:
     # Strings that matched INJECTION_PATTERNS, one per offending log item.
     ots_anchored: bool = False       # True if OTS POST succeeded this run
     ots_proof_path: str = ""         # Filesystem path to saved .ots file, if any
+    ots_hash: str = ""               # Chain head hash submitted to OTS this run
 
 
 Clock = Callable[[], datetime]
@@ -464,7 +468,7 @@ class Dream(Coordinator):
 
         Reads the last line of the audit log to get the chain head hash,
         POSTs it to OTS_CALENDAR_URL, and saves the returned .ots receipt
-        to DREAM_LOG_DIR/ots_proofs/YYYY-MM-DD.ots.
+        to OTS_PROOF_DIR/YYYY-MM-DD.ots.
 
         On any failure (file missing, network error, etc.) the method
         returns silently — OTS anchoring is best-effort.
@@ -504,7 +508,7 @@ class Dream(Coordinator):
 
         # Determine proof save path.
         date_str = datetime.now(UTC).strftime("%Y-%m-%d")
-        proof_path = pathlib.Path(DREAM_LOG_DIR) / "ots_proofs" / f"{date_str}.ots"
+        proof_path = pathlib.Path(OTS_PROOF_DIR) / f"{date_str}.ots"
 
         # POST to OpenTimestamps calendar.
         try:
@@ -516,6 +520,7 @@ class Dream(Coordinator):
             self._last_ots_unix = now
             audit_result.ots_anchored = True
             audit_result.ots_proof_path = str(proof_path)
+            audit_result.ots_hash = chain_head_hash
 
     def _save_dream_log(self, result: NREMResult) -> None:
         """
@@ -543,6 +548,7 @@ class Dream(Coordinator):
                 "injection_hits": audit.injection_hits if audit else [],
                 "ots_anchored": audit.ots_anchored if audit else False,
                 "ots_proof_path": audit.ots_proof_path if audit else "",
+                "ots_hash": audit.ots_hash if audit else "",
             },
         }
 
@@ -667,11 +673,7 @@ def _append_unique(values: list[int], value: int) -> None:
 
 
 def _submit_bid_to_awareness_queue(awareness_queue, bid) -> None:
-    submit = getattr(awareness_queue, "submit", None)
-    if callable(submit):
-        submit(bid)
-        return
-    awareness_queue.put(bid)
+    awareness_queue.submit(bid)
 
 
 def _default_ots_post(hash_hex: str, proof_path: "pathlib.Path") -> bool:

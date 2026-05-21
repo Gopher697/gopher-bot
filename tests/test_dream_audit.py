@@ -9,9 +9,11 @@ import json
 import pathlib
 import pytest
 
+from coordinators.bid import BidQueue
 from coordinators.dream import (
     INJECTION_PATTERNS,
     OTS_ANCHOR_INTERVAL_SECONDS,
+    OTS_PROOF_DIR,
     AuditResult,
     Dream,
     NREMResult,
@@ -29,6 +31,7 @@ def test_audit_result_defaults():
     assert result.injection_hits == []
     assert result.ots_anchored is False
     assert result.ots_proof_path == ""
+    assert result.ots_hash == ""
 
 
 def test_nrem_result_carries_audit_field():
@@ -154,6 +157,8 @@ def test_ots_skips_within_interval(tmp_path):
 
 def test_ots_anchors_when_interval_elapsed(tmp_path):
     """OTS anchors when enough time has passed since last anchor."""
+    from datetime import UTC, datetime
+
     log_path = tmp_path / "audit.jsonl"
     entry = {"entry_hash": "b" * 64}
     log_path.write_text(json.dumps(entry) + "\n", encoding="utf-8")
@@ -162,7 +167,7 @@ def test_ots_anchors_when_interval_elapsed(tmp_path):
     now_val = 2_000_000.0
     dream = Dream(
         audit_log_path=str(log_path),
-        ots_post_fn=lambda h, p: ots_called.append(h) or True,
+        ots_post_fn=lambda h, p: ots_called.append((h, p)) or True,
         time_fn=lambda: now_val,
     )
     dream._last_ots_unix = now_val - OTS_ANCHOR_INTERVAL_SECONDS - 1
@@ -170,8 +175,35 @@ def test_ots_anchors_when_interval_elapsed(tmp_path):
     audit = AuditResult()
     dream._maybe_anchor_ots(audit)
     assert len(ots_called) == 1
-    assert ots_called[0] == "b" * 64
+    assert ots_called[0][0] == "b" * 64
     assert audit.ots_anchored is True
+    assert audit.ots_hash == "b" * 64
+
+    date_str = datetime.now(UTC).strftime("%Y-%m-%d")
+    expected_path = pathlib.Path(OTS_PROOF_DIR) / f"{date_str}.ots"
+    assert pathlib.Path(audit.ots_proof_path) == expected_path
+    assert pathlib.Path(ots_called[0][1]) == expected_path
+
+
+def test_dream_log_records_ots_hash(tmp_path, monkeypatch):
+    """DreamLog audit block includes the OTS hash submitted this run."""
+    import coordinators.dream as dream_module
+
+    monkeypatch.setattr(dream_module, "DREAM_LOG_DIR", str(tmp_path))
+    dream = Dream()
+    audit = AuditResult(
+        ots_anchored=True,
+        ots_proof_path="logs/audit/timestamps/example.ots",
+        ots_hash="c" * 64,
+    )
+    result = NREMResult(ran=True, audit=audit)
+
+    dream._save_dream_log(result)
+
+    files = list(tmp_path.glob("*.json"))
+    assert len(files) == 1
+    record = json.loads(files[0].read_text(encoding="utf-8"))
+    assert record["audit"]["ots_hash"] == "c" * 64
 
 
 # ---------------------------------------------------------------------------
@@ -181,15 +213,13 @@ def test_ots_anchors_when_interval_elapsed(tmp_path):
 def test_ne_spike_submitted_on_chain_failure():
     """_submit_ne_spike puts a PRIORITY_SAFETY bid when chain is broken."""
     import asyncio
-    from queue import Queue
-
-    queue = Queue()
+    queue = BidQueue()
     dream = Dream()
     audit = AuditResult(chain_ok=False, chain_error_count=3)
     asyncio.run(dream._submit_ne_spike(queue, audit))
 
-    assert not queue.empty()
-    bid = queue.get_nowait()
+    assert queue.qsize() == 1
+    bid = queue.get_pending()[0]
     assert bid.priority == 1   # PRIORITY_SAFETY
     assert "INNER DEFENDER" in bid.content
     assert "chain" in bid.content.lower()
@@ -198,15 +228,13 @@ def test_ne_spike_submitted_on_chain_failure():
 def test_ne_spike_submitted_on_injection_hit():
     """_submit_ne_spike puts a PRIORITY_SAFETY bid on injection hit."""
     import asyncio
-    from queue import Queue
-
-    queue = Queue()
+    queue = BidQueue()
     dream = Dream()
     audit = AuditResult(injection_hits=["jailbreak"])
     asyncio.run(dream._submit_ne_spike(queue, audit))
 
-    assert not queue.empty()
-    bid = queue.get_nowait()
+    assert queue.qsize() == 1
+    bid = queue.get_pending()[0]
     assert bid.priority == 1
     assert "injection" in bid.content.lower()
 
@@ -214,10 +242,8 @@ def test_ne_spike_submitted_on_injection_hit():
 def test_ne_spike_not_submitted_when_clean():
     """_submit_ne_spike submits nothing when AUDIT is clean."""
     import asyncio
-    from queue import Queue
-
-    queue = Queue()
+    queue = BidQueue()
     dream = Dream()
     audit = AuditResult()   # defaults: chain_ok=True, no hits
     asyncio.run(dream._submit_ne_spike(queue, audit))
-    assert queue.empty()
+    assert queue.qsize() == 0

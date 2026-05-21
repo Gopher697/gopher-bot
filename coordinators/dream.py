@@ -5,6 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from importlib import import_module
+import pathlib
 from typing import Any
 
 from coordinators.base import Coordinator
@@ -28,6 +29,33 @@ HEBBIAN_VARIANCE_DECAY = 0.90             # multiply variance by this factor
 
 # Minimum confidence to consider an observation a consolidation candidate.
 TRIAGE_MIN_CONFIDENCE = 0.4
+
+# AUDIT phase — prompt injection scan patterns.
+# These are checked against every item in the in-memory dream log.
+INJECTION_PATTERNS = (
+    "ignore previous instructions",
+    "ignore all previous",
+    "you are now",
+    "forget everything",
+    "disregard your",
+    "new system prompt",
+    "override instructions",
+    "pretend you are",
+    "act as if you",
+    "jailbreak",
+)
+
+# OpenTimestamps — free Bitcoin calendar servers (no API key required).
+OTS_CALENDAR_URL = "https://a.pool.opentimestamps.org/digest"
+
+# Only anchor to OTS once per this many seconds.
+OTS_ANCHOR_INTERVAL_SECONDS = 23 * 3600   # 23 hours
+
+# Default audit log path (relative to cwd).
+DEFAULT_AUDIT_LOG_PATH = "logs/audit/hands_audit.jsonl"
+
+# DreamLog output directory.
+DREAM_LOG_DIR = "logs/dream"
 
 _TAG_MARKERS = (
     ("idea", ("what if", "maybe", "could", "imagine", "idea", "concept")),
@@ -66,7 +94,19 @@ class NREMResult:
     observations_triaged: int = 0
     consolidation_candidates: int = 0
     edges_strengthened: int = 0
+    audit: "AuditResult | None" = None
     timestamp: str = field(default_factory=now_iso)
+
+
+@dataclass
+class AuditResult:
+    """Outcome of the AUDIT phase run during NREM."""
+    chain_ok: bool = True            # False if verify_chain found any errors
+    chain_error_count: int = 0       # Number of ChainErrors detected
+    injection_hits: list[str] = field(default_factory=list)
+    # Strings that matched INJECTION_PATTERNS, one per offending log item.
+    ots_anchored: bool = False       # True if OTS POST succeeded this run
+    ots_proof_path: str = ""         # Filesystem path to saved .ots file, if any
 
 
 Clock = Callable[[], datetime]
@@ -87,6 +127,8 @@ class Dream(Coordinator):
         sleep_window_fn: Callable[[], bool] | None = None,
         time_fn: Callable[[], float] | None = None,
         environment: str = "global",
+        ots_post_fn: Callable[[str, "pathlib.Path"], bool] | None = None,
+        audit_log_path: str = DEFAULT_AUDIT_LOG_PATH,
     ) -> None:
         self.clock = clock or (lambda: datetime.now(UTC))
         self.decay_fn = decay_fn
@@ -98,6 +140,9 @@ class Dream(Coordinator):
         self._last_nrem_unix: float = 0.0  # 0.0 = never run
         import time as _time
         self._time_fn = time_fn or _time.time
+        self._ots_post_fn = ots_post_fn or _default_ots_post
+        self._last_ots_unix: float = 0.0
+        self._audit_log_path = audit_log_path
 
     # ------------------------------------------------------------------
     # Public Coordinator interface
@@ -124,6 +169,10 @@ class Dream(Coordinator):
         result = self.maybe_run_nrem()
         if result.ran:
             await self._submit_nrem_summary(awareness_queue, result)
+            if result.audit is not None:
+                audit = result.audit
+                if not audit.chain_ok or audit.injection_hits:
+                    await self._submit_ne_spike(awareness_queue, audit)
 
     def process(self, packet: dict) -> dict:
         packet["dream_log_size"] = len(self.state.log)
@@ -175,11 +224,13 @@ class Dream(Coordinator):
     # ------------------------------------------------------------------
 
     def _run_nrem(self, now: float) -> NREMResult:
-        """Execute the full NREM sequence: TRIAGE → CONSOLIDATE."""
+        """Execute the full NREM sequence: TRIAGE → CONSOLIDATE → AUDIT."""
         driver = self.driver_fn() if self.driver_fn is not None else None
 
         candidates = self._triage(driver)
         edges_strengthened = self._consolidate(driver, candidates)
+        audit_result = self._audit()
+        self._maybe_anchor_ots(audit_result)
 
         # Record the NREM event in the graph.
         if driver is not None:
@@ -191,7 +242,9 @@ class Dream(Coordinator):
                     environment=self.environment,
                     details=(
                         f"triaged={len(candidates)} "
-                        f"strengthened={edges_strengthened}"
+                        f"strengthened={edges_strengthened} "
+                        f"chain_ok={audit_result.chain_ok} "
+                        f"injection_hits={len(audit_result.injection_hits)}"
                     ),
                 )
                 graph.close(driver)
@@ -207,12 +260,15 @@ class Dream(Coordinator):
             except Exception:
                 pass
 
-        return NREMResult(
+        result = NREMResult(
             ran=True,
             observations_triaged=len(candidates),
             consolidation_candidates=len(candidates),
             edges_strengthened=edges_strengthened,
+            audit=audit_result,
         )
+        self._save_dream_log(result)
+        return result
 
     def _triage(self, driver) -> list[dict]:
         """
@@ -352,6 +408,154 @@ class Dream(Coordinator):
         except Exception:
             return 0
 
+    def _audit(self) -> AuditResult:
+        """
+        AUDIT phase: verify hash-chain integrity of the Hands audit log,
+        then scan the in-memory dream log for prompt injection patterns.
+
+        Chain verification:
+            Uses verify_audit_log.verify_chain(). If the log file does not
+            exist yet, that is treated as clean (chain_ok=True, 0 errors).
+            Any filesystem or parse error is treated as a chain failure.
+
+        Injection scan:
+            Checks every item currently in self.state.log against
+            INJECTION_PATTERNS. Reports each pattern that appears (one hit
+            per log item, the first matching pattern for that item).
+
+        Returns AuditResult. OTS fields are set later by _maybe_anchor_ots().
+        """
+        import pathlib
+
+        # --- Chain verification ---
+        audit_path = pathlib.Path(self._audit_log_path)
+        chain_ok = True
+        chain_error_count = 0
+
+        if audit_path.exists():
+            try:
+                from utils.verify_audit_log import verify_chain
+                ok, errors = verify_chain(str(audit_path))
+                chain_ok = ok
+                chain_error_count = len(errors)
+            except Exception:
+                chain_ok = False
+                chain_error_count = -1   # unknown / parse failure
+
+        # --- Injection scan ---
+        injection_hits: list[str] = []
+        for item in self.state.log:
+            lower = item.text.lower()
+            for pattern in INJECTION_PATTERNS:
+                if pattern in lower:
+                    injection_hits.append(pattern)
+                    break   # one hit reported per log item
+
+        return AuditResult(
+            chain_ok=chain_ok,
+            chain_error_count=chain_error_count,
+            injection_hits=injection_hits,
+        )
+
+    def _maybe_anchor_ots(self, audit_result: AuditResult) -> None:
+        """
+        Anchor the current audit log chain head to the Bitcoin blockchain
+        via OpenTimestamps, if the anchoring interval has elapsed.
+
+        Reads the last line of the audit log to get the chain head hash,
+        POSTs it to OTS_CALENDAR_URL, and saves the returned .ots receipt
+        to DREAM_LOG_DIR/ots_proofs/YYYY-MM-DD.ots.
+
+        On any failure (file missing, network error, etc.) the method
+        returns silently — OTS anchoring is best-effort.
+
+        Updates audit_result.ots_anchored and audit_result.ots_proof_path
+        in place on success.
+        """
+        import json
+        import pathlib
+        from datetime import UTC, datetime
+
+        now = self._time_fn()
+        elapsed = now - self._last_ots_unix
+        if self._last_ots_unix > 0.0 and elapsed < OTS_ANCHOR_INTERVAL_SECONDS:
+            return   # too soon
+
+        # Read chain head hash from last audit log line.
+        audit_path = pathlib.Path(self._audit_log_path)
+        if not audit_path.exists():
+            return
+
+        try:
+            last_line = ""
+            with audit_path.open("r", encoding="utf-8") as fh:
+                for line in fh:
+                    stripped = line.strip()
+                    if stripped:
+                        last_line = stripped
+            if not last_line:
+                return
+            entry = json.loads(last_line)
+            chain_head_hash = entry.get("entry_hash", "")
+            if not chain_head_hash or len(chain_head_hash) != 64:
+                return
+        except Exception:
+            return
+
+        # Determine proof save path.
+        date_str = datetime.now(UTC).strftime("%Y-%m-%d")
+        proof_path = pathlib.Path(DREAM_LOG_DIR) / "ots_proofs" / f"{date_str}.ots"
+
+        # POST to OpenTimestamps calendar.
+        try:
+            anchored = self._ots_post_fn(chain_head_hash, proof_path)
+        except Exception:
+            return
+
+        if anchored:
+            self._last_ots_unix = now
+            audit_result.ots_anchored = True
+            audit_result.ots_proof_path = str(proof_path)
+
+    def _save_dream_log(self, result: NREMResult) -> None:
+        """
+        Persist a structured JSON summary of this NREM run to DREAM_LOG_DIR.
+
+        File name: YYYY-MM-DD_HHMMSS.json (UTC). The directory is created
+        if it does not exist. Failures are swallowed — DreamLog is
+        observational, never load-bearing.
+        """
+        import json
+        import pathlib
+        from datetime import UTC, datetime
+
+        audit = result.audit
+        record = {
+            "timestamp": result.timestamp,
+            "nrem": {
+                "observations_triaged": result.observations_triaged,
+                "consolidation_candidates": result.consolidation_candidates,
+                "edges_strengthened": result.edges_strengthened,
+            },
+            "audit": {
+                "chain_ok": audit.chain_ok if audit else True,
+                "chain_error_count": audit.chain_error_count if audit else 0,
+                "injection_hits": audit.injection_hits if audit else [],
+                "ots_anchored": audit.ots_anchored if audit else False,
+                "ots_proof_path": audit.ots_proof_path if audit else "",
+            },
+        }
+
+        try:
+            log_dir = pathlib.Path(DREAM_LOG_DIR)
+            log_dir.mkdir(parents=True, exist_ok=True)
+            fname = datetime.now(UTC).strftime("%Y-%m-%d_%H%M%S.json")
+            (log_dir / fname).write_text(
+                json.dumps(record, indent=2), encoding="utf-8"
+            )
+        except Exception:
+            pass
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
@@ -370,6 +574,42 @@ class Dream(Coordinator):
                     f"strengthened={result.edges_strengthened}"
                 ),
                 priority=PRIORITY_DEFAULT,
+                timestamp=self._time_fn(),
+            )
+            awareness_queue.put(bid)
+        except Exception:
+            pass
+
+    async def _submit_ne_spike(
+        self, awareness_queue, audit: AuditResult
+    ) -> None:
+        """
+        Submit a PRIORITY_SAFETY bid to Awareness when AUDIT detects a
+        problem — chain tampering or prompt injection hits.
+
+        This is the inner defender's alerting action. It has alerting
+        authority only; it cannot take any remedial action on its own.
+        """
+        try:
+            from coordinators.bid import Bid, PRIORITY_SAFETY
+            parts = []
+            if not audit.chain_ok:
+                parts.append(
+                    f"AUDIT: hash chain integrity failure "
+                    f"({audit.chain_error_count} error(s))"
+                )
+            if audit.injection_hits:
+                hits = ", ".join(f'"{p}"' for p in audit.injection_hits[:5])
+                parts.append(f"AUDIT: injection patterns detected — {hits}")
+
+            if not parts:
+                return
+
+            bid = Bid(
+                coordinator_name=self.name,
+                content="[INNER DEFENDER — NE SPIKE] " + " | ".join(parts),
+                priority=PRIORITY_SAFETY,
+                timestamp=self._time_fn(),
             )
             awareness_queue.put(bid)
         except Exception:
@@ -406,3 +646,35 @@ def _detect_tags(text: str) -> list[str]:
 def _append_unique(values: list[int], value: int) -> None:
     if value not in values:
         values.append(value)
+
+
+def _default_ots_post(hash_hex: str, proof_path: "pathlib.Path") -> bool:
+    """
+    POST a SHA-256 hash to the OpenTimestamps public calendar server and
+    save the returned .ots receipt to proof_path.
+
+    OpenTimestamps is a free service anchored to the Bitcoin blockchain.
+    No API key or account is required. The proof file received is a pending
+    receipt — it is completed automatically within hours when the calendar
+    operator includes it in a Bitcoin transaction.
+
+    Returns True on success, False on any error.
+    """
+    import pathlib
+    import urllib.request
+
+    hash_bytes = bytes.fromhex(hash_hex)
+    try:
+        req = urllib.request.Request(
+            OTS_CALENDAR_URL,
+            data=hash_bytes,
+            headers={"Content-Type": "application/octet-stream"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            proof_data = resp.read()
+        pathlib.Path(proof_path).parent.mkdir(parents=True, exist_ok=True)
+        pathlib.Path(proof_path).write_bytes(proof_data)
+        return True
+    except Exception:
+        return False

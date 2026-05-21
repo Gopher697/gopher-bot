@@ -158,6 +158,29 @@ VALID_LEARNING_EPISODE_TYPES = {
     "autonomous",   # arose from background-loop reasoning
 }
 
+# ---------------------------------------------------------------------------
+# Skill node constants
+# ---------------------------------------------------------------------------
+
+SKILL_EMA_ALPHA = 0.2
+
+VALID_SKILL_STATUSES = {
+    "active",      # being practiced; tracked
+    "dormant",     # coordinator no longer uses it actively
+    "deprecated",  # removed from tracking; archived
+}
+
+VALID_SKILL_DOMAINS = {
+    "prediction",         # predicting upcoming topics (Mirror-Self)
+    "retrieval",          # knowledge retrieval accuracy (Memory)
+    "reasoning",          # multi-step reasoning quality (Reason)
+    "interaction",        # conversation shaping (Voice)
+    "pattern_detection",  # anomaly and pattern identification (Pattern Monitor)
+    "introspection",      # self-state accuracy (Mirror-Self, Mirror-Chad)
+    "research",           # gap detection and knowledge synthesis (Curiosity, Archivist)
+    "tool_use",           # Hands action success rate
+}
+
 REL_TYPE_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
 
@@ -2468,6 +2491,250 @@ def get_beliefs_for_claim(
 
     with _session(driver) as session:
         return session.execute_read(read)
+
+
+# ---------------------------------------------------------------------------
+# Skill node substrate
+# ---------------------------------------------------------------------------
+
+def _skill_properties(
+    coordinator: str,
+    skill_name: str,
+    domain: str,
+    environment: str,
+    *,
+    initial_proficiency: float = 0.5,
+    status: str = "active",
+) -> Dict[str, Any]:
+    """
+    Build the property dict for a Skill node.
+
+    Raises ValueError if domain or status is invalid.
+    """
+    if domain not in VALID_SKILL_DOMAINS:
+        raise ValueError(
+            f"domain must be one of {sorted(VALID_SKILL_DOMAINS)!r}, "
+            f"got {domain!r}"
+        )
+    if status not in VALID_SKILL_STATUSES:
+        raise ValueError(
+            f"status must be one of {sorted(VALID_SKILL_STATUSES)!r}, "
+            f"got {status!r}"
+        )
+    return {
+        "coordinator": str(coordinator).strip(),
+        "skill_name": str(skill_name).strip(),
+        "domain": domain,
+        "environment": environment,
+        "proficiency": _clamp_unit(float(initial_proficiency)),
+        "status": status,
+        "practice_count": 0,
+        "success_count": 0,
+        "created_at": _now_iso(),
+        "last_practiced_at": None,
+    }
+
+
+def create_skill(
+    driver,
+    coordinator: str,
+    skill_name: str,
+    domain: str,
+    environment: str,
+    *,
+    initial_proficiency: float = 0.5,
+    status: str = "active",
+) -> str:
+    """
+    Create a Skill node and return its skill_id.
+
+    Skill nodes are per-coordinator capability records. They accumulate
+    practice events via record_skill_practice() and update proficiency by EMA.
+    """
+    import uuid
+
+    skill_id = uuid.uuid4().hex
+    props = _skill_properties(
+        coordinator=coordinator,
+        skill_name=skill_name,
+        domain=domain,
+        environment=environment,
+        initial_proficiency=initial_proficiency,
+        status=status,
+    )
+    props["skill_id"] = skill_id
+
+    def write(tx):
+        tx.run("CREATE (s:Skill $props)", props=props)
+
+    with _session(driver) as session:
+        session.execute_write(write)
+    return skill_id
+
+
+def record_skill_practice(
+    driver,
+    skill_id: str,
+    environment: str,
+    *,
+    success: bool,
+) -> bool:
+    """
+    Record one practice event on a Skill node and update proficiency by EMA.
+    """
+    success_delta = 1 if success else 0
+    success_val = 1.0 if success else 0.0
+    now = _now_iso()
+
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (s:Skill {skill_id: $skill_id, environment: $environment})
+            SET s.practice_count = s.practice_count + 1,
+                s.success_count = s.success_count + $success_delta,
+                s.proficiency = $alpha * $success_val + (1.0 - $alpha) * s.proficiency,
+                s.last_practiced_at = $now
+            RETURN count(s) AS matched
+            """,
+            skill_id=skill_id,
+            environment=environment,
+            success_delta=success_delta,
+            success_val=success_val,
+            alpha=SKILL_EMA_ALPHA,
+            now=now,
+        )
+        record = result.single()
+        return bool(record and record["matched"] > 0)
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def get_skills_for_coordinator(
+    driver,
+    coordinator: str,
+    environment: str,
+    *,
+    status: str | None = None,
+) -> list[dict]:
+    """
+    Return Skill nodes owned by a coordinator, sorted by proficiency descending.
+    """
+    def read(tx):
+        if status is not None:
+            result = tx.run(
+                """
+                MATCH (s:Skill {
+                    coordinator: $coordinator,
+                    environment: $environment,
+                    status: $status
+                })
+                RETURN properties(s) AS skill
+                ORDER BY s.proficiency DESC
+                """,
+                coordinator=coordinator,
+                environment=environment,
+                status=status,
+            )
+        else:
+            result = tx.run(
+                """
+                MATCH (s:Skill {coordinator: $coordinator, environment: $environment})
+                RETURN properties(s) AS skill
+                ORDER BY s.proficiency DESC
+                """,
+                coordinator=coordinator,
+                environment=environment,
+            )
+        return [dict(r["skill"]) for r in result]
+
+    try:
+        with _session(driver) as session:
+            return session.execute_read(read)
+    except Exception:
+        return []
+
+
+def get_top_skills(
+    driver,
+    environment: str,
+    *,
+    limit: int = 10,
+    domain: str | None = None,
+) -> list[dict]:
+    """
+    Return top-N active Skill nodes by proficiency across all coordinators.
+    """
+    def read(tx):
+        if domain is not None:
+            result = tx.run(
+                """
+                MATCH (s:Skill {
+                    environment: $environment,
+                    status: 'active',
+                    domain: $domain
+                })
+                RETURN properties(s) AS skill
+                ORDER BY s.proficiency DESC
+                LIMIT $limit
+                """,
+                environment=environment,
+                domain=domain,
+                limit=limit,
+            )
+        else:
+            result = tx.run(
+                """
+                MATCH (s:Skill {environment: $environment, status: 'active'})
+                RETURN properties(s) AS skill
+                ORDER BY s.proficiency DESC
+                LIMIT $limit
+                """,
+                environment=environment,
+                limit=limit,
+            )
+        return [dict(r["skill"]) for r in result]
+
+    try:
+        with _session(driver) as session:
+            return session.execute_read(read)
+    except Exception:
+        return []
+
+
+def update_skill_status(
+    driver,
+    skill_id: str,
+    environment: str,
+    status: str,
+) -> bool:
+    """
+    Update the status of a Skill node.
+
+    Raises ValueError if status is not in VALID_SKILL_STATUSES.
+    """
+    if status not in VALID_SKILL_STATUSES:
+        raise ValueError(
+            f"status must be one of {sorted(VALID_SKILL_STATUSES)!r}, "
+            f"got {status!r}"
+        )
+
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (s:Skill {skill_id: $skill_id, environment: $environment})
+            SET s.status = $status
+            RETURN count(s) AS matched
+            """,
+            skill_id=skill_id,
+            environment=environment,
+            status=status,
+        )
+        record = result.single()
+        return bool(record and record["matched"] > 0)
+
+    with _session(driver) as session:
+        return session.execute_write(write)
 
 
 def close(driver):

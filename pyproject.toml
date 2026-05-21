@@ -20,6 +20,14 @@ dependencies = [
 dev = [
   "pytest>=8.0",
 ]
+vision = [
+  "mss",
+  "pyautogui",
+  "pywinauto",
+  "opencv-python",
+  "torch",
+  "ultralytics"
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

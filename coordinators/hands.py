@@ -273,12 +273,136 @@ def _handle_append_note(args: dict[str, Any]) -> str:
     return f"appended {len(content)} chars to {path}"
 
 
+def _handle_screenshot(args: dict[str, Any]) -> str:
+    import mss
+    import mss.tools
+    import base64
+    import os
+    import tempfile
+    with mss.mss() as sct:
+        monitor = sct.monitors[1]
+        sct_img = sct.grab(monitor)
+        fd, path = tempfile.mkstemp(suffix=".png")
+        os.close(fd)
+        try:
+            mss.tools.to_png(sct_img.rgb, sct_img.size, output=path)
+            with open(path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("utf-8")
+        finally:
+            os.remove(path)
+        return b64
+
+
+def _handle_mouse_move(args: dict[str, Any]) -> str:
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    x, y = int(args.get("x", 0)), int(args.get("y", 0))
+    pyautogui.moveTo(x, y)
+    return f"Moved mouse to ({x}, {y})"
+
+
+def _handle_left_click(args: dict[str, Any]) -> str:
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    x, y = args.get("x"), args.get("y")
+    if x is not None and y is not None:
+        pyautogui.click(int(x), int(y))
+        return f"Left clicked at ({x}, {y})"
+    pyautogui.click()
+    return "Left clicked at current position"
+
+
+def _handle_right_click(args: dict[str, Any]) -> str:
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    pyautogui.rightClick()
+    return "Right clicked at current position"
+
+
+def _handle_double_click(args: dict[str, Any]) -> str:
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    pyautogui.doubleClick()
+    return "Double clicked at current position"
+
+
+def _handle_type_text(args: dict[str, Any]) -> str:
+    import pyautogui
+    text = args.get("text", "")
+    pyautogui.write(text)
+    return f"Typed {len(text)} characters"
+
+
+def _handle_key_press(args: dict[str, Any]) -> str:
+    import pyautogui
+    key = args.get("key", "")
+    pyautogui.press(key)
+    return f"Pressed key: {key}"
+
+
+def _handle_get_window_list(args: dict[str, Any]) -> list[str]:
+    import pywinauto
+    desktop = pywinauto.Desktop(backend="uia")
+    return [w.window_text() for w in desktop.windows() if w.window_text()]
+
+
+def _handle_focus_window(args: dict[str, Any]) -> str:
+    import pywinauto
+    title = args.get("title", "")
+    desktop = pywinauto.Desktop(backend="uia")
+    window = desktop.window(title_re=f".*{title}.*")
+    window.set_focus()
+    return f"Focused window matching: {title}"
+
+
+def _handle_click_element(args: dict[str, Any]) -> str:
+    import pywinauto
+    title = args.get("title", "")
+    control_type = args.get("control_type", "")
+    element_title = args.get("element_title", "")
+    desktop = pywinauto.Desktop(backend="uia")
+    window = desktop.window(title_re=f".*{title}.*")
+    
+    kwargs = {}
+    if element_title:
+        kwargs["title_re"] = f".*{element_title}.*"
+    if control_type:
+        kwargs["control_type"] = control_type
+        
+    element = window.child_window(**kwargs)
+    element.click_input()
+    return f"Clicked element matching {element_title} in window {title}"
+
+
+def _handle_click_bbox(args: dict[str, Any]) -> str:
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    bbox = args.get("bbox", [])
+    if isinstance(bbox, list) and len(bbox) == 4:
+        x = int((bbox[0] + bbox[2]) / 2)
+        y = int((bbox[1] + bbox[3]) / 2)
+        pyautogui.click(x, y)
+        return f"Clicked bbox center at ({x}, {y})"
+    return "Invalid bbox"
+
+
 _WHITELIST_HANDLERS: dict[str, Callable[[dict[str, Any]], Any]] = {
     "read_file": _handle_read_file,
     "list_directory": _handle_list_directory,
     "search_notes": _handle_search_notes,
     "search_web": _handle_search_web,
     "append_note": _handle_append_note,
+    "screenshot": _handle_screenshot,
+    "mouse_move": _handle_mouse_move,
+    "left_click": _handle_left_click,
+    "right_click": _handle_right_click,
+    "double_click": _handle_double_click,
+    "type_text": _handle_type_text,
+    "key_press": _handle_key_press,
+    "get_window_list": _handle_get_window_list,
+    "focus_window": _handle_focus_window,
+    "click_element": _handle_click_element,
+    "click_bbox": _handle_click_bbox,
 }
 
 

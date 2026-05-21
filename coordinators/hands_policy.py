@@ -39,6 +39,10 @@ WHITELIST_ACTIONS: frozenset[str] = frozenset(
         "search_notes",
         "search_web",       # placeholder — real impl in future
         "append_note",      # append-only to designated notes path
+        "screenshot",
+        "mouse_move",
+        "get_window_list",
+        "focus_window",
     }
 )
 
@@ -48,6 +52,13 @@ GREYLIST_ACTIONS: frozenset[str] = frozenset(
         "write_file",
         "run_command",
         "download_url",
+        "left_click",
+        "right_click",
+        "double_click",
+        "click_element",
+        "click_bbox",
+        "type_text",
+        "key_press",
     }
 )
 

@@ -203,6 +203,8 @@ start-gopher-bot.bat and stop-gopher-bot.bat committed and tested end-to-end:
 
 **Updated (current session):** Neo4j auto-start now working. JRE found via PowerShell `Get-ChildItem -Recurse -Depth 8` in Cache. JAVA_HOME calculation moved outside parenthesized if-block (batch parse-time expansion bug) using goto labels. `cmd /c "...neo4j.bat start"` prevents neo4j.bat's internal `exit` from closing the launcher window. Neo4j Desktop path hardcoded as C:\Program Files\Neo4j Desktop 2\Neo4j Desktop.exe fallback. DB may still take >60s on cold start — user clicks Start in Desktop as fallback. Commits: 0cec18f.
 
+**Updated (later in current session):** Added system JAVA_HOME priority check — Temurin 21 (or any system JDK) is preferred over Cache JRE (Zulu 17). Zulu 17 is too old for Neo4j 2026.04.0 (requires Java 21 / class file 65; Zulu 17 only supports class file 61). Fix uses flag variable `_USE_SYS_JAVA` to avoid `goto` inside nested parenthesized `if`-blocks (cmd.exe parse-time crash). User installing Temurin JDK 21 via Eclipse Adoptium. Commit: 4783671.
+
 ### Milestone: T69 Complete — PySide6 World Map Live
 Built by Antigravity and debugged in current session:
 - QGraphicsScene infinite canvas with monitor zones (QApplication.screens()) and window rooms (win32gui)

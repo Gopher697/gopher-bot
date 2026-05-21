@@ -8,29 +8,6 @@ echo ============================================================
 echo.
 
 :: -- Neo4j ----------------------------------------------------
-echo [0/2] Launching Neo4j Desktop...
-set NEO4J_DESKTOP=
-
-:: Search registry for Neo4j Desktop (HKCU first, then HKLM)
-for /f "usebackq delims=" %%a in (`powershell -NoProfile -Command "Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object { $_.DisplayName -like '*Neo4j*' } | Select-Object -ExpandProperty DisplayIcon -EA SilentlyContinue | Select-Object -First 1 | ForEach-Object { $_ -replace ',\d+$','' }"`) do set NEO4J_DESKTOP=%%a
-if not defined NEO4J_DESKTOP (
-    for /f "usebackq delims=" %%a in (`powershell -NoProfile -Command "Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object { $_.DisplayName -like '*Neo4j*' } | Select-Object -ExpandProperty DisplayIcon -EA SilentlyContinue | Select-Object -First 1 | ForEach-Object { $_ -replace ',\d+$','' }"`) do set NEO4J_DESKTOP=%%a
-)
-if not defined NEO4J_DESKTOP (
-    if exist "C:\Program Files\Neo4j Desktop 2\Neo4j Desktop.exe" set "NEO4J_DESKTOP=C:\Program Files\Neo4j Desktop 2\Neo4j Desktop.exe"
-)
-if not defined NEO4J_DESKTOP (
-    if exist "%LOCALAPPDATA%\Programs\neo4j-desktop\Neo4j Desktop.exe" set "NEO4J_DESKTOP=%LOCALAPPDATA%\Programs\neo4j-desktop\Neo4j Desktop.exe"
-)
-
-:: Always open Neo4j Desktop (useful for monitoring even if we start DB directly)
-if defined NEO4J_DESKTOP (
-    start "" "%NEO4J_DESKTOP%"
-    echo     Launched Neo4j Desktop: %NEO4J_DESKTOP%
-) else (
-    echo     [WARN] Neo4j Desktop not found.
-)
-
 :: Auto-start the DBMS via neo4j.bat.
 :: Priority: (1) system JAVA_HOME set by Temurin/OpenJDK installer,
 ::           (2) JRE bundled in Neo4j Desktop Cache (fallback).
@@ -63,13 +40,9 @@ echo     Found Cache JRE at: %JAVA_HOME%
 
 :start_neo4j_bat
 if not exist "%NEO4J_BAT%" goto no_jre
-echo     Starting Neo4j database directly...
-cmd /c ""%NEO4J_BAT%" start"
-if %errorlevel% neq 0 (
-    echo     [NOTE] neo4j.bat returned an error. Start DB manually in Neo4j Desktop.
-) else (
-    echo     Neo4j database process started.
-)
+echo     Starting Neo4j database (console mode)...
+start "Neo4j DB" /min cmd /c ""%NEO4J_BAT%" console"
+echo     Neo4j process launched (minimized).
 goto neo4j_wait
 
 :no_jre
@@ -96,14 +69,14 @@ goto neo4j_poll
 echo.
 
 :: -- Python backend -------------------------------------------
-echo [1/2] Starting Python backend...
+echo [2/2] Starting Python backend...
 start "Gopher-bot Backend" /min cmd /c "cd /d %~dp0 && python interface/server.py & pause"
 
 echo     Waiting for server to initialize...
 timeout /t 4 /nobreak >nul
 
 :: -- World Map ------------------------------------------------
-echo [1.5/2] Launching world map...
+echo [2.5/2] Launching world map...
 start "" python "%~dp0interface\world_map.py"
 timeout /t 2 /nobreak >nul
 

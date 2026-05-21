@@ -75,6 +75,11 @@ start "Gopher-bot Backend" /min cmd /c "cd /d %~dp0 && python interface/server.p
 echo     Waiting for server to initialize...
 timeout /t 4 /nobreak >nul
 
+:: -- World Map ---------------------------------------------------
+echo [1.5/2] Launching world map...
+start "" python "%~dp0interface\world_map.py"
+timeout /t 2 /nobreak >nul
+
 :: -- Godot avatar ---------------------------------------------
 echo [2/2] Launching avatar...
 set AVATAR_EXE=%~dp0avatar\export\gopher-bot-avatar.exe

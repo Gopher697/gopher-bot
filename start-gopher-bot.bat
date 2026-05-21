@@ -1,5 +1,5 @@
 @echo off
+title Gopher-bot Launcher
 cd /d "%~dp0"
-echo Starting Gopher-bot...
-python interface/server.py
-pause
+
+echo =============================

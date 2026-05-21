@@ -222,6 +222,8 @@ def test_mirror_self_state_contains_expected_keys():
         "confidence_map",
         "open_gaps_proxy",
         "session_interaction_count",
+        "disk_used_bytes",
+        "disk_free_bytes",
     }
 
 
@@ -236,6 +238,64 @@ def test_mirror_self_state_confidence_map_reflects_updated_values():
         value == INITIAL_CONFIDENCE - CONFIDENCE_DECAY
         for value in packet["mirror_self_state"]["confidence_map"].values()
     )
+
+
+def test_disk_fields_read_from_packet():
+    mirror = _mirror_self()
+
+    mirror.process({
+        "drive_budget_status": {
+            "disk_used_bytes": 500,
+            "disk_free_bytes": 100,
+        },
+    })
+
+    assert mirror.state.disk_used_bytes == 500
+    assert mirror.state.disk_free_bytes == 100
+
+
+def test_disk_fields_in_mirror_self_state_packet():
+    mirror = _mirror_self()
+
+    packet = mirror.process({
+        "drive_budget_status": {
+            "disk_used_bytes": 500,
+            "disk_free_bytes": 100,
+        },
+    })
+
+    assert packet["mirror_self_state"]["disk_used_bytes"] == 500
+    assert packet["mirror_self_state"]["disk_free_bytes"] == 100
+
+
+def test_disk_fields_persisted_in_snapshot():
+    mirror = _mirror_self()
+    mirror.state.disk_used_bytes = 999
+    mirror.state.disk_free_bytes = 111
+
+    snapshot = mirror._snapshot()
+
+    assert snapshot["disk_used_bytes"] == 999
+    assert snapshot["disk_free_bytes"] == 111
+
+
+def test_disk_fields_restored_from_snapshot():
+    mirror = _mirror_self()
+
+    mirror._restore_state({"disk_used_bytes": 888, "disk_free_bytes": 111})
+
+    assert mirror.state.disk_used_bytes == 888
+    assert mirror.state.disk_free_bytes == 111
+
+
+def test_critical_disk_pressure_sets_self_affect_frustrated():
+    from coordinators.mirror_self import _derive_self_affect
+
+    mirror = _mirror_self()
+    mirror.state.disk_used_bytes = 96
+    mirror.state.disk_free_bytes = 4
+
+    assert _derive_self_affect(mirror.state) == "frustrated"
 
 
 # background_tick() - bid conditions

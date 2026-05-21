@@ -16,6 +16,16 @@ DRIVE_PRIORITY = 6
 DEFAULT_BUDGET_CEILING = 1.00
 TIER_COST_ESTIMATES = {1: 0.00, 2: 0.01, 3: 0.10}
 
+# Idle cultivation — Gopher absence threshold before Drive signals cultivation mode.
+IDLE_THRESHOLD_SECONDS = 1800           # 30 minutes
+
+# Disk footprint thresholds.
+DISK_WARNING_FRACTION = 0.80            # 80% disk used -> warning
+DISK_CRITICAL_FRACTION = 0.95           # 95% disk used -> critical
+
+# Drive cadence for cultivation checks (separate from daily commitment check).
+CULTIVATION_CADENCE_SECONDS = 900       # check every 15 minutes when idle
+
 _COMMITMENT_ID_PATTERN = re.compile(r"\bC-\d+\b")
 _FIELD_NAMES = {"id", "status", "review_trigger"}
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +43,13 @@ class DriveState:
     budget_ceiling: float = DEFAULT_BUDGET_CEILING
     stalled_commitment_ids: list[str] = field(default_factory=list)
     pending_budget_warning: str | None = None
+    # Disk footprint (populated by background_tick via disk_usage_fn).
+    disk_total_bytes: int = 0
+    disk_used_bytes: int = 0
+    disk_free_bytes: int = 0
+    # Idle cultivation.
+    idle_since_seconds: float | None = None
+    last_cultivation_tick: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -57,10 +74,12 @@ class Drive(Coordinator):
         commitments_reader: CommitmentsReader | None = None,
         clock: Clock | None = None,
         budget_ceiling: float = DEFAULT_BUDGET_CEILING,
+        disk_usage_fn: Callable[[], tuple[int, int, int]] | None = None,
     ) -> None:
         self.commitments_reader = commitments_reader or _default_commitments_reader
         self.clock = clock or (lambda: datetime.now(UTC))
         self.state = DriveState(budget_ceiling=budget_ceiling)
+        self.disk_usage_fn = disk_usage_fn or _default_disk_usage
 
     def record_api_call(self, tier: int, cost: float | None = None) -> None:
         tier = int(tier)
@@ -79,11 +98,23 @@ class Drive(Coordinator):
         stalled_ids = _find_stalled_commitment_ids(commitments, now.date())
         self.state.stalled_commitment_ids = stalled_ids
 
+        try:
+            total, used, free = self.disk_usage_fn()
+            self.state.disk_total_bytes = int(total)
+            self.state.disk_used_bytes = int(used)
+            self.state.disk_free_bytes = int(free)
+        except Exception:
+            pass
+
         self._update_pending_budget_warning()
         observation = _build_observation(
             stalled_ids,
             self.state.pending_budget_warning,
         )
+        cultivation_note = _build_cultivation_note(self.state, now)
+        if cultivation_note:
+            observation = f"{observation} {cultivation_note}".strip()
+            self.state.last_cultivation_tick = time.time()
         if not observation:
             return
         if observation == self.state.last_bid_content:
@@ -96,11 +127,26 @@ class Drive(Coordinator):
         if "model_tier" in packet:
             self.record_api_call(int(packet["model_tier"]))
 
+        time_since_last = packet.get("time_since_last_interaction", 0)
+        if (
+            isinstance(time_since_last, (int, float))
+            and time_since_last > IDLE_THRESHOLD_SECONDS
+        ):
+            if self.state.idle_since_seconds is None:
+                self.state.idle_since_seconds = float(time_since_last)
+        else:
+            self.state.idle_since_seconds = None
+
         packet["drive_budget_status"] = {
             "session_budget_used": round(self.state.session_budget_used, 4),
             "budget_ceiling": self.state.budget_ceiling,
             "budget_fraction": round(_budget_fraction(self.state), 4),
             "api_calls_by_tier": dict(self.state.session_api_calls),
+            "disk_total_bytes": self.state.disk_total_bytes,
+            "disk_used_bytes": self.state.disk_used_bytes,
+            "disk_free_bytes": self.state.disk_free_bytes,
+            "disk_fraction": _disk_fraction(self.state),
+            "idle_since_seconds": self.state.idle_since_seconds,
         }
         return packet
 
@@ -173,6 +219,16 @@ def _default_commitments_reader() -> list[dict]:
     ]
 
 
+def _default_disk_usage() -> tuple[int, int, int]:
+    import shutil
+
+    try:
+        usage = shutil.disk_usage(".")
+        return usage.total, usage.used, usage.free
+    except OSError:
+        return 0, 0, 0
+
+
 def _find_stalled_commitment_ids(
     commitments: list[dict],
     today: date,
@@ -212,6 +268,29 @@ def _build_observation(
     return " ".join(parts)
 
 
+def _build_cultivation_note(state: DriveState, now: datetime) -> str:
+    import time as _time
+
+    if state.idle_since_seconds is None:
+        return ""
+    elapsed_since_last = _time.time() - state.last_cultivation_tick
+    if elapsed_since_last < CULTIVATION_CADENCE_SECONDS:
+        return ""
+    idle_minutes = int(state.idle_since_seconds // 60)
+    disk_pct = _disk_fraction(state)
+    disk_status = (
+        "critical" if disk_pct >= DISK_CRITICAL_FRACTION
+        else "warning" if disk_pct >= DISK_WARNING_FRACTION
+        else "ok"
+    )
+    used_gb = state.disk_used_bytes / 1_073_741_824
+    free_gb = state.disk_free_bytes / 1_073_741_824
+    return (
+        f"[cultivation mode] idle {idle_minutes}m; "
+        f"disk {used_gb:.1f}GB used / {free_gb:.1f}GB free (status={disk_status})"
+    )
+
+
 def _format_budget_warning(state: DriveState) -> str:
     fraction = _budget_fraction(state)
     return (
@@ -224,6 +303,12 @@ def _budget_fraction(state: DriveState) -> float:
     if state.budget_ceiling <= 0:
         return 0.0
     return state.session_budget_used / state.budget_ceiling
+
+
+def _disk_fraction(state: DriveState) -> float:
+    if state.disk_total_bytes == 0:
+        return 0.0
+    return round(state.disk_used_bytes / state.disk_total_bytes, 4)
 
 
 def _submit_drive_bid(awareness_queue, observation: str) -> None:

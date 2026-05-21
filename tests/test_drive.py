@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import time
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -371,6 +372,11 @@ def test_drive_budget_status_contains_expected_keys():
         "budget_ceiling",
         "budget_fraction",
         "api_calls_by_tier",
+        "disk_total_bytes",
+        "disk_used_bytes",
+        "disk_free_bytes",
+        "disk_fraction",
+        "idle_since_seconds",
     }
 
 
@@ -380,6 +386,112 @@ def test_budget_fraction_is_zero_when_no_api_calls_have_been_made():
     packet = Drive(commitments_reader=lambda: [], clock=_clock()).process({})
 
     assert packet["drive_budget_status"]["budget_fraction"] == 0.0
+
+
+# ── disk footprint + idle cultivation monitoring ────────────────────────────
+
+def test_background_tick_updates_disk_stats():
+    from coordinators.bid import BidQueue
+    from coordinators.drive import Drive
+
+    drive = Drive(
+        commitments_reader=lambda: [],
+        clock=_clock(),
+        disk_usage_fn=lambda: (1000, 800, 200),
+    )
+
+    asyncio.run(drive.background_tick(BidQueue()))
+
+    assert drive.state.disk_total_bytes == 1000
+    assert drive.state.disk_used_bytes == 800
+    assert drive.state.disk_free_bytes == 200
+
+
+def test_disk_fraction_zero_when_total_zero():
+    from coordinators.drive import DriveState, _disk_fraction
+
+    state = DriveState(disk_total_bytes=0, disk_used_bytes=500)
+
+    assert _disk_fraction(state) == 0.0
+
+
+def test_drive_budget_status_includes_disk_fields():
+    from coordinators.bid import BidQueue
+    from coordinators.drive import Drive
+
+    drive = Drive(
+        commitments_reader=lambda: [],
+        clock=_clock(),
+        disk_usage_fn=lambda: (1000, 800, 200),
+    )
+    asyncio.run(drive.background_tick(BidQueue()))
+
+    packet = drive.process({})
+    status = packet["drive_budget_status"]
+
+    assert status["disk_total_bytes"] == 1000
+    assert status["disk_used_bytes"] == 800
+    assert status["disk_free_bytes"] == 200
+    assert status["disk_fraction"] == 0.8
+    assert "idle_since_seconds" in status
+
+
+def test_idle_detected_when_time_exceeds_threshold():
+    from coordinators.drive import Drive, IDLE_THRESHOLD_SECONDS
+
+    drive = Drive(commitments_reader=lambda: [], clock=_clock())
+
+    drive.process({"time_since_last_interaction": IDLE_THRESHOLD_SECONDS + 1})
+
+    assert drive.state.idle_since_seconds is not None
+
+
+def test_idle_cleared_when_interaction_resumes():
+    from coordinators.drive import Drive
+
+    drive = Drive(commitments_reader=lambda: [], clock=_clock())
+    drive.state.idle_since_seconds = 2000.0
+
+    drive.process({"time_since_last_interaction": 10})
+
+    assert drive.state.idle_since_seconds is None
+
+
+def test_cultivation_note_fires_when_idle():
+    from coordinators.drive import DriveState, _build_cultivation_note
+
+    state = DriveState(
+        disk_total_bytes=1000,
+        disk_used_bytes=800,
+        disk_free_bytes=200,
+        idle_since_seconds=2000.0,
+        last_cultivation_tick=0.0,
+    )
+
+    note = _build_cultivation_note(state, _clock()())
+
+    assert "[cultivation mode]" in note
+    assert "idle 33m" in note
+    assert "status=warning" in note
+
+
+def test_cultivation_note_suppressed_within_cadence():
+    from coordinators.drive import DriveState, _build_cultivation_note
+
+    state = DriveState(
+        idle_since_seconds=2000.0,
+        last_cultivation_tick=time.time() - 60,
+    )
+
+    assert _build_cultivation_note(state, _clock()()) == ""
+
+
+def test_cultivation_note_absent_when_not_idle():
+    from coordinators.drive import DriveState, _build_cultivation_note
+
+    state = DriveState(idle_since_seconds=None)
+
+    assert _build_cultivation_note(state, _clock()()) == ""
 
 
 # ── BrainLoop integration ────────────────────────────────────────────────────

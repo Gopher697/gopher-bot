@@ -49,6 +49,8 @@ class SelfState:
     error_run: int = 0
     last_updated: datetime | None = None
     last_bid_content: str | None = None
+    disk_used_bytes: int = 0
+    disk_free_bytes: int = 0
 
 
 @dataclass(frozen=True)
@@ -96,6 +98,18 @@ class MirrorSelf(Coordinator):
         if isinstance(curiosity_gaps, list):
             self.state.open_gaps_proxy = len(curiosity_gaps)
 
+        # Drive.process must run before MirrorSelf.process for this field to
+        # reflect the current foreground packet; otherwise the previous
+        # persisted footprint remains in state.
+        drive_status = packet.get("drive_budget_status", {})
+        if isinstance(drive_status, dict):
+            disk_used = drive_status.get("disk_used_bytes", 0)
+            disk_free = drive_status.get("disk_free_bytes", 0)
+            if isinstance(disk_used, int) and disk_used > 0:
+                self.state.disk_used_bytes = disk_used
+            if isinstance(disk_free, int) and disk_free > 0:
+                self.state.disk_free_bytes = disk_free
+
         self._recompute_self_affect()
         self.state.last_updated = self.clock()
         packet["mirror_self_state"] = {
@@ -103,6 +117,8 @@ class MirrorSelf(Coordinator):
             "confidence_map": dict(self.state.confidence_map),
             "open_gaps_proxy": self.state.open_gaps_proxy,
             "session_interaction_count": self.state.session_interaction_count,
+            "disk_used_bytes": self.state.disk_used_bytes,
+            "disk_free_bytes": self.state.disk_free_bytes,
         }
         return packet
 
@@ -142,6 +158,13 @@ class MirrorSelf(Coordinator):
         if isinstance(last_bid_content, str):
             self.state.last_bid_content = last_bid_content
 
+        disk_used = snapshot.get("disk_used_bytes")
+        if isinstance(disk_used, int):
+            self.state.disk_used_bytes = max(0, disk_used)
+        disk_free = snapshot.get("disk_free_bytes")
+        if isinstance(disk_free, int):
+            self.state.disk_free_bytes = max(0, disk_free)
+
     def _adjust_confidence(self, delta: float) -> None:
         for domain, value in self.state.confidence_map.items():
             self.state.confidence_map[domain] = _clamp_confidence(value + delta)
@@ -154,12 +177,17 @@ class MirrorSelf(Coordinator):
             "confidence_map": dict(self.state.confidence_map),
             "open_gaps_proxy": self.state.open_gaps_proxy,
             "last_bid_content": self.state.last_bid_content,
+            "disk_used_bytes": self.state.disk_used_bytes,
+            "disk_free_bytes": self.state.disk_free_bytes,
             "timestamp": self.clock().isoformat(),
         }
 
 
 def _derive_self_affect(state: SelfState) -> str:
     if state.error_run >= 3:
+        return SELF_AFFECT_FRUSTRATED
+    disk_total = state.disk_used_bytes + state.disk_free_bytes
+    if disk_total > 0 and state.disk_used_bytes / disk_total > 0.95:
         return SELF_AFFECT_FRUSTRATED
     if any(value < 0.4 for value in state.confidence_map.values()):
         return SELF_AFFECT_UNCERTAIN

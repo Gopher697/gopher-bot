@@ -18,13 +18,24 @@ def download_yolo():
     else:
         logger.info("YOLOv8n already exists.")
 
+def download_whisper():
+    url = "https://openaipublic.azureedge.net/main/whisper/models/252305c21156666e70ca1921622706332e4d07d45f32ebf227b23b3780371457/base.en.pt"
+    dest = MODELS_DIR / "base.en.pt"
+    if not dest.exists():
+        logger.info(f"Downloading Whisper base.en to {dest}...")
+        urllib.request.urlretrieve(url, str(dest))
+        logger.info("Whisper base.en downloaded.")
+    else:
+        logger.info("Whisper base.en already exists.")
+
 def main():
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     logger.info(f"Checking models in {MODELS_DIR}")
     
     download_yolo()
+    download_whisper()
     
-    # EasyOCR and MediaPipe handle their own downloads natively, 
+    # EasyOCR, MediaPipe, YAMNet, and Silero handle their own downloads natively, 
     # but we can pre-fetch them here if needed in the future.
     logger.info("Done.")
 

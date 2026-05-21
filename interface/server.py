@@ -498,8 +498,8 @@ def _emit_persona_state(state: str, coordinator: str = "", focus_window: str = "
     socketio.emit("state_update", payload, namespace="/persona")
 
 
-def trigger_reflex_alert(coordinator: str = "sensory", focus_window: str = "") -> None:
-    """Called by background sensor threads on motion or voice detection."""
+def _emit_persona_alert(coordinator: str = "sensory", focus_window: str = "") -> None:
+    """Registered as the global reflex handler."""
     brain_loop.interrupt_event.set()
     _emit_persona_state("alert", coordinator=coordinator, focus_window=focus_window)
 
@@ -732,6 +732,9 @@ def handle_message(data):
 
     emit("response", {"text": response})
 
+
+from interface.reflex import register_reflex_handler
+register_reflex_handler(_emit_persona_alert)
 
 if __name__ == "__main__":
     run_startup_script()

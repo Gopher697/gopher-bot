@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from interface.reflex import trigger_reflex_alert
 from coordinators.percepts import VisualPercept, VisualObject, TextSegment
 
 logger = logging.getLogger("vision_sensor")
@@ -134,7 +135,6 @@ class VisionSensor:
                             
                     if motion_detected:
                         try:
-                            from interface.server import trigger_reflex_alert
                             trigger_reflex_alert(coordinator="vision_sensor", focus_window="desktop")
                         except Exception as e:
                             logger.error(f"Reflex trigger error: {e}")

@@ -27,6 +27,7 @@ if str(INTERFACE_DIR) not in sys.path:
 from coordinators.base import read_coordinator_log_entries  # noqa: E402
 from coordinators.brain_loop import BrainLoop  # noqa: E402
 from interface import bot, stt, tts  # noqa: E402
+from sensors import vision_sensor  # noqa: E402
 
 
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -775,6 +776,7 @@ register_reflex_handler(_emit_persona_alert)
 if __name__ == "__main__":
     run_startup_script()
     start_brain_loop()
+    vision_sensor.start()
     try:
         socketio.run(
             app,

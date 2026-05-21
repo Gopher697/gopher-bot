@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from world_models import config  # noqa: E402
+from sensors import vision_sensor
 
 
 class Sensory(Coordinator):
@@ -26,6 +27,11 @@ class Sensory(Coordinator):
 
     def process(self, packet: dict) -> dict:
         packet["input_type"] = packet.get("input_type") or "text"
+
+        if "visual_percept" not in packet:
+            latest_vp = vision_sensor.get_latest()
+            if latest_vp:
+                packet["visual_percept"] = latest_vp.to_dict()
 
         # Parse percept schemas if present
         if "visual_percept" in packet and isinstance(packet["visual_percept"], dict):

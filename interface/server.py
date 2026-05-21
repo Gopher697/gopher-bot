@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import asyncio
 import itertools
+import json
 import subprocess
 import sys
 import threading
@@ -11,6 +12,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template_string, request, send_from_directory
 from flask_socketio import SocketIO, emit
+from flask_sock import Sock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +31,27 @@ from interface import bot, stt, tts  # noqa: E402
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 socketio = SocketIO(app, cors_allowed_origins="*")
+sock = Sock(app)
+
+_avatar_ws_clients = set()
+_avatar_ws_lock = threading.Lock()
+
+@sock.route('/avatar-ws')
+def avatar_websocket(ws):
+    with _avatar_ws_lock:
+        _avatar_ws_clients.add(ws)
+    try:
+        while True:
+            # Keep connection alive, optionally receive ping/pong
+            msg = ws.receive()
+            if msg is None:
+                break
+    except Exception:
+        pass
+    finally:
+        with _avatar_ws_lock:
+            _avatar_ws_clients.discard(ws)
+
 _proactive_messages: list[dict[str, object]] = []
 _proactive_message_lock = threading.Lock()
 _next_proactive_message_id = itertools.count(1)
@@ -495,7 +518,20 @@ def _emit_persona_state(state: str, coordinator: str = "", focus_window: str = "
         "neuromodulators": mapped_neuromods,
         "timestamp": now
     }
+    # Keep the original SocketIO broadcast for web dashboards
     socketio.emit("state_update", payload, namespace="/persona")
+    
+    # Broadcast to native WebSocket clients (Godot)
+    json_payload = json.dumps(payload)
+    with _avatar_ws_lock:
+        dead_clients = set()
+        for ws in _avatar_ws_clients:
+            try:
+                ws.send(json_payload)
+            except Exception:
+                dead_clients.add(ws)
+        for ws in dead_clients:
+            _avatar_ws_clients.discard(ws)
 
 
 def _emit_persona_alert(coordinator: str = "sensory", focus_window: str = "") -> None:

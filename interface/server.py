@@ -784,4 +784,7 @@ if __name__ == "__main__":
             port=5000,
             debug=False,
             use_reloader=False,
-            all
+            allow_unsafe_werkzeug=True,
+        )
+    finally:
+        stop_brain_loop()

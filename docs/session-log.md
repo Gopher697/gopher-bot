@@ -201,4 +201,14 @@ start-gopher-bot.bat and stop-gopher-bot.bat committed and tested end-to-end:
 - Godot avatar exe launched (Vulkan/RTX 4070 SUPER confirmed)
 - Full sequence confirmed: Neo4j RUNNING → backend → avatar → "Gopher-bot is running."
 
-**Remaining gap:** Neo4j Desktop does not auto-start the database when launched — user must click Start once in Desktop UI. The DBMS folder has no bundled JRE (neo4j.bat start fails with "Unable to determine path to java.exe"). JRE is likely in C:\Users\gophe\.Neo4jDesktop2\Cache\ but not yet located. For now, the polling loop handles the wait gracefully. True zero-click Neo4j start is deferred.
+**Updated (current session):** Neo4j auto-start now working. JRE found via PowerShell `Get-ChildItem -Recurse -Depth 8` in Cache. JAVA_HOME calculation moved outside parenthesized if-block (batch parse-time expansion bug) using goto labels. `cmd /c "...neo4j.bat start"` prevents neo4j.bat's internal `exit` from closing the launcher window. Neo4j Desktop path hardcoded as C:\Program Files\Neo4j Desktop 2\Neo4j Desktop.exe fallback. DB may still take >60s on cold start — user clicks Start in Desktop as fallback. Commits: 0cec18f.
+
+### Milestone: T69 Complete — PySide6 World Map Live
+Built by Antigravity and debugged in current session:
+- QGraphicsScene infinite canvas with monitor zones (QApplication.screens()) and window rooms (win32gui)
+- AvatarMarker (green dot) with 300ms QPropertyAnimation position transitions
+- WSClientThread background WebSocket → ws://localhost:5000/avatar-ws (same endpoint as Godot avatar)
+- Docked sidebar: state/coordinator/focus/neuromodulator display + audit log tail (turns.jsonl, 5s refresh)
+- Window rooms refresh every 2 seconds via win32gui.EnumWindows
+- Bug fixed: refresh_windows was calling removeItem() on the coordinate tuple (x,y,w,h) instead of the QGraphicsItem objects — fixed with try/except per item using entry[0]/entry[1] index access
+- All components confirmed live: backend ✅, world map ✅, Godot avatar connected to /avatar-ws ✅

@@ -31,26 +31,34 @@ if defined NEO4J_DESKTOP (
     echo     [WARN] Neo4j Desktop not found.
 )
 
-:: Search for bundled JRE in Desktop cache
+:: Auto-start the DBMS via neo4j.bat.
+:: Priority: (1) system JAVA_HOME set by Temurin/OpenJDK installer,
+::           (2) JRE bundled in Neo4j Desktop Cache (fallback).
+:: We never override a system JAVA_HOME — if it's already set and valid, use it as-is.
 set DBMS_DIR=C:\Users\gophe\.Neo4jDesktop2\Data\dbmss\dbms-54750ef6-52b6-4e69-b36e-2920fb10a8db
 set NEO4J_BAT=%DBMS_DIR%\bin\neo4j.bat
+
+:: 1) System Java (Temurin 21 etc.) — JAVA_HOME already in environment
+if defined JAVA_HOME (
+    if exist "%JAVA_HOME%\bin\java.exe" (
+        echo     Using system Java: %JAVA_HOME%
+        goto start_neo4j_bat
+    )
+)
+
+:: 2) Cache JRE fallback — compute JAVA_HOME from bundled JRE path
 set JAVA_EXE=
 set CACHE_ROOT=%USERPROFILE%\.Neo4jDesktop2\Cache
-
 if exist "%NEO4J_BAT%" (
     for /f "usebackq delims=" %%a in (`powershell -NoProfile -Command "Get-ChildItem -Path '%CACHE_ROOT%' -Filter java.exe -Recurse -Depth 8 -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName"`) do set JAVA_EXE=%%a
 )
-
-:: JAVA_HOME calculation must happen OUTSIDE a parenthesized block to avoid
-:: batch parse-time expansion bug (variables set by for-loops won't be visible
-:: to subsequent %VAR:~0,-5% substring ops inside the same if block).
 if not defined JAVA_EXE goto no_jre
-
-:: %%~dpj gives drive+path ending in backslash e.g. C:\...\bin\
-:: Strip the trailing "bin\" (5 chars) to get the JRE root
 for %%j in ("%JAVA_EXE%") do set "JAVA_HOME=%%~dpj"
 set "JAVA_HOME=%JAVA_HOME:~0,-5%"
-echo     Found JRE at: %JAVA_HOME%
+echo     Found Cache JRE at: %JAVA_HOME%
+
+:start_neo4j_bat
+if not exist "%NEO4J_BAT%" goto no_jre
 echo     Starting Neo4j database directly...
 cmd /c ""%NEO4J_BAT%" start"
 if %errorlevel% neq 0 (
@@ -61,7 +69,7 @@ if %errorlevel% neq 0 (
 goto neo4j_wait
 
 :no_jre
-echo     [NOTE] JRE not found in Cache. Click 'Start' on gopher-bot-data in Neo4j Desktop.
+echo     [NOTE] No Java found. Click 'Start' on gopher-bot-data in Neo4j Desktop.
 
 :: Wait for Neo4j to be reachable on port 7687 (up to 60 seconds)
 :neo4j_wait

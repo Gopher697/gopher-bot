@@ -10,6 +10,7 @@ from anthropic import Anthropic
 from openai import OpenAI
 
 from coordinators.base import Coordinator
+from coordinators.percepts import AuditoryPercept, VisualPercept
 from coordinators.tier_config import DEFAULT_TIER, get_tier_config
 
 
@@ -24,8 +25,27 @@ class Sensory(Coordinator):
     name = "sensory"
 
     def process(self, packet: dict) -> dict:
-        message = str(packet.get("message", "")).strip()
         packet["input_type"] = packet.get("input_type") or "text"
+
+        # Parse percept schemas if present
+        if "visual_percept" in packet and isinstance(packet["visual_percept"], dict):
+            try:
+                packet["parsed_visual_percept"] = VisualPercept.from_dict(packet["visual_percept"])
+            except Exception as e:
+                packet["percept_error"] = f"Failed to parse visual percept: {e}"
+
+        if "auditory_percept" in packet and isinstance(packet["auditory_percept"], dict):
+            try:
+                percept = AuditoryPercept.from_dict(packet["auditory_percept"])
+                packet["parsed_auditory_percept"] = percept
+                # If there's a transcript and no explicit message, promote it
+                if percept.transcript and not packet.get("message"):
+                    packet["message"] = percept.transcript
+                    packet["input_type"] = "audio"
+            except Exception as e:
+                packet["percept_error"] = f"Failed to parse auditory percept: {e}"
+
+        message = str(packet.get("message", "")).strip()
         if not message:
             packet["error"] = "empty message"
             return packet

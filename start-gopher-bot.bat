@@ -1,5 +1,5 @@
 @echo off
-cd /d D:\gopher-bot
+cd /d "%~dp0"
 echo Starting Gopher-bot...
 python interface/server.py
 pause

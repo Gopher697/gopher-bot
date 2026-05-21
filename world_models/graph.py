@@ -12,6 +12,7 @@ from world_models import config
 MEDIA_TYPES = {"image", "screenshot", "document", "audio"}
 VALID_SOURCE_TYPES = {"observed", "inferred", "proposed", "external_content"}
 VALID_EPISODE_TYPES = {"utterance", "reasoning", "action", "observation_group"}
+VALID_CURATION_LABELS = {"keep", "skip", "review"}
 DEFAULT_EDGE_WEIGHT: float = 1.0
 DEFAULT_CONSOLIDATION_VARIANCE: float = 1.0   # σ²_ij; decreases as evidence accumulates
 MIN_CONSOLIDATION_VARIANCE: float = 0.01      # floor to avoid division by zero
@@ -243,6 +244,12 @@ def _episode_properties(
     # Reasoning-specific
     accepted: bool = False,
     score: float | None = None,
+    # Training corpus fields (T54/T55)
+    predicted_topic: str | None = None,
+    actual_topic: str | None = None,
+    prediction_accuracy: float | None = None,
+    curation_label: str | None = None,
+    turn_id: str | None = None,
 ) -> Dict[str, Any]:
     """
     Build the property dict for an Episode node.
@@ -284,6 +291,11 @@ def _episode_properties(
             f"Utterance episodes must have coordinator='voice', "
             f"got {coordinator!r}"
         )
+    if curation_label is not None and curation_label not in VALID_CURATION_LABELS:
+        raise ValueError(
+            f"curation_label must be one of {sorted(VALID_CURATION_LABELS)!r} "
+            f"or None, got {curation_label!r}"
+        )
 
     immutable = episode_type == "utterance"
 
@@ -302,6 +314,12 @@ def _episode_properties(
         # Reasoning fields
         "accepted": accepted if episode_type == "reasoning" else False,
         "score": score,
+        # Training corpus fields
+        "predicted_topic": predicted_topic,
+        "actual_topic": actual_topic,
+        "prediction_accuracy": prediction_accuracy,
+        "curation_label": curation_label,
+        "turn_id": str(turn_id) if turn_id is not None else None,
     }
     return props
 
@@ -388,6 +406,11 @@ def add_episode(
     tts_generated: bool = False,
     accepted: bool = False,
     score: float | None = None,
+    predicted_topic: str | None = None,
+    actual_topic: str | None = None,
+    prediction_accuracy: float | None = None,
+    curation_label: str | None = None,
+    turn_id: str | None = None,
 ) -> str:
     """
     Add an Episode node to the graph and return its episode_id.
@@ -427,6 +450,11 @@ def add_episode(
         tts_generated=tts_generated,
         accepted=accepted,
         score=score,
+        predicted_topic=predicted_topic,
+        actual_topic=actual_topic,
+        prediction_accuracy=prediction_accuracy,
+        curation_label=curation_label,
+        turn_id=turn_id,
     )
     props["episode_id"] = episode_id
 
@@ -450,6 +478,11 @@ def add_utterance(
     session_id: str,
     environment: str,
     tts_generated: bool = False,
+    predicted_topic: str | None = None,
+    actual_topic: str | None = None,
+    prediction_accuracy: float | None = None,
+    curation_label: str | None = None,
+    turn_id: str | None = None,
 ) -> str:
     """
     Convenience wrapper: add an immutable Utterance episode node.
@@ -476,7 +509,69 @@ def add_utterance(
         coordinator="voice",
         source_type="observed",
         tts_generated=tts_generated,
+        predicted_topic=predicted_topic,
+        actual_topic=actual_topic,
+        prediction_accuracy=prediction_accuracy,
+        curation_label=curation_label,
+        turn_id=turn_id,
     )
+
+
+def curate_episode(
+    driver,
+    episode_id: str,
+    environment: str,
+    *,
+    score: float | None = None,
+    curation_label: str | None = None,
+) -> bool:
+    """
+    Update the training curation fields on an existing Episode node.
+
+    Called post-hoc when a human or automated process labels an episode
+    for inclusion in or exclusion from the training corpus.
+
+    Args:
+        driver:         Active Neo4j driver.
+        episode_id:     The episode_id of the target node.
+        environment:    Graph environment scope (used to scope the match).
+        score:          Optional float (0.0-1.0) quality score.
+        curation_label: One of VALID_CURATION_LABELS or None (leave unchanged).
+
+    Returns:
+        True if a node was matched and updated, False if not found.
+    """
+    if curation_label is not None and curation_label not in VALID_CURATION_LABELS:
+        raise ValueError(
+            f"curation_label must be one of {sorted(VALID_CURATION_LABELS)!r} "
+            "or None"
+        )
+
+    updates: dict[str, Any] = {}
+    if score is not None:
+        updates["score"] = float(score)
+    if curation_label is not None:
+        updates["curation_label"] = curation_label
+
+    if not updates:
+        return False
+
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (e:Episode {episode_id: $episode_id, environment: $environment})
+            SET e += $updates
+            RETURN count(e) AS matched
+            """,
+            episode_id=episode_id,
+            environment=environment,
+            updates=updates,
+        )
+        record = result.single()
+        return bool(record and record["matched"] > 0)
+
+    with _session(driver) as session:
+        return session.execute_write(write)
 
 
 def delete_observation(

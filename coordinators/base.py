@@ -10,6 +10,7 @@ from coordinators.bid import BidQueue
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 COORDINATOR_LOG_PATH = PROJECT_ROOT / "logs" / "coordinator_ticks.jsonl"
+TURN_LOG_PATH = PROJECT_ROOT / "logs" / "audit" / "turns.jsonl"
 
 
 class Coordinator(ABC):
@@ -65,6 +66,86 @@ def append_coordinator_log_entry(
 def read_coordinator_log_entries(
     limit: int = 50,
     path: Path = COORDINATOR_LOG_PATH,
+) -> list[dict[str, Any]]:
+    limit = int(limit)
+    if limit <= 0:
+        return []
+
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+
+    entries: list[dict[str, Any]] = []
+    for line in lines[-limit:]:
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(item, dict):
+            entries.append(item)
+    return entries
+
+
+def build_turn_log_entry(packet: dict) -> dict[str, Any]:
+    """
+    Build a per-turn audit record from a completed foreground pipeline packet.
+
+    Should be called after Voice.process() so all pipeline fields are present.
+    Returns a plain dict suitable for JSON serialization.
+    """
+    import time as _time
+
+    mirror = packet.get("mirror_self_state") or {}
+    if not isinstance(mirror, dict):
+        mirror = {}
+    orientation = packet.get("orientation") or {}
+    if not isinstance(orientation, dict):
+        orientation = {}
+    bids = packet.get("background_bids") or []
+    bid_count = len(bids) if isinstance(bids, list) else 0
+
+    try:
+        timestamp = float(packet.get("_turn_ts") or _time.time())
+    except (TypeError, ValueError):
+        timestamp = _time.time()
+
+    return {
+        "turn_id": str(packet.get("turn_id") or ""),
+        "session_id": str(packet.get("session_id") or ""),
+        "timestamp": timestamp,
+        "trust_level": _safe_int(packet.get("trust_level"), 0),
+        "tier": packet.get("tier"),
+        "predicted_topic": str(mirror.get("predicted_topic") or ""),
+        "last_prediction_accuracy": _safe_float(
+            mirror.get("last_prediction_accuracy"), 0.0
+        ),
+        "prediction_accuracy_ema": _safe_float(
+            mirror.get("prediction_accuracy_ema"), 0.5
+        ),
+        "low_accuracy_streak": _safe_int(mirror.get("low_accuracy_streak"), 0),
+        "self_affect": str(mirror.get("self_affect") or "stable"),
+        "orientation_active_goal": str(orientation.get("active_goal_focus") or ""),
+        "has_error": bool(packet.get("error")),
+        "bid_count": bid_count,
+        "actual_cost_usd": _safe_float(packet.get("actual_cost_usd"), 0.0),
+    }
+
+
+def append_turn_log_entry(
+    entry: dict[str, Any],
+    path: Path = TURN_LOG_PATH,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry, sort_keys=True) + "\n")
+
+
+def read_turn_log_entries(
+    limit: int = 50,
+    path: Path = TURN_LOG_PATH,
 ) -> list[dict[str, Any]]:
     limit = int(limit)
     if limit <= 0:
@@ -158,5 +239,12 @@ def _clamp_unit(value: float) -> float:
 def _safe_float(value: Any, default: float) -> float:
     try:
         return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_int(value: Any, default: int) -> int:
+    try:
+        return int(value)
     except (TypeError, ValueError):
         return default

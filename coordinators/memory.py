@@ -197,6 +197,11 @@ class Memory(Coordinator):
         session_id: str,
         environment: str = "global",
         tts_generated: bool = False,
+        predicted_topic: str | None = None,
+        actual_topic: str | None = None,
+        prediction_accuracy: float | None = None,
+        curation_label: str | None = None,
+        turn_id: str | None = None,
     ) -> str:
         """
         Record what Voice actually said to Gopher as an immutable Utterance node.
@@ -221,6 +226,11 @@ class Memory(Coordinator):
                 session_id=session_id,
                 environment=environment,
                 tts_generated=tts_generated,
+                predicted_topic=predicted_topic,
+                actual_topic=actual_topic,
+                prediction_accuracy=prediction_accuracy,
+                curation_label=curation_label,
+                turn_id=turn_id,
             )
         finally:
             graph.close(driver)
@@ -233,6 +243,7 @@ class Memory(Coordinator):
         environment: str = "global",
         accepted: bool = False,
         source_type: str = "observed",
+        turn_id: str | None = None,
     ) -> str:
         """
         Record a coordinator's internal reasoning trace as a Reasoning episode.
@@ -262,6 +273,7 @@ class Memory(Coordinator):
                 coordinator=coordinator,
                 source_type=source_type,
                 accepted=accepted,
+                turn_id=turn_id,
             )
         finally:
             graph.close(driver)

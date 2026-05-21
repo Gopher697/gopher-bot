@@ -5,7 +5,12 @@ import time
 from collections.abc import Callable
 from typing import Any, TYPE_CHECKING
 
-from coordinators.base import Coordinator, backfill_coordinator_log_acceptance
+from coordinators.base import (
+    Coordinator,
+    append_turn_log_entry,
+    backfill_coordinator_log_acceptance,
+    build_turn_log_entry,
+)
 from coordinators.bid import Bid, BidQueue, PRIORITY_SAFETY
 from coordinators.memory import Memory
 from coordinators.reason import Reason
@@ -69,6 +74,9 @@ class Awareness:
         packet = {"message": message, "input_type": "text"}
         packet.update(packet_overrides)
         packet["session_id"] = self.session_id
+        import time as _turn_time
+        packet["turn_id"] = _uuid.uuid4().hex
+        packet["_turn_ts"] = _turn_time.time()
 
         # --- Temporal context -----------------------------------------------
         now = self._time_fn()
@@ -100,11 +108,15 @@ class Awareness:
 
             packet = self.sensory.process(packet)
             if "error" in packet:
-                return self.voice.process(packet)
+                packet = self.voice.process(packet)
+                _write_turn_log(packet)
+                return packet
 
             packet = self.memory.process(packet)
             if "error" in packet:
-                return self.voice.process(packet)
+                packet = self.voice.process(packet)
+                _write_turn_log(packet)
+                return packet
 
             self._drain_bids_into_packet(packet)
 
@@ -147,6 +159,7 @@ class Awareness:
             if self.hands is not None and "action" in packet:
                 packet = self.hands.process(packet)
             packet = self.voice.process(packet)
+            _write_turn_log(packet)
             if self.feeling is not None:
                 observable = _extract_feeling_text(packet)
                 if observable:
@@ -251,6 +264,14 @@ def _extract_feeling_text(packet: dict) -> str:
         if val:
             parts.append(str(val).strip())
     return " ".join(parts)
+
+
+def _write_turn_log(packet: dict) -> None:
+    try:
+        turn_entry = build_turn_log_entry(packet)
+        append_turn_log_entry(turn_entry)
+    except Exception:
+        pass
 
 
 def _format_bid_context(bids: list[Bid]) -> str:

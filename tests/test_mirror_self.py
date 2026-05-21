@@ -224,6 +224,10 @@ def test_mirror_self_state_contains_expected_keys():
         "session_interaction_count",
         "disk_used_bytes",
         "disk_free_bytes",
+        "predicted_topic",
+        "last_prediction_accuracy",
+        "prediction_accuracy_ema",
+        "low_accuracy_streak",
     }
 
 
@@ -296,6 +300,214 @@ def test_critical_disk_pressure_sets_self_affect_frustrated():
     mirror.state.disk_free_bytes = 4
 
     assert _derive_self_affect(mirror.state) == "frustrated"
+
+
+# process() - generative-model prediction tracking
+
+def test_jaccard_identical_strings():
+    from coordinators.mirror_self import _jaccard_similarity
+
+    assert _jaccard_similarity("task 67 mirror self", "task 67 mirror self") == 1.0
+
+
+def test_jaccard_no_overlap():
+    from coordinators.mirror_self import _jaccard_similarity
+
+    assert _jaccard_similarity("alpha beta", "gamma delta") == 0.0
+
+
+def test_jaccard_partial_overlap():
+    from coordinators.mirror_self import _jaccard_similarity
+
+    score = _jaccard_similarity("task mirror self", "task orientation keeper")
+    assert 0.0 < score < 1.0
+
+
+def test_jaccard_stop_words_filtered():
+    from coordinators.mirror_self import _jaccard_similarity
+
+    assert _jaccard_similarity("the mirror", "the keeper") == 0.0
+
+
+def test_jaccard_empty_after_filter():
+    from coordinators.mirror_self import _jaccard_similarity
+
+    assert _jaccard_similarity("the and of", "a an to") == 0.0
+
+
+def test_prediction_accuracy_computed_when_message_and_prediction_present():
+    mirror = _mirror_self()
+    mirror.state.predicted_topic = "task 67 mirror self"
+
+    mirror.process({"message": "working on task 67"})
+
+    assert mirror.state.last_prediction_accuracy > 0.0
+
+
+def test_prediction_accuracy_zero_when_no_prior_prediction():
+    mirror = _mirror_self()
+    mirror.state.predicted_topic = ""
+
+    mirror.process({"message": "working on task 67"})
+
+    assert mirror.state.last_prediction_accuracy == 0.0
+
+
+def test_ema_updated_after_turn():
+    mirror = _mirror_self()
+    mirror.state.predicted_topic = "task mirror self"
+
+    mirror.process({"message": "task mirror self"})
+
+    assert mirror.state.prediction_accuracy_ema > 0.5
+
+
+def test_low_accuracy_streak_increments():
+    mirror = _mirror_self()
+    mirror.state.prediction_accuracy_ema = 0.1
+    for _ in range(3):
+        mirror.state.predicted_topic = "expected topic"
+        mirror.process({"message": "unrelated words"})
+
+    assert mirror.state.low_accuracy_streak >= 3
+
+
+def test_new_prediction_from_orientation_active_goal():
+    mirror = _mirror_self()
+
+    mirror.process({
+        "orientation": {
+            "active_goal_focus": "write the keeper coordinator",
+            "recommended_next_pressure": "check audit log",
+        },
+    })
+
+    assert mirror.state.predicted_topic == "write the keeper coordinator"
+
+
+def test_new_prediction_falls_back_to_recommended():
+    mirror = _mirror_self()
+
+    mirror.process({
+        "orientation": {
+            "active_goal_focus": "",
+            "recommended_next_pressure": "check audit log",
+        },
+    })
+
+    assert mirror.state.predicted_topic == "check audit log"
+
+
+def test_new_prediction_empty_when_no_orientation():
+    mirror = _mirror_self()
+
+    mirror.process({})
+
+    assert mirror.state.predicted_topic == ""
+
+
+def test_low_accuracy_observation_emitted_after_streak():
+    from coordinators.mirror_self import (
+        PREDICTION_LOW_ACCURACY_STREAK_LIMIT,
+        _build_observation,
+    )
+
+    mirror = _mirror_self()
+    mirror.state.low_accuracy_streak = PREDICTION_LOW_ACCURACY_STREAK_LIMIT
+    mirror.state.prediction_accuracy_ema = 0.1
+
+    observation = _build_observation(mirror.state)
+
+    assert "World-model accuracy degraded" in observation
+
+
+def test_predicted_topic_persisted_and_restored():
+    mirror = _mirror_self()
+    mirror.state.predicted_topic = "test topic"
+    mirror.state.last_prediction_accuracy = 0.25
+    mirror.state.prediction_accuracy_ema = 0.75
+    mirror.state.low_accuracy_streak = 2
+
+    snapshot = mirror._snapshot()
+    restored = _mirror_self()
+    restored._restore_state(snapshot)
+
+    assert restored.state.predicted_topic == "test topic"
+    assert restored.state.prediction_accuracy_ema == pytest.approx(0.75)
+    assert restored.state.low_accuracy_streak == 2
+
+
+def test_submit_bid_calls_submit_directly():
+    from coordinators.mirror_self import MirrorSelfBid, _submit_mirror_self_bid
+
+    class Queue:
+        def __init__(self):
+            self.submitted = []
+
+        def submit(self, bid):
+            self.submitted.append(bid)
+
+        def put_nowait(self, bid):
+            raise AssertionError("put_nowait should not be called")
+
+    queue = Queue()
+
+    _submit_mirror_self_bid(queue, "prediction degraded")
+
+    assert len(queue.submitted) == 1
+    assert isinstance(queue.submitted[0], MirrorSelfBid)
+
+
+def test_awareness_runs_mirror_self_before_reason():
+    from coordinators.awareness import Awareness
+    from coordinators.base import Coordinator
+
+    class Noop(Coordinator):
+        name = "noop"
+
+        def process(self, packet):
+            return packet
+
+    class Orientation(Coordinator):
+        name = "orientation"
+
+        def process(self, packet):
+            packet["orientation"] = {
+                "active_goal_focus": "foreground prediction topic",
+                "recommended_next_pressure": "",
+            }
+            return packet
+
+    class Reason(Coordinator):
+        name = "reason"
+
+        def __init__(self):
+            self.seen_packet = None
+
+        def process(self, packet):
+            self.seen_packet = dict(packet)
+            return packet
+
+    reason = Reason()
+    awareness = Awareness(
+        sensory=Noop(),
+        memory=Noop(),
+        orientation=Orientation(),
+        keeper=Noop(),
+        reason=reason,
+        voice=Noop(),
+        mirror_self=_mirror_self(),
+    )
+
+    result = awareness.run("hello")
+
+    assert reason.seen_packet is not None
+    assert reason.seen_packet["mirror_self_state"]["predicted_topic"] == (
+        "foreground prediction topic"
+    )
+    assert result["mirror_self_state"]["predicted_topic"] == (
+        "foreground prediction topic"
+    )
 
 
 # background_tick() - bid conditions

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -32,6 +31,16 @@ SELF_AFFECT_CURIOUS = "curious"
 SELF_AFFECT_UNCERTAIN = "uncertain"
 SELF_AFFECT_FRUSTRATED = "frustrated"
 
+# Prediction machine — generative model constants.
+PREDICTION_EMA_ALPHA = 0.3
+PREDICTION_LOW_ACCURACY_THRESHOLD = 0.20
+PREDICTION_LOW_ACCURACY_STREAK_LIMIT = 3
+PREDICTION_STOP_WORDS = frozenset({
+    "the", "a", "an", "is", "in", "on", "at", "to", "for", "of",
+    "and", "or", "but", "with", "i", "you", "we", "it", "this", "that",
+    "do", "can", "will", "just", "so", "what", "how", "why",
+})
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _SELF_STATE_PATH = _PROJECT_ROOT / "world_models" / "mirror_self_state.json"
 
@@ -51,6 +60,10 @@ class SelfState:
     last_bid_content: str | None = None
     disk_used_bytes: int = 0
     disk_free_bytes: int = 0
+    predicted_topic: str = ""
+    last_prediction_accuracy: float = 0.0
+    prediction_accuracy_ema: float = 0.5
+    low_accuracy_streak: int = 0
 
 
 @dataclass(frozen=True)
@@ -84,6 +97,32 @@ class MirrorSelf(Coordinator):
         self._restore_state(self.state_reader())
 
     def process(self, packet: dict) -> dict:
+        message = str(packet.get("message") or "").strip()
+        if message and self.state.predicted_topic:
+            accuracy = _jaccard_similarity(self.state.predicted_topic, message)
+            self.state.last_prediction_accuracy = accuracy
+            self.state.prediction_accuracy_ema = (
+                PREDICTION_EMA_ALPHA * accuracy
+                + (1 - PREDICTION_EMA_ALPHA) * self.state.prediction_accuracy_ema
+            )
+            if (
+                self.state.prediction_accuracy_ema
+                < PREDICTION_LOW_ACCURACY_THRESHOLD
+            ):
+                self.state.low_accuracy_streak += 1
+            else:
+                self.state.low_accuracy_streak = 0
+
+        orientation = packet.get("orientation") or {}
+        active_goal = ""
+        recommended = ""
+        if isinstance(orientation, dict):
+            active_goal = str(orientation.get("active_goal_focus") or "").strip()
+            recommended = str(
+                orientation.get("recommended_next_pressure") or ""
+            ).strip()
+        self.state.predicted_topic = active_goal or recommended or ""
+
         self.state.session_interaction_count += 1
 
         error_val = packet.get("error")
@@ -119,6 +158,14 @@ class MirrorSelf(Coordinator):
             "session_interaction_count": self.state.session_interaction_count,
             "disk_used_bytes": self.state.disk_used_bytes,
             "disk_free_bytes": self.state.disk_free_bytes,
+            "predicted_topic": self.state.predicted_topic,
+            "last_prediction_accuracy": round(
+                self.state.last_prediction_accuracy, 4
+            ),
+            "prediction_accuracy_ema": round(
+                self.state.prediction_accuracy_ema, 4
+            ),
+            "low_accuracy_streak": self.state.low_accuracy_streak,
         }
         return packet
 
@@ -165,6 +212,26 @@ class MirrorSelf(Coordinator):
         if isinstance(disk_free, int):
             self.state.disk_free_bytes = max(0, disk_free)
 
+        predicted_topic = snapshot.get("predicted_topic")
+        if isinstance(predicted_topic, str):
+            self.state.predicted_topic = predicted_topic
+
+        last_prediction_accuracy = snapshot.get("last_prediction_accuracy")
+        if isinstance(last_prediction_accuracy, (int, float)):
+            self.state.last_prediction_accuracy = max(
+                0.0, min(1.0, float(last_prediction_accuracy))
+            )
+
+        prediction_accuracy_ema = snapshot.get("prediction_accuracy_ema")
+        if isinstance(prediction_accuracy_ema, (int, float)):
+            self.state.prediction_accuracy_ema = max(
+                0.0, min(1.0, float(prediction_accuracy_ema))
+            )
+
+        low_accuracy_streak = snapshot.get("low_accuracy_streak")
+        if isinstance(low_accuracy_streak, int):
+            self.state.low_accuracy_streak = max(0, low_accuracy_streak)
+
     def _adjust_confidence(self, delta: float) -> None:
         for domain, value in self.state.confidence_map.items():
             self.state.confidence_map[domain] = _clamp_confidence(value + delta)
@@ -179,6 +246,10 @@ class MirrorSelf(Coordinator):
             "last_bid_content": self.state.last_bid_content,
             "disk_used_bytes": self.state.disk_used_bytes,
             "disk_free_bytes": self.state.disk_free_bytes,
+            "predicted_topic": self.state.predicted_topic,
+            "last_prediction_accuracy": self.state.last_prediction_accuracy,
+            "prediction_accuracy_ema": self.state.prediction_accuracy_ema,
+            "low_accuracy_streak": self.state.low_accuracy_streak,
             "timestamp": self.clock().isoformat(),
         }
 
@@ -199,6 +270,14 @@ def _derive_self_affect(state: SelfState) -> str:
 
 
 def _build_observation(state: SelfState) -> str | None:
+    if state.low_accuracy_streak >= PREDICTION_LOW_ACCURACY_STREAK_LIMIT:
+        return (
+            f"World-model accuracy degraded — "
+            f"EMA={state.prediction_accuracy_ema:.0%} "
+            f"for {state.low_accuracy_streak} consecutive turns. "
+            "Generative model may need recalibration."
+        )
+
     for domain in sorted(state.confidence_map):
         value = state.confidence_map[domain]
         if value < CONFIDENCE_LOW_THRESHOLD:
@@ -216,22 +295,26 @@ def _build_observation(state: SelfState) -> str | None:
 
 
 def _submit_mirror_self_bid(awareness_queue, observation: str) -> None:
+    import time as _time
+
     bid = MirrorSelfBid(
         coordinator_name="mirror_self",
         content=observation,
-        timestamp=time.time(),
+        timestamp=_time.time(),
     )
-    submit = getattr(awareness_queue, "submit", None)
-    if callable(submit):
-        submit(bid)
-        return
+    awareness_queue.submit(bid)
 
-    put_nowait = getattr(awareness_queue, "put_nowait", None)
-    if callable(put_nowait):
-        put_nowait(bid)
-        return
 
-    raise TypeError("awareness_queue must expose submit() or put_nowait()")
+def _jaccard_similarity(a: str, b: str) -> float:
+    """
+    Word-level Jaccard similarity between two strings after stop-word removal.
+    Returns 0.0 if either string is empty after filtering.
+    """
+    words_a = {w for w in a.lower().split() if w not in PREDICTION_STOP_WORDS}
+    words_b = {w for w in b.lower().split() if w not in PREDICTION_STOP_WORDS}
+    if not words_a or not words_b:
+        return 0.0
+    return len(words_a & words_b) / len(words_a | words_b)
 
 
 def _default_state_writer(snapshot: dict) -> None:

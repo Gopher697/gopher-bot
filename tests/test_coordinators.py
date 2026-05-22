@@ -311,7 +311,9 @@ def test_sensory_uses_local_openai_compatible_client_for_tier_one(monkeypatch):
 
     monkeypatch.setattr(sensory_module, "OpenAI", FakeOpenAI)
 
-    packet = Sensory().process({"message": "remember this", "input_type": "text", "tier": 1})
+    packet = Sensory(lm_studio_api_key="local").process(
+        {"message": "remember this", "input_type": "text", "tier": 1}
+    )
 
     assert packet["intent"] == "note"
     assert packet["keywords"] == ["gopher"]
@@ -349,7 +351,7 @@ def test_sensory_uses_anthropic_client_for_tier_two(monkeypatch):
 
     assert packet["intent"] == "question"
     assert packet["keywords"] == ["memory"]
-    assert calls["model"] == "claude-3-5-haiku-20241022"
+    assert calls["model"] == "claude-haiku-4-5-20251001"
 
 
 def test_reason_uses_local_openai_compatible_client_for_tier_one(monkeypatch):

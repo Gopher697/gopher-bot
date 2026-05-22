@@ -28,6 +28,9 @@ from sensors.vision_sensor import VisionSensor
 class Sensory(Coordinator):
     name = "sensory"
 
+    def __init__(self, lm_studio_api_key: str | None = None):
+        self.lm_studio_api_key = lm_studio_api_key
+
     def process(self, packet: dict) -> dict:
         packet["input_type"] = packet.get("input_type") or "text"
 
@@ -82,7 +85,12 @@ class Sensory(Coordinator):
             "Do not answer the user."
         )
         if tier_config["base_url"]:
-            response = _call_local_classifier(message, system_prompt, tier_config)
+            response = _call_local_classifier(
+                message,
+                system_prompt,
+                tier_config,
+                lm_studio_api_key=self.lm_studio_api_key,
+            )
         else:
             response = _call_anthropic_classifier(message, system_prompt, tier_config)
         return _parse_classification(_extract_text(response))
@@ -107,8 +115,18 @@ def _extract_text(response: Any) -> str:
     return "\n".join(parts).strip()
 
 
-def _call_local_classifier(message: str, system_prompt: str, tier_config: dict) -> Any:
-    client = OpenAI(base_url=tier_config["base_url"], api_key=config.LM_STUDIO_API_KEY)
+def _call_local_classifier(
+    message: str,
+    system_prompt: str,
+    tier_config: dict,
+    lm_studio_api_key: str | None = None,
+) -> Any:
+    api_key = (
+        config.LM_STUDIO_API_KEY
+        if lm_studio_api_key is None
+        else lm_studio_api_key
+    )
+    client = OpenAI(base_url=tier_config["base_url"], api_key=api_key)
     return client.chat.completions.create(
         model=tier_config["sensory_model"],
         max_tokens=256,

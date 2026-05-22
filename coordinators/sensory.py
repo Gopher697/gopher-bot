@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import sys
 from pathlib import Path
@@ -13,13 +14,15 @@ from coordinators.base import Coordinator
 from coordinators.percepts import AuditoryPercept, VisualPercept
 from coordinators.tier_config import DEFAULT_TIER, get_tier_config
 
+logger = logging.getLogger(__name__)
+
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from world_models import config  # noqa: E402
-from sensors import vision_sensor
+from sensors.vision_sensor import VisionSensor
 
 
 class Sensory(Coordinator):
@@ -29,7 +32,7 @@ class Sensory(Coordinator):
         packet["input_type"] = packet.get("input_type") or "text"
 
         if "visual_percept" not in packet:
-            latest_vp = vision_sensor.get_latest()
+            latest_vp = VisionSensor.get_latest()
             if latest_vp:
                 packet["visual_percept"] = latest_vp.to_dict()
 
@@ -58,7 +61,11 @@ class Sensory(Coordinator):
 
         try:
             classification = self.classify(message, packet.get("tier", DEFAULT_TIER))
-        except Exception:
+        except Exception as e:
+            import traceback as _tb
+            print(f"[SENSORY ERROR] classify() failed: {e}", flush=True)
+            _tb.print_exc()
+            logger.exception("Sensory.classify failed: %s", e)
             packet["error"] = "input classification failed"
             return packet
 
@@ -101,7 +108,7 @@ def _extract_text(response: Any) -> str:
 
 
 def _call_local_classifier(message: str, system_prompt: str, tier_config: dict) -> Any:
-    client = OpenAI(base_url=tier_config["base_url"], api_key="local")
+    client = OpenAI(base_url=tier_config["base_url"], api_key=config.LM_STUDIO_API_KEY)
     return client.chat.completions.create(
         model=tier_config["sensory_model"],
         max_tokens=256,

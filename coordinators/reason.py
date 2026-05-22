@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,8 @@ from openai import OpenAI
 from coordinators.base import Coordinator
 from coordinators.memory import Memory
 from coordinators.tier_config import DEFAULT_TIER, get_tier_config
+
+logger = logging.getLogger(__name__)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,7 +35,8 @@ class Reason(Coordinator):
 
         try:
             response = self.generate_response(message, memory_context, tier)
-        except Exception:
+        except Exception as e:
+            logger.exception("Reason.generate_response failed: %s", e)
             packet["error"] = "response generation failed"
             return packet
 
@@ -85,7 +89,7 @@ def _extract_text(response: Any) -> str:
 
 
 def _call_local_reasoner(message: str, system_prompt: str, tier_config: dict) -> Any:
-    client = OpenAI(base_url=tier_config["base_url"], api_key="local")
+    client = OpenAI(base_url=tier_config["base_url"], api_key=config.LM_STUDIO_API_KEY)
     return client.chat.completions.create(
         model=tier_config["reason_model"],
         max_tokens=1024,

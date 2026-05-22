@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -111,6 +112,79 @@ def _check_deterministic_tier_bypasses_llm() -> list[ConfigIssue]:
         return [ConfigIssue("fail", "tier_config", f"could not import: {exc}")]
 
 
+def _check_configured_models_in_registry(
+    registry: dict | None = None,
+    registry_path: Path | str | None = None,
+) -> list[ConfigIssue]:
+    """Warn when configured models have not been verified in the model registry."""
+    try:
+        from utils.model_registry import (
+            REGISTRY_PATH,
+            get_configured_models_not_in_registry,
+            load_registry,
+        )
+
+        if registry is None:
+            path = Path(registry_path) if registry_path is not None else REGISTRY_PATH
+            if not path.exists():
+                return [
+                    ConfigIssue(
+                        "warn",
+                        "model_registry",
+                        "not populated — run python utils/model_registry.py --discover",
+                    )
+                ]
+            registry = load_registry(path)
+
+        providers = registry.get("providers", {}) if isinstance(registry, dict) else {}
+        has_data = any(
+            isinstance(entry, dict)
+            and (
+                entry.get("known_models")
+                or entry.get("unavailable_models")
+                or entry.get("last_discovered")
+            )
+            for entry in providers.values()
+        )
+        if not has_data:
+            return [
+                ConfigIssue(
+                    "warn",
+                    "model_registry",
+                    "not populated — run python utils/model_registry.py --discover",
+                )
+            ]
+
+        issues: list[ConfigIssue] = []
+        for provider, model_id in get_configured_models_not_in_registry(registry):
+            unavailable = providers.get(provider, {}).get("unavailable_models", [])
+            if model_id in unavailable:
+                issues.append(
+                    ConfigIssue(
+                        "fail",
+                        f"model_registry[{provider}]",
+                        f"{model_id!r} is configured but marked unavailable",
+                    )
+                )
+            else:
+                issues.append(
+                    ConfigIssue(
+                        "warn",
+                        f"model_registry[{provider}]",
+                        f"{model_id!r} is configured but not yet verified as available",
+                    )
+                )
+        return issues
+    except Exception as exc:
+        return [
+            ConfigIssue(
+                "warn",
+                "model_registry",
+                f"could not check configured models: {exc}",
+            )
+        ]
+
+
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
@@ -203,6 +277,7 @@ def validate_config(cfg: Any = None) -> list[ConfigIssue]:
 
     # Model names
     issues.extend(_check_cloud_models())
+    issues.extend(_check_configured_models_in_registry())
 
     # Deterministic tier must not invoke LLM
     issues.extend(_check_deterministic_tier_bypasses_llm())

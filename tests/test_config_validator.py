@@ -11,6 +11,7 @@ from utils.config_validator import (
     ConfigIssue,
     _check_api_key,
     _check_cloud_models,
+    _check_configured_models_in_registry,
     _check_deterministic_tier_bypasses_llm,
     _looks_like_placeholder,
     validate_config,
@@ -103,6 +104,43 @@ def _make_fake_config(**kwargs) -> ModuleType:
     return mod
 
 
+def _make_registry(
+    known_by_provider: dict[str, list[str]] | None = None,
+    unavailable_by_provider: dict[str, list[str]] | None = None,
+) -> dict:
+    """Build a registry shaped like world_models/model_registry.json."""
+    from coordinators.tier_config import KNOWN_PROVIDERS
+
+    known_by_provider = known_by_provider or {}
+    unavailable_by_provider = unavailable_by_provider or {}
+    providers = {}
+    for provider in KNOWN_PROVIDERS:
+        known = list(known_by_provider.get(provider, []))
+        unavailable = list(unavailable_by_provider.get(provider, []))
+        providers[provider] = {
+            "last_discovered": "2026-05-22" if known or unavailable else None,
+            "known_models": known,
+            "unavailable_models": unavailable,
+            "discovery_error": None,
+        }
+    return {
+        "schema_version": 1,
+        "last_updated": "2026-05-22",
+        "providers": providers,
+    }
+
+
+def _known_models_except(target: tuple[str, str]) -> dict[str, list[str]]:
+    from utils.model_registry import get_configured_models
+
+    known_by_provider: dict[str, list[str]] = {}
+    for provider, model_id in get_configured_models():
+        if (provider, model_id) == target:
+            continue
+        known_by_provider.setdefault(provider, []).append(model_id)
+    return known_by_provider
+
+
 class TestValidateConfig:
     def test_clean_config_returns_no_issues(self):
         issues = validate_config(cfg=_make_fake_config())
@@ -184,3 +222,37 @@ class TestValidateConfig:
             assert isinstance(issue.field, str)
             assert isinstance(issue.detail, str)
             assert issue.severity in ("warn", "fail")
+
+    def test_unchecked_model_emits_warn(self):
+        from utils.model_registry import get_configured_models
+
+        target = next(pair for pair in get_configured_models())
+        registry = _make_registry(known_by_provider=_known_models_except(target))
+        issues = _check_configured_models_in_registry(registry=registry)
+        assert any(
+            i.severity == "warn" and target[1] in i.detail
+            for i in issues
+        )
+
+    def test_unavailable_model_emits_fail(self):
+        from utils.model_registry import get_configured_models
+
+        target = next(pair for pair in get_configured_models())
+        registry = _make_registry(
+            known_by_provider=_known_models_except(target),
+            unavailable_by_provider={target[0]: [target[1]]},
+        )
+        issues = _check_configured_models_in_registry(registry=registry)
+        assert any(
+            i.severity == "fail" and target[1] in i.detail
+            for i in issues
+        )
+
+    def test_empty_registry_emits_warn(self, tmp_path):
+        issues = _check_configured_models_in_registry(
+            registry_path=tmp_path / "missing_model_registry.json"
+        )
+        assert any(
+            i.severity == "warn" and "not populated" in i.detail
+            for i in issues
+        )

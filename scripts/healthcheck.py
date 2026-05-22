@@ -225,6 +225,87 @@ def check_config_validity() -> None:
         check(FAIL, "Config validity", f"validator error: {e}")
 
 
+def check_model_registry() -> None:
+    """Check that configured models are known in the local model registry."""
+    try:
+        from utils.model_registry import (
+            REGISTRY_PATH,
+            get_configured_models,
+            get_configured_models_not_in_registry,
+            load_registry,
+        )
+
+        if not REGISTRY_PATH.exists():
+            check(
+                WARN,
+                "Model registry",
+                "not populated — run python utils/model_registry.py --discover",
+            )
+            return
+
+        registry = load_registry(REGISTRY_PATH)
+        providers = registry.get("providers", {})
+        has_data = any(
+            isinstance(entry, dict)
+            and (
+                entry.get("known_models")
+                or entry.get("unavailable_models")
+                or entry.get("last_discovered")
+            )
+            for entry in providers.values()
+        )
+        if not has_data:
+            check(
+                WARN,
+                "Model registry",
+                "empty — run python utils/model_registry.py --discover to populate",
+            )
+            return
+
+        configured_models = get_configured_models()
+        unavailable_failures = []
+        for provider, model_id in configured_models:
+            unavailable = providers.get(provider, {}).get("unavailable_models", [])
+            if model_id in unavailable:
+                unavailable_failures.append((provider, model_id))
+
+        if unavailable_failures:
+            for provider, model_id in unavailable_failures:
+                check(
+                    FAIL,
+                    f"Model registry: {provider}",
+                    f"{model_id!r} configured but marked unavailable",
+                )
+            return
+
+        missing = get_configured_models_not_in_registry(registry)
+        if missing:
+            for provider, model_id in missing:
+                check(
+                    WARN,
+                    f"Model registry: {provider}",
+                    f"{model_id!r} configured but not yet verified",
+                )
+        else:
+            check(PASS, "Model registry", "configured models verified")
+
+        undiscovered = [
+            provider
+            for provider, entry in providers.items()
+            if isinstance(entry, dict) and not entry.get("last_discovered")
+        ]
+        if undiscovered:
+            check(
+                WARN,
+                "Model registry discovery",
+                "provider discovery incomplete: "
+                + ", ".join(sorted(undiscovered))
+                + " — run python utils/model_registry.py --discover",
+            )
+    except Exception as e:
+        check(WARN, "Model registry", f"check failed: {e}")
+
+
 def check_git_state() -> None:
     try:
         result = subprocess.run(
@@ -281,6 +362,7 @@ def main() -> None:
         check_required_modules,
         check_config_loaded,
         check_config_validity,
+        check_model_registry,
         check_secrets_not_tracked,
         check_neo4j_reachable,
         check_web_port,

@@ -15,17 +15,21 @@ from __future__ import annotations
 import copy
 import json
 import logging
+import sys
 import urllib.request
 from datetime import date
 from pathlib import Path
 from typing import Any, Callable
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from coordinators.tier_config import KNOWN_PROVIDERS, TIERS
 
 
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = PROJECT_ROOT / "world_models" / "model_registry.json"
 SCHEMA_VERSION = 1
 
@@ -193,13 +197,23 @@ def get_configured_models_not_in_registry(
 
     missing: list[tuple[str, str]] = []
     seen: set[tuple[str, str]] = set()
-    for provider, model_id in _configured_models(tiers or TIERS):
+    for provider, model_id in get_configured_models(tiers):
         known = providers.get(provider, {}).get("known_models", [])
         pair = (provider, model_id)
         if model_id not in known and pair not in seen:
             missing.append(pair)
             seen.add(pair)
     return missing
+
+
+def get_configured_models(tiers: dict[int, Any] | None = None) -> list[tuple[str, str]]:
+    configured: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for pair in _configured_models(tiers or TIERS):
+        if pair not in seen:
+            configured.append(pair)
+            seen.add(pair)
+    return configured
 
 
 def _configured_models(tiers: dict[int, Any]) -> list[tuple[str, str]]:
@@ -279,3 +293,85 @@ def _read_json_response(response: Any) -> dict:
         raw = raw.decode("utf-8")
     payload = json.loads(raw)
     return payload if isinstance(payload, dict) else {}
+
+
+def _api_key_for_provider(provider: str) -> str | None:
+    provider_info = KNOWN_PROVIDERS.get(provider)
+    if provider_info is None:
+        return None
+    try:
+        from world_models import config
+    except Exception:
+        return None
+    value = getattr(config, provider_info.get("config_key", ""), None)
+    return str(value) if value else None
+
+
+def _discover_provider_for_cli(provider: str, path: Path = REGISTRY_PATH) -> None:
+    before = load_registry(path)
+    before_entry = before.get("providers", {}).get(provider, _provider_default())
+    before_known = set(before_entry.get("known_models") or [])
+    before_unavailable = set(before_entry.get("unavailable_models") or [])
+
+    api_key = _api_key_for_provider(provider)
+    discovered_models, error = _discover_models_with_error(provider, api_key=api_key)
+
+    def injected_discover(_provider: str, _api_key: str | None) -> list[str]:
+        if error:
+            raise RuntimeError(error)
+        return discovered_models
+
+    updated = update_registry_for_provider(
+        provider,
+        api_key=api_key,
+        path=path,
+        discover_fn=injected_discover,
+    )
+    updated_entry = updated.get("providers", {}).get(provider, _provider_default())
+    after_known = set(updated_entry.get("known_models") or [])
+    after_unavailable = set(updated_entry.get("unavailable_models") or [])
+    new_count = len(after_known - before_known)
+    moved_count = len(after_unavailable - before_unavailable)
+    error_status = updated_entry.get("discovery_error") or "none"
+    print(
+        f"{provider}: found={len(discovered_models)} "
+        f"new={new_count} moved_unavailable={moved_count} error={error_status}"
+    )
+
+
+def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Gopher-bot model registry tool")
+    parser.add_argument(
+        "--discover",
+        action="store_true",
+        help="Query all configured providers and update registry",
+    )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        default=None,
+        help="Limit discovery to one provider",
+    )
+    parser.add_argument(
+        "--show",
+        action="store_true",
+        help="Print registry contents",
+    )
+    args = parser.parse_args()
+
+    if args.discover:
+        providers = [args.provider] if args.provider else list(KNOWN_PROVIDERS)
+        for provider in providers:
+            _discover_provider_for_cli(provider)
+
+    if args.show:
+        print(json.dumps(load_registry(), indent=2, sort_keys=True))
+
+    if not args.discover and not args.show:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()

@@ -16,6 +16,7 @@ from coordinators.bid import PRIORITY_PATTERN, BidQueue
 from coordinators.archivist import ARCHIVIST_CADENCE_SECONDS
 from coordinators.keeper import KEEPER_CADENCE_SECONDS
 from coordinators.mirror_chad import INCUBATION_MAXLEN
+from coordinators.wisdom import WISDOM_CADENCE_SECONDS
 
 
 _SENTINEL = object()   # used to distinguish "attr absent" from "attr is None"
@@ -30,6 +31,7 @@ BACKGROUND_INTERVALS = {
     "dream": 300.0,
     "keeper": KEEPER_CADENCE_SECONDS,
     "archivist": ARCHIVIST_CADENCE_SECONDS,
+    "wisdom": WISDOM_CADENCE_SECONDS,
     "drive": 86400.0,
 }
 DREAM_IDLE_SECONDS = 300.0
@@ -45,6 +47,7 @@ BACKGROUND_COORDINATORS = (
     "dream",
     "keeper",
     "archivist",
+    "wisdom",
 )
 
 
@@ -274,6 +277,8 @@ class BrainLoop:
         except Exception:
             return
 
+        self._maybe_trigger_wisdom_for_accepted_bids(bids)
+
         for bid in list(bids or []):
             if not _is_proactive_priority(bid):
                 continue
@@ -286,6 +291,23 @@ class BrainLoop:
                 return
             self.last_proactive_voice_at = now
             return
+
+    def _maybe_trigger_wisdom_for_accepted_bids(self, bids: Any) -> None:
+        if self.bid_queue is None:
+            return
+
+        wisdom = self.coordinators.get("wisdom")
+        maybe_trigger = getattr(wisdom, "maybe_trigger", None)
+        if not callable(maybe_trigger):
+            return
+
+        for bid in list(bids or []):
+            if getattr(bid, "coordinator_name", None) != "pattern_monitor":
+                continue
+            try:
+                maybe_trigger(self.bid_queue, bid)
+            except Exception:
+                continue
 
     def _voice_response_for_bid(self, bid: Any) -> str:
         voice = getattr(self.awareness, "voice", None)
@@ -324,6 +346,7 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
     from coordinators.mirror_self import MirrorSelf
     from coordinators.neuromodulation import Neuromodulation
     from coordinators.pattern_monitor import PatternMonitor
+    from coordinators.wisdom import Wisdom
 
     return {
         "feeling": Feeling(),
@@ -336,6 +359,7 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
         "drive": Drive(),
         "keeper": Keeper(),
         "archivist": Archivist(),
+        "wisdom": Wisdom(),
         **{
             name: _NoopBackgroundCoordinator(name)
             for name in BACKGROUND_COORDINATORS
@@ -351,6 +375,7 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
                 "drive",
                 "keeper",
                 "archivist",
+                "wisdom",
             }
         },
     }

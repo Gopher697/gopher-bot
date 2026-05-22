@@ -64,6 +64,7 @@ EXCLUDED_DIR_PREFIXES: list[str] = [
     "gopher-brain-data/",
     "logs/dream/",
     "logs/archivist/",
+    "logs/wisdom/",
     "logs/audit/",
 ]
 

@@ -154,8 +154,8 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Absorbed into Memory for Phase 1b — Wisdom's historical interpretation function will be handled by an enriched Memory coordinator until the system reaches the complexity that warrants a separate coordinator. Revisit at Stage 2 (Emergence) maturation. |
-| Model tier | N/A (not active in Phase 1b) |
+| Status | Active — Phase 1c: background coordinator; turn log analysis, archivist research scan, pattern monitor recurrence detection; weekly cadence (604800s); proposal-only write path. Claim/Belief/Doctrine arc analysis deferred to T-71 (Archivist claim extraction). |
+| Model tier | Tier 0 (deterministic — no LLM call; assembles insight from structured data) |
 | Backing context | Runtime-only |
 | Backing agent | TBD |
 | Primary role | Long-horizon memory interpretation; pattern context across sessions; emotional support through the lens of lived history |

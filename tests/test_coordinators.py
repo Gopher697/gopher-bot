@@ -379,7 +379,7 @@ def test_reason_uses_local_openai_compatible_client_for_tier_one(monkeypatch):
 
     monkeypatch.setattr(reason_module, "OpenAI", FakeOpenAI)
 
-    packet = Reason(memory=FakeMemory()).process(
+    packet = Reason(memory=FakeMemory(), lm_studio_api_key="local").process(
         {
             "message": "remember this",
             "memory_context": "",

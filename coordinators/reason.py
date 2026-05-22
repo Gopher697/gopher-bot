@@ -25,8 +25,13 @@ from world_models import config  # noqa: E402
 class Reason(Coordinator):
     name = "reason"
 
-    def __init__(self, memory: Memory | None = None):
+    def __init__(
+        self,
+        memory: Memory | None = None,
+        lm_studio_api_key: str | None = None,
+    ):
         self.memory = memory or Memory()
+        self.lm_studio_api_key = lm_studio_api_key
 
     def process(self, packet: dict) -> dict:
         message = str(packet.get("message", "")).strip()
@@ -59,7 +64,12 @@ class Reason(Coordinator):
             "Be direct. Do not perform enthusiasm."
         )
         if tier_config["base_url"]:
-            response = _call_local_reasoner(message, system_prompt, tier_config)
+            response = _call_local_reasoner(
+                message,
+                system_prompt,
+                tier_config,
+                lm_studio_api_key=self.lm_studio_api_key,
+            )
         else:
             response = _call_anthropic_reasoner(message, system_prompt, tier_config)
         return _extract_text(response)
@@ -88,8 +98,18 @@ def _extract_text(response: Any) -> str:
     return "\n".join(parts).strip()
 
 
-def _call_local_reasoner(message: str, system_prompt: str, tier_config: dict) -> Any:
-    client = OpenAI(base_url=tier_config["base_url"], api_key=config.LM_STUDIO_API_KEY)
+def _call_local_reasoner(
+    message: str,
+    system_prompt: str,
+    tier_config: dict,
+    lm_studio_api_key: str | None = None,
+) -> Any:
+    api_key = (
+        lm_studio_api_key
+        if lm_studio_api_key is not None
+        else config.LM_STUDIO_API_KEY
+    )
+    client = OpenAI(base_url=tier_config["base_url"], api_key=api_key)
     return client.chat.completions.create(
         model=tier_config["reason_model"],
         max_tokens=1024,

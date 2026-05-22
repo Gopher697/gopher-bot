@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 
 # ---------------------------------------------------------------------------
@@ -45,6 +45,37 @@ class TierConfig:
     base_url: str | None        # None = Anthropic cloud; str = local OpenAI-compat endpoint
     sensory_model: str | None   # None for TIER_DETERMINISTIC (no LLM)
     reason_model: str | None    # None for TIER_DETERMINISTIC (no LLM)
+    sensory_fallbacks: list[str] = field(default_factory=list)
+    reason_fallbacks: list[str] = field(default_factory=list)
+    provider: str = "anthropic"
+    sensory_provider: str | None = None
+    reason_provider: str | None = None
+
+
+KNOWN_PROVIDERS: dict[str, dict] = {
+    "anthropic": {
+        "models_endpoint": "https://api.anthropic.com/v1/models",
+        "auth_header": "x-api-key",
+        "config_key": "ANTHROPIC_API_KEY",
+    },
+    "openai": {
+        "models_endpoint": "https://api.openai.com/v1/models",
+        "auth_header": "Authorization",
+        "auth_prefix": "Bearer ",
+        "config_key": "OPENAI_API_KEY",
+    },
+    "deepseek": {
+        "models_endpoint": "https://api.deepseek.com/v1/models",
+        "auth_header": "Authorization",
+        "auth_prefix": "Bearer ",
+        "config_key": "DEEPSEEK_API_KEY",
+    },
+    "lm_studio": {
+        "models_endpoint": "http://localhost:1234/v1/models",
+        "auth_header": None,
+        "config_key": "LM_STUDIO_API_KEY",
+    },
+}
 
 
 TIERS: dict[int, TierConfig] = {
@@ -57,16 +88,21 @@ TIERS: dict[int, TierConfig] = {
         base_url="http://localhost:1234/v1",
         sensory_model="qwen2.5-3b-instruct",
         reason_model="qwen3.5",
+        provider="lm_studio",
+        sensory_provider="lm_studio",
+        reason_provider="lm_studio",
     ),
     TIER_STANDARD: TierConfig(
         base_url=None,
         sensory_model="claude-haiku-4-5-20251001",
         reason_model="claude-sonnet-4-6",
+        reason_fallbacks=["claude-haiku-4-5-20251001"],
     ),
     TIER_ENHANCED: TierConfig(
         base_url=None,
         sensory_model="claude-haiku-4-5-20251001",
         reason_model="claude-opus-4-6",
+        reason_fallbacks=["claude-sonnet-4-6"],
     ),
 }
 

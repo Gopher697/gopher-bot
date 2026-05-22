@@ -167,3 +167,27 @@ def test_unknown_tier_returns_default():
     from coordinators.tier_config import DEFAULT_TIER, get_tier_config
 
     assert get_tier_config(99) == get_tier_config(DEFAULT_TIER)
+
+
+def test_fallbacks_are_lists():
+    from coordinators.tier_config import TIERS
+
+    for config in TIERS.values():
+        assert isinstance(config.sensory_fallbacks, list)
+        assert isinstance(config.reason_fallbacks, list)
+
+
+def test_deterministic_tier_has_no_fallbacks():
+    from coordinators.tier_config import TIER_DETERMINISTIC, TIERS
+
+    config = TIERS[TIER_DETERMINISTIC]
+    assert config.sensory_fallbacks == []
+    assert config.reason_fallbacks == []
+
+
+def test_known_providers_has_required_keys():
+    from coordinators.tier_config import KNOWN_PROVIDERS
+
+    for provider in KNOWN_PROVIDERS.values():
+        assert "models_endpoint" in provider
+        assert "config_key" in provider

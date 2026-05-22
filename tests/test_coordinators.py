@@ -13,11 +13,10 @@ def test_tier_config_returns_expected_models():
     from coordinators.tier_config import DEFAULT_TIER, get_tier_config
 
     assert DEFAULT_TIER == 2
-    assert get_tier_config(1) == {
-        "base_url": "http://localhost:1234/v1",
-        "sensory_model": "qwen2.5-3b-instruct",
-        "reason_model": "qwen3.5",
-    }
+    local_config = get_tier_config(1)
+    assert local_config["base_url"] == "http://localhost:1234/v1"
+    assert local_config["sensory_model"] == "qwen2.5-3b-instruct"
+    assert local_config["reason_model"] == "qwen3.5"
     assert get_tier_config(2)["reason_model"] == "claude-sonnet-4-6"
     assert get_tier_config(3)["reason_model"] == "claude-opus-4-6"
 

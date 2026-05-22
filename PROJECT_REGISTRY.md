@@ -7,16 +7,16 @@
 - Project entrypoint files are authoritative only for their own project.
 - Session notes are historical logs by default, not canonical current state, unless explicitly promoted by a current-state file.
 - `_staging`, raw imports, archives, pasted reports, and old handoffs are evidence/reference by default, not active instruction.
-- Workbench-wide SOP authority lives in `D:\gopher-workbench-mcp\sops\` unless explicitly promoted or mirrored there.
+- Workbench-wide SOP authority lives in `D:\gopher-workbench\sops\` unless explicitly promoted or mirrored there.
 - `D:\GopherVault\20-SOPs\` may contain useful SOP candidates/reference notes, but those notes are not Workbench-wide authority merely because they are more detailed.
 - More comprehensive does not mean more authoritative.
 - When authority is ambiguous, future agents should flag the ambiguity instead of silently resolving it.
 
 ## Registered Projects
 
-### gopher-workbench-mcp
+### gopher-workbench
 
-- Root: `D:\gopher-workbench-mcp`
+- Root: `D:\gopher-workbench`
 - Configured summary/entry file: `PROJECT.md`
 - Actual first file to read: `AGENT_CHARTER.md` (constitutional law, read first for any coordinator startup per Article IX); then `AGENT_COMMITMENTS.md` (active obligations); then `README.md` for operational setup context; then `PROJECT.md` for project summary.
 - Current authority status: Registered Workbench server project; `config\projects.yaml` defines project boundary; `sops\` defines Workbench-wide SOP authority; `AGENT_CHARTER.md` governs all coordinators and overrides subordinate rules.

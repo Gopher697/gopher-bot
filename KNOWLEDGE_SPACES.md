@@ -15,10 +15,10 @@ This is a connective-tissue file, not a project summary file.
 
 The Workbench control layer lives in:
 
-- `D:\gopher-workbench-mcp\AGENTS.md`
-- `D:\gopher-workbench-mcp\WORKBENCH_INDEX.md`
-- `D:\gopher-workbench-mcp\PROJECT_REGISTRY.md`
-- `D:\gopher-workbench-mcp\sops\`
+- `D:\gopher-workbench\AGENTS.md`
+- `D:\gopher-workbench\WORKBENCH_INDEX.md`
+- `D:\gopher-workbench\PROJECT_REGISTRY.md`
+- `D:\gopher-workbench\sops\`
 
 This layer controls orientation, authority order, project boundaries, and Workbench-wide SOP authority. Agents should start here before relying on more detailed notes elsewhere.
 
@@ -26,7 +26,7 @@ This layer controls orientation, authority order, project boundaries, and Workbe
 
 MCP configured project access is defined by:
 
-- `D:\gopher-workbench-mcp\config\projects.yaml`
+- `D:\gopher-workbench\config\projects.yaml`
 
 This file controls which folders are configured for MCP tool access. MCP registration means a folder is configured and accessible by tools; it does not mean every note inside that folder is canonical.
 
@@ -75,7 +75,7 @@ More comprehensive does not mean more authoritative.
 
 Workbench-wide SOP authority lives in:
 
-- `D:\gopher-workbench-mcp\sops\`
+- `D:\gopher-workbench\sops\`
 
 GopherVault SOPs and project-local SOPs may be useful references or promotion candidates. They do not automatically become Workbench-wide authority by being more detailed.
 

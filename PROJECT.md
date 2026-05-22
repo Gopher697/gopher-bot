@@ -1,4 +1,4 @@
-# gopher-workbench-mcp
+# gopher-workbench
 
 A local-only, conservative MCP server that gives AI coding assistants access to:
 

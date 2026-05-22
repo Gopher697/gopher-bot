@@ -164,7 +164,7 @@ When rules conflict, the following order applies (highest to lowest):
    Current-session instruction does not silently amend this charter or standing
    commitments.
 4. **Workbench project registry and workbench-wide SOPs** — `PROJECT_REGISTRY.md` and
-   `D:\gopher-workbench-mcp\sops\`
+   `D:\gopher-workbench\sops\`
 5. **Domain autonomy files** — e.g., `AUTONOMY_LEVELS.md` for gaming; valid only
    within their declared domain and cannot expand Tier 1 or Tier 2 restrictions
 6. **Agent and tool suggestions** — proposals from any rented LLM or tool
@@ -358,8 +358,8 @@ All meaningful actions by any agent must be appended to the active session log u
 `WORKBENCH_ROOT/logs/actions/` in the format `YYYYMMDD.md`. Logs are append-only;
 entries are never edited or deleted.
 
-`WORKBENCH_ROOT` is the root directory of the gopher-workbench-mcp project.
-Current default: `D:\gopher-workbench-mcp`. If the workbench moves, update the
+`WORKBENCH_ROOT` is the root directory of the gopher-workbench project.
+Current default: `D:\gopher-workbench`. If the workbench moves, update the
 configured root; do not update this charter for path changes alone.
 
 Each log entry must record:
@@ -404,7 +404,7 @@ Do not infer or reconstruct missing authority from session context alone.
 
 | System | Role | Authority scope |
 |---|---|---|
-| `gopher-workbench-mcp` | Skeleton — enforces allowed actions, routes agents, holds SOPs | Workbench-wide, subordinate to this charter |
+| `gopher-workbench` | Skeleton — enforces allowed actions, routes agents, holds SOPs | Workbench-wide, subordinate to this charter |
 | `GopherVault` | Long-term memory — world models, project notes, accumulated knowledge | Storage layer; no independent authority |
 | `GameAgentCore` | Game-interaction limb — autonomy levels, session doctrine | Gaming domain only; Article III still applies |
 | Per-game agent workspaces | Environment frames — scoped world model namespaces | Own environment only; no cross-environment import |

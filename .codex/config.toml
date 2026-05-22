@@ -1,5 +1,5 @@
 [mcp_servers.gopher-workbench]
 command = "python"
 args = ["-m", "gopher_workbench_mcp.server"]
-cwd = "D:/gopher-workbench-mcp"
+cwd = "D:/gopher-workbench"
 

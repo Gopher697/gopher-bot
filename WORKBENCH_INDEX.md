@@ -8,7 +8,7 @@ New agents should use this reading order:
 2. Read `PROJECT_REGISTRY.md` to understand registered projects, entrypoints, and authority boundaries.
 3. Read `KNOWLEDGE_SPACES.md` when the task needs broader wiki/knowledge-layer orientation.
 4. Read the relevant project entrypoint named in `PROJECT_REGISTRY.md`.
-5. Read Workbench-wide SOPs only from `D:\gopher-workbench-mcp\sops\` unless another SOP has been explicitly promoted or mirrored there.
+5. Read Workbench-wide SOPs only from `D:\gopher-workbench\sops\` unless another SOP has been explicitly promoted or mirrored there.
 6. Treat session notes, archives, staging folders, raw imports, pasted reports, and old handoffs as historical/reference unless a current-state file promotes them.
 
 ## Authority Order
@@ -16,7 +16,7 @@ New agents should use this reading order:
 - Human instructions in the current session override stale notes.
 - `PROJECT_REGISTRY.md` defines project boundaries and entrypoints for agent orientation.
 - Project entrypoint/current-state files define current authority only for their own project.
-- `D:\gopher-workbench-mcp\sops\` defines Workbench-wide SOP authority.
+- `D:\gopher-workbench\sops\` defines Workbench-wide SOP authority.
 - GopherVault SOPs and project-local SOPs may be useful references or promotion candidates, but are not automatically Workbench-wide authority.
 - More comprehensive does not mean more authoritative.
 - Session notes are historical by default.

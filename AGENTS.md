@@ -25,7 +25,7 @@ At the start of any task:
 
 Workbench-wide SOP authority lives in:
 
-`D:\gopher-workbench-mcp\sops\`
+`D:\gopher-workbench\sops\`
 
 `D:\GopherVault\20-SOPs\` and project-local SOPs may be useful references or promotion candidates, but they are not Workbench-wide authority unless explicitly promoted or mirrored into the Workbench `sops\` directory.
 

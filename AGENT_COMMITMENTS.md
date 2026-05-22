@@ -17,7 +17,7 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 |---|---|
 | `id` | C-001 |
 | `created` | 2026-05-18 |
-| `owner` | gopher-workbench-mcp |
+| `owner` | gopher-workbench |
 | `status` | active |
 | `description` | Establish the governance layer of the neurosymbolic AI companion system: ratified charter, commitments file, proposals scaffold, bootstrap infrastructure, and workbench index registration. |
 | `scope` | global — affects all coordinators and all future build work |
@@ -33,7 +33,7 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 |---|---|
 | `id` | C-002 |
 | `created` | 2026-05-18 |
-| `owner` | gopher-workbench-mcp |
+| `owner` | gopher-workbench |
 | `status` | active |
 | `description` | Design and implement the persistent knowledge graph that serves as the neurosymbolic brain's long-term memory. Candidates: Neo4j (richest graph queries), SQLite with relationship tables (local, portable), Datalog (rule-based inference). The graph stores world models, coordinator knowledge, and patterns across sessions. |
 | `scope` | global — the persistent memory substrate for all coordinators |
@@ -65,7 +65,7 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 |---|---|
 | `id` | C-004 |
 | `created` | 2026-05-18 |
-| `owner` | gopher-workbench-mcp |
+| `owner` | gopher-workbench |
 | `status` | closed |
 | `closed` | 2026-05-20 |
 | `description` | Build the full coordinator architecture on a self-hosted web interface (not Discord — privacy decision made 2026-05-18). Includes: async bid-gating Awareness hub, background brain loop running coordinators on independent cadences, all planned coordinators implemented as async workers, web UI for Chad interaction (voice + text), and audit panel for coordinator activity. Absorbs Vaultbot into Memory when Memory is operational. |
@@ -82,7 +82,7 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 |---|---|
 | `id` | C-005 |
 | `created` | 2026-05-19 |
-| `owner` | gopher-workbench-mcp |
+| `owner` | gopher-workbench |
 | `status` | active |
 | `description` | Build the interface layer in three phases toward a purpose-built AI-native execution environment. Phase 1 (done): Flask + SocketIO web app with voice and text, BrainLoop daemon thread, static frontend. Phase 2: Tauri desktop wrapper giving Gopher-bot OS-level ambient awareness — Sensory receives passive screen/file/app context without explicit Chad input; Hands and Sensory designed for system-level access from day one. Phase 3 (the dream): NixOS-based custom Linux environment where coordinators are first-class system services with MAC enforcement (AppArmor/SELinux), the knowledge graph is the persistence primitive, build/runtime separation is a kernel-level privilege boundary, and the interface is a spatial navigator through the knowledge graph rather than a chat window. |
 | `scope` | global — interface and execution environment for the whole system |
@@ -98,7 +98,7 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 |---|---|
 | `id` | C-006 |
 | `created` | 2026-05-20 |
-| `owner` | gopher-workbench-mcp |
+| `owner` | gopher-workbench |
 | `status` | closed |
 | `closed` | 2026-05-20 |
 | `description` | Build the temporal self-awareness layer and close the inner defense loop. Two inseparable components: (1) **Temporal layer** — all coordinators gain access to real-world time via shared utils; BrainLoop packets carry current_time, session_age, time_since_last_nrem, and time_since_last_gopher_input; graph is queryable by time range; Dream has circadian NREM scheduling; audit log can answer "time since last action of type X." (2) **Inner defense** — Dream AUDIT runs verify_chain() autonomously during NREM and spikes NE + writes DreamLog alert on chain failure; Pattern Monitor detects coordinator behavioral drift vs. established baseline; Mirror-Self flags Reason outputs that deviate from the self-model; OpenTimestamps anchors the audit log chain head to Bitcoin nightly, grounding the AI's action timeline in external tamper-evident time. The inner defender has alerting authority only — no action authority. Without this commitment, trust escalation (Task 49) and autonomous idle operation (Task 48) cannot be safely designed. |

@@ -35,6 +35,16 @@ More comprehensive does not mean more authoritative.
 
 When file authority, project entrypoint, or current-state status is ambiguous, flag the ambiguity instead of resolving it silently.
 
+## Claude-Specific Limitations
+
+**If you are Claude running in Cowork or a similar sandboxed environment, read this before touching git:**
+
+Claude runs in a Linux container accessing this repo through a filesystem mount. Git read operations (`status`, `diff`, `log`) work. Git write operations (`add`, `commit`, `stash`, `push`) will fail with a lock file error — every time, without exception. Do not retry. Do not ask Gopher to delete lock files.
+
+**For all git commits:** prepare the exact commands and have Gopher run them in a native Windows terminal, or include them in a Codex prompt. This is not a workaround — it is the correct workflow.
+
+Read `DEVELOPMENT_CHARTER.md` Article V before starting any implementation work.
+
 ## Safety Gates
 
 The instructions above are orientation rules, not a substitute for normal safety checks.

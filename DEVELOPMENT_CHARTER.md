@@ -43,7 +43,15 @@ Load this file at the start of every session. These rules are not suggestions.
 
 ---
 
-## Article V — What This Is Not
+## Article V — Claude's Architectural Limitations
+
+1. **Claude cannot run git write operations.** Claude runs in a Linux sandbox and accesses the gopher-bot repo through a filesystem mount. `git status`, `git diff`, and `git log` work. `git add`, `git commit`, `git stash`, and any other write operation will fail with a lock file error. **All git commits must be run by Gopher in a native Windows terminal or delegated to Codex.**
+2. **Claude prepares; Gopher executes.** For any operation requiring native Windows access (git writes, running the bot, installing packages, Godot exports), Claude writes the exact commands and Gopher runs them. This is not a workaround — it is the correct division of labor.
+3. **Do not retry failed git operations from the sandbox.** If a git write fails once, it will fail every time. Do not ask Gopher to delete lock files and retry — go straight to giving Gopher the native commands.
+
+---
+
+## Article VI — What This Is Not
 
 - This charter does not replace `AGENT_CHARTER.md`, which governs Gopher-bot's runtime behavior.
 - This charter does not constrain Gopher's authority. Gopher can override any rule here — but overrides must be stated explicitly, not implied by momentum.

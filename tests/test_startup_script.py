@@ -1,23 +1,13 @@
 from __future__ import annotations
 
-import importlib.util
+import importlib
 import io
-import sys
 from datetime import datetime
 from pathlib import Path
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-STARTUP_SCRIPT = REPO_ROOT / "scripts" / "startup.py"
-
-
 def load_startup_module():
-    spec = importlib.util.spec_from_file_location("startup_script", STARTUP_SCRIPT)
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+    return importlib.import_module("scripts.startup")
 
 
 def write_commitments(path: Path) -> None:
@@ -56,7 +46,6 @@ def write_commitments(path: Path) -> None:
 
 def test_startup_reports_real_files_and_appends_action_log(tmp_path):
     startup = load_startup_module()
-    startup.query_world_model_summary = lambda: "0 entities in global ✓"
     now = datetime(2026, 5, 18, 21, 30, 0)
 
     (tmp_path / "AGENT_CHARTER.md").write_text(
@@ -68,7 +57,12 @@ def test_startup_reports_real_files_and_appends_action_log(tmp_path):
     (tmp_path / "proposals" / "pending" / ".gitkeep").write_text("", encoding="utf-8")
 
     output = io.StringIO()
-    exit_code = startup.run_startup(root=tmp_path, now=now, out=output)
+    exit_code = startup.run_startup(
+        root=tmp_path,
+        now=now,
+        out=output,
+        world_model_summary_fn=lambda: "0 entities in global ✓",
+    )
 
     report = output.getvalue()
     assert exit_code == 0
@@ -90,7 +84,6 @@ def test_startup_reports_real_files_and_appends_action_log(tmp_path):
 
 def test_startup_marks_incomplete_when_charter_is_not_ratified(tmp_path):
     startup = load_startup_module()
-    startup.query_world_model_summary = lambda: "0 entities in global ✓"
     now = datetime(2026, 5, 18, 21, 30, 0)
 
     (tmp_path / "AGENT_CHARTER.md").write_text(
@@ -101,7 +94,12 @@ def test_startup_marks_incomplete_when_charter_is_not_ratified(tmp_path):
     (tmp_path / "proposals" / "pending").mkdir(parents=True)
 
     output = io.StringIO()
-    exit_code = startup.run_startup(root=tmp_path, now=now, out=output)
+    exit_code = startup.run_startup(
+        root=tmp_path,
+        now=now,
+        out=output,
+        world_model_summary_fn=lambda: "0 entities in global ✓",
+    )
 
     report = output.getvalue()
     assert exit_code == 1

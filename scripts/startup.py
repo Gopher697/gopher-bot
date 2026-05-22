@@ -5,7 +5,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Optional, TextIO
+from typing import Callable, Iterable, Optional, TextIO
 
 
 WORKBENCH_ROOT = Path(r"D:\Gopher Bot\gopher-bot")
@@ -316,14 +316,16 @@ def run_startup(
     root: Path = WORKBENCH_ROOT,
     now: Optional[datetime] = None,
     out: TextIO = sys.stdout,
+    world_model_summary_fn: Callable[[], str] | None = None,
 ) -> int:
     root = Path(root)
     timestamp = now or datetime.now().replace(microsecond=0)
     state = StartupState(incomplete_reasons=[], warnings=[])
+    summary_fn = world_model_summary_fn or query_world_model_summary
 
     charter = read_charter(root, state)
     commitments = read_commitments(root, state)
-    world_model_summary = query_world_model_summary()
+    world_model_summary = summary_fn()
     pending_proposals = scan_pending_proposals(root, state)
     autonomy_level = read_autonomy_level(root)
     action_log_path, action_log_ok = append_action_log(root, timestamp, state)

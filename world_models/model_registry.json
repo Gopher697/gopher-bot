@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "last_updated": "2026-05-22",
+  "providers": {
+    "anthropic": {
+      "last_discovered": "2026-05-22",
+      "known_models": [
+        "claude-haiku-4-5-20251001",
+        "claude-opus-4-6",
+        "claude-sonnet-4-6"
+      ],
+      "unavailable_models": [],
+      "discovery_error": null
+    },
+    "openai": {
+      "last_discovered": null,
+      "known_models": [],
+      "unavailable_models": [],
+      "discovery_error": null
+    },
+    "deepseek": {
+      "last_discovered": null,
+      "known_models": [],
+      "unavailable_models": [],
+      "discovery_error": null
+    },
+    "lm_studio": {
+      "last_discovered": "2026-05-22",
+      "known_models": [
+        "qwen2.5-3b-instruct",
+        "qwen3.5"
+      ],
+      "unavailable_models": [],
+      "discovery_error": null
+    }
+  }
+}

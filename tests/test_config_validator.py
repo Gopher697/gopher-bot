@@ -130,11 +130,46 @@ class TestValidateConfig:
             for i in issues
         )
 
+    def test_missing_neo4j_uri_is_fail(self):
+        issues = validate_config(cfg=_make_fake_config(NEO4J_URI=None))
+        assert any(
+            i.severity == "fail" and "NEO4J_URI" in i.field
+            for i in issues
+        )
+
+    def test_missing_neo4j_user_is_fail(self):
+        issues = validate_config(cfg=_make_fake_config(NEO4J_USER=""))
+        assert any(
+            i.severity == "fail" and "NEO4J_USER" in i.field
+            for i in issues
+        )
+
+    def test_placeholder_neo4j_password_is_fail(self):
+        issues = validate_config(cfg=_make_fake_config(NEO4J_PASSWORD="changeme"))
+        assert any(
+            i.severity == "fail" and "NEO4J_PASSWORD" in i.field
+            for i in issues
+        )
+
     def test_absent_openai_key_generates_no_issue(self):
         """OPENAI_API_KEY is optional — None means not configured, not an error."""
         issues = validate_config(cfg=_make_fake_config(OPENAI_API_KEY=None))
         openai_issues = [i for i in issues if "OPENAI_API_KEY" in i.field]
         assert openai_issues == []
+
+    def test_absent_lm_studio_key_generates_no_issue(self):
+        issues = validate_config(cfg=_make_fake_config(LM_STUDIO_API_KEY=None))
+        lm_studio_issues = [i for i in issues if "LM_STUDIO_API_KEY" in i.field]
+        assert lm_studio_issues == []
+
+    def test_placeholder_lm_studio_key_is_warn(self):
+        issues = validate_config(
+            cfg=_make_fake_config(LM_STUDIO_API_KEY="placeholder")
+        )
+        assert any(
+            i.severity == "warn" and "LM_STUDIO_API_KEY" in i.field
+            for i in issues
+        )
 
     def test_bad_openai_prefix_is_warn(self):
         issues = validate_config(cfg=_make_fake_config(OPENAI_API_KEY="notsk-badkey"))

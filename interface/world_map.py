@@ -1,5 +1,6 @@
 import sys
 import json
+import logging
 import threading
 import time
 from pathlib import Path
@@ -26,6 +27,7 @@ SCALE = 0.25
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 AUDIT_LOG_FILE = ROOT_DIR / "logs" / "audit" / "turns.jsonl"
+logger = logging.getLogger(__name__)
 
 
 class AvatarMarker(QGraphicsObject):
@@ -59,7 +61,13 @@ class WSClientThread(QThread):
                 while self.running:
                     msg = self.ws.recv()
                     if msg:
-                        data = json.loads(msg)
+                        try:
+                            data = json.loads(msg)
+                        except json.JSONDecodeError:
+                            logger.warning(
+                                "world_map: received malformed websocket message, ignoring"
+                            )
+                            return
                         self.persona_update.emit(data)
             except Exception as e:
                 time.sleep(2)  # reconnect delay

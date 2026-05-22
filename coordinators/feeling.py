@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import re
 import time
 
 from coordinators.base import Coordinator
 from coordinators.bid import Bid, BidQueue, PRIORITY_DEFAULT
 
+
+logger = logging.getLogger(__name__)
 
 # ── Constants ────────────────────────────────────────────────────────────────
 DECAY_FACTOR = 0.85
@@ -157,22 +160,25 @@ class Feeling(Coordinator):
         return self.state.observe(text)
 
     async def background_tick(self, bid_queue: BidQueue) -> None:
-        now = self._time_fn()
-        self.state.decay(now)
+        try:
+            now = self._time_fn()
+            self.state.decay(now)
 
-        notable = self.state.above_threshold()
-        if not notable:
-            return
+            notable = self.state.above_threshold()
+            if not notable:
+                return
 
-        top_label, top_score = max(notable, key=lambda t: t[1])
-        bid_queue.submit(
-            Bid(
-                coordinator_name="feeling",
-                priority=PRIORITY_DEFAULT,
-                content=(
-                    f"Affect signal: {top_label} ({top_score:.2f}). "
-                    f"State: {self.state.summary()}."
-                ),
-                timestamp=now,
+            top_label, top_score = max(notable, key=lambda t: t[1])
+            bid_queue.submit(
+                Bid(
+                    coordinator_name="feeling",
+                    priority=PRIORITY_DEFAULT,
+                    content=(
+                        f"Affect signal: {top_label} ({top_score:.2f}). "
+                        f"State: {self.state.summary()}."
+                    ),
+                    timestamp=now,
+                )
             )
-        )
+        except Exception as e:
+            logger.error("feeling background_tick failed: %s", e, exc_info=True)

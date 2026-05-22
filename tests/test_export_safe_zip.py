@@ -65,6 +65,18 @@ class TestDirectoryExclusions:
         excluded, _ = _is_excluded("logs/archivist/research.jsonl")
         assert excluded
 
+    def test_action_logs_excluded(self):
+        excluded, _ = _is_excluded("logs/actions/20260519.md")
+        assert excluded
+
+    def test_build_logs_excluded(self):
+        excluded, _ = _is_excluded("logs/build/20260520.md")
+        assert excluded
+
+    def test_pattern_observations_excluded(self):
+        excluded, _ = _is_excluded("logs/pattern_observations/20260520.md")
+        assert excluded
+
     def test_venv_excluded(self):
         excluded, _ = _is_excluded(".venv/lib/python3.11/site-packages/anthropic/__init__.py")
         assert excluded
@@ -128,11 +140,6 @@ class TestInclusions:
     def test_requirements_included(self):
         excluded, _ = _is_excluded("requirements.txt")
         assert not excluded
-
-    def test_action_logs_included(self):
-        excluded, _ = _is_excluded("logs/actions/20260519.md")
-        assert not excluded
-
 
 # ---------------------------------------------------------------------------
 # Verify exclusions integration check

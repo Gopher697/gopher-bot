@@ -62,10 +62,13 @@ EXCLUDED_DIR_PREFIXES: list[str] = [
     "test_workspaces/",
     "node_modules/",
     "gopher-brain-data/",
-    "logs/dream/",
+    "logs/actions/",
     "logs/archivist/",
-    "logs/wisdom/",
     "logs/audit/",
+    "logs/build/",
+    "logs/dream/",
+    "logs/pattern_observations/",
+    "logs/wisdom/",
 ]
 
 # Glob patterns matched against the filename only (not the full path).

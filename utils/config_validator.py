@@ -157,6 +157,50 @@ def validate_config(cfg: Any = None) -> list[ConfigIssue]:
                 "unexpected format (expected prefix 'sk-') — verify the key is correct"
             ))
 
+    neo4j_uri = getattr(cfg, "NEO4J_URI", None)
+    if not neo4j_uri:
+        issues.append(ConfigIssue(
+            "fail", "NEO4J_URI",
+            "empty — set the Neo4j connection URI in world_models/config.py"
+        ))
+    else:
+        s = str(neo4j_uri)
+        if not s.startswith(("neo4j://", "bolt://", "neo4j+s://", "bolt+s://")):
+            issues.append(ConfigIssue(
+                "warn", "NEO4J_URI",
+                "unexpected format (expected neo4j://, bolt://, neo4j+s://, or bolt+s://)"
+            ))
+
+    neo4j_user = getattr(cfg, "NEO4J_USER", None)
+    if not neo4j_user:
+        issues.append(ConfigIssue(
+            "fail", "NEO4J_USER",
+            "empty — set the Neo4j user in world_models/config.py"
+        ))
+
+    neo4j_password = getattr(cfg, "NEO4J_PASSWORD", None)
+    if not neo4j_password:
+        issues.append(ConfigIssue(
+            "fail", "NEO4J_PASSWORD",
+            "empty — set the Neo4j password in world_models/config.py"
+        ))
+    else:
+        s = str(neo4j_password)
+        if _looks_like_placeholder(s):
+            issues.append(ConfigIssue(
+                "fail", "NEO4J_PASSWORD",
+                "still set to a placeholder — replace with the real Neo4j password"
+            ))
+
+    lm_studio_key = getattr(cfg, "LM_STUDIO_API_KEY", None)
+    if lm_studio_key:
+        s = str(lm_studio_key)
+        if _looks_like_placeholder(s):
+            issues.append(ConfigIssue(
+                "warn", "LM_STUDIO_API_KEY",
+                "still set to a placeholder — clear it or replace with a real key"
+            ))
+
     # Model names
     issues.extend(_check_cloud_models())
 

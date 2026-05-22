@@ -499,7 +499,10 @@ class Dream(Coordinator):
                         last_line = stripped
             if not last_line:
                 return
-            entry = json.loads(last_line)
+            try:
+                entry = json.loads(last_line)
+            except json.JSONDecodeError:
+                return
             chain_head_hash = entry.get("entry_hash", "")
             if not chain_head_hash or len(chain_head_hash) != 64:
                 return

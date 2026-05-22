@@ -8,6 +8,7 @@ from coordinators.bid import BidQueue
 from coordinators.wisdom import (
     WISDOM_RECURRENCE_THRESHOLD,
     Wisdom,
+    WisdomState,
     _append_wisdom_observation_log_entry,
 )
 from tests.helpers import make_workspace
@@ -39,6 +40,8 @@ def _wisdom(
         wisdom_history_reader=lambda days: [],
         observation_log_writer=written.append,
         clock=lambda: NOW,
+        _load_state_fn=WisdomState,
+        _save_state_fn=lambda state: None,
     )
     return wisdom, written
 
@@ -147,6 +150,8 @@ def test_observation_log_written():
             log_dir=log_dir,
         ),
         clock=lambda: NOW,
+        _load_state_fn=WisdomState,
+        _save_state_fn=lambda state: None,
     )
 
     asyncio.run(wisdom.background_tick(BidQueue()))
@@ -185,9 +190,46 @@ def test_wisdom_cadence_respected():
         wisdom_history_reader=lambda days: [],
         observation_log_writer=lambda entry: calls.append(("write", entry)),
         clock=lambda: NOW,
+        _load_state_fn=WisdomState,
+        _save_state_fn=lambda state: None,
     )
     wisdom.state.last_tick = NOW
 
     asyncio.run(wisdom.background_tick(BidQueue()))
 
     assert calls == []
+
+
+def test_wisdom_state_persists_across_restart():
+    saved = {}
+
+    def save_state(state: WisdomState) -> None:
+        saved["last_tick"] = state.last_tick
+
+    first = Wisdom(
+        turn_log_reader=lambda limit: [_turn(0.75)],
+        research_log_reader=lambda limit: [],
+        pattern_log_reader=lambda limit: [],
+        learning_episode_reader=lambda limit: [],
+        wisdom_history_reader=lambda days: [],
+        observation_log_writer=lambda entry: None,
+        clock=lambda: NOW,
+        _load_state_fn=WisdomState,
+        _save_state_fn=save_state,
+    )
+
+    asyncio.run(first.background_tick(BidQueue()))
+
+    second = Wisdom(
+        turn_log_reader=lambda limit: [],
+        research_log_reader=lambda limit: [],
+        pattern_log_reader=lambda limit: [],
+        learning_episode_reader=lambda limit: [],
+        wisdom_history_reader=lambda days: [],
+        observation_log_writer=lambda entry: None,
+        clock=lambda: NOW,
+        _load_state_fn=lambda: WisdomState(last_tick=saved["last_tick"]),
+        _save_state_fn=lambda state: None,
+    )
+
+    assert second.state.last_tick is not None

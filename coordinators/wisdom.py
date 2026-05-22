@@ -26,6 +26,7 @@ WISDOM_RESEARCH_WINDOW = 50
 WISDOM_PATTERN_WINDOW = 20
 WISDOM_RECURRENCE_THRESHOLD = 2   # pattern must appear >= this many times to count
 WISDOM_LOG_DIR = PROJECT_ROOT / "logs" / "wisdom"
+WISDOM_STATE_PATH = PROJECT_ROOT / "world_models" / "wisdom_state.json"
 
 _ARCHIVIST_RESEARCH_LOG_PATH = (
     PROJECT_ROOT / "logs" / "archivist" / "research.jsonl"
@@ -45,6 +46,10 @@ class WisdomState:
     last_tick: datetime | None = None
     last_insight: str = ""
     insight_count: int = 0
+
+
+StateLoader = Callable[[], WisdomState]
+StateSaver = Callable[[WisdomState], None]
 
 
 @dataclass(frozen=True)
@@ -69,6 +74,9 @@ class Wisdom(Coordinator):
         wisdom_history_reader: WisdomHistoryReader | None = None,
         observation_log_writer: ObservationLogWriter | None = None,
         clock: Clock | None = None,
+        state: WisdomState | None = None,
+        _load_state_fn: StateLoader | None = None,
+        _save_state_fn: StateSaver | None = None,
         cadence_seconds: int = WISDOM_CADENCE_SECONDS,
         turn_window: int = WISDOM_TURN_WINDOW,
         research_window: int = WISDOM_RESEARCH_WINDOW,
@@ -91,7 +99,8 @@ class Wisdom(Coordinator):
         self.turn_window = int(turn_window)
         self.research_window = int(research_window)
         self.pattern_window = int(pattern_window)
-        self.state = WisdomState()
+        self._save_state_fn = _save_state_fn or _save_state
+        self.state = state if state is not None else (_load_state_fn or _load_state)()
 
     def process(self, packet: dict) -> dict:
         return packet
@@ -182,6 +191,7 @@ class Wisdom(Coordinator):
         }
         _safe_write(self.observation_log_writer, observation)
         self.state.last_tick = now
+        self._save_state_fn(self.state)
 
 
 def _analyze_history(
@@ -444,6 +454,41 @@ def _read_jsonl_entries(path: Path, limit: int) -> list[dict[str, Any]]:
         if isinstance(item, dict):
             entries.append(item)
     return entries
+
+
+def _load_state() -> WisdomState:
+    try:
+        raw = json.loads(WISDOM_STATE_PATH.read_text(encoding="utf-8"))
+        last_tick_raw = raw.get("last_tick") if isinstance(raw, dict) else None
+        last_tick = (
+            datetime.fromisoformat(str(last_tick_raw))
+            if last_tick_raw
+            else None
+        )
+        return WisdomState(last_tick=last_tick)
+    except Exception:
+        return WisdomState()
+
+
+def _save_state(state: WisdomState) -> None:
+    try:
+        WISDOM_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        WISDOM_STATE_PATH.write_text(
+            json.dumps(
+                {
+                    "last_tick": (
+                        state.last_tick.isoformat()
+                        if state.last_tick is not None
+                        else None
+                    ),
+                },
+                indent=2,
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+    except OSError:
+        return
 
 
 def _append_wisdom_observation_log_entry(

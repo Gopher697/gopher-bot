@@ -412,7 +412,10 @@ class Dream(Coordinator):
         except Exception:
             return 0
 
-    def _audit(self) -> AuditResult:
+    def _audit(
+        self,
+        verify_chain_fn: Callable[[str], tuple[bool, list[Any]]] | None = None,
+    ) -> AuditResult:
         """
         AUDIT phase: verify hash-chain integrity of the Hands audit log,
         then scan the in-memory dream log for prompt injection patterns.
@@ -438,8 +441,9 @@ class Dream(Coordinator):
 
         if audit_path.exists():
             try:
-                from utils.verify_audit_log import verify_chain
-                ok, errors = verify_chain(str(audit_path))
+                if verify_chain_fn is None:
+                    from utils.verify_audit_log import verify_chain as verify_chain_fn
+                ok, errors = verify_chain_fn(str(audit_path))
                 chain_ok = ok
                 chain_error_count = len(errors)
             except Exception:

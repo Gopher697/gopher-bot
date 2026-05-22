@@ -53,31 +53,15 @@ def test_audit_chain_ok_when_log_absent(tmp_path):
     assert result.chain_error_count == 0
 
 
-def test_audit_chain_detected_via_verify_chain(tmp_path, monkeypatch):
+def test_audit_chain_detected_via_verify_chain(tmp_path):
     """_audit() calls verify_chain and surfaces errors correctly."""
     log_path = tmp_path / "audit.jsonl"
     log_path.write_text('{"seq": 1}\n', encoding="utf-8")
 
-    import sys
-    from types import SimpleNamespace
-
-    # Fake verify_audit_log module returning one error.
-    fake_module = SimpleNamespace(
-        verify_chain=lambda path: (False, ["err1"])
-    )
-    original = sys.modules.get("utils.verify_audit_log")
-    sys.modules["utils.verify_audit_log"] = fake_module
-
-    try:
-        dream = Dream(audit_log_path=str(log_path))
-        result = dream._audit()
-        assert result.chain_ok is False
-        assert result.chain_error_count == 1
-    finally:
-        if original is None:
-            sys.modules.pop("utils.verify_audit_log", None)
-        else:
-            sys.modules["utils.verify_audit_log"] = original
+    dream = Dream(audit_log_path=str(log_path))
+    result = dream._audit(verify_chain_fn=lambda path: (False, ["err1"]))
+    assert result.chain_ok is False
+    assert result.chain_error_count == 1
 
 
 # ---------------------------------------------------------------------------

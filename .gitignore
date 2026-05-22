@@ -18,3 +18,16 @@ notes/sessions/*.md
 config/projects.yaml
 config/allowed_commands.yaml
 *.egg-info/
+
+# Godot editor cache and generated files
+avatar/.godot/
+avatar/main.gd.uid
+avatar/*.exe
+avatar/export/
+
+# Runtime logs
+logs/dream/
+logs/archivist/
+
+# Skill binaries
+docs/*.skill

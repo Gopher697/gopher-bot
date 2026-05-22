@@ -386,6 +386,32 @@ def _handle_click_bbox(args: dict[str, Any]) -> str:
     return "Invalid bbox"
 
 
+def _handle_swap_avatar_sprite(args: dict[str, Any]) -> str:
+    """
+    Install an asset file into avatar/assets/current/ and queue it for
+    broadcast to the running Godot avatar app via the AvatarWatcher drop zone.
+
+    args:
+      source_path (str) — absolute or project-relative path to the source image.
+                          Must be .png / .jpg / .jpeg / .webp.
+    """
+    import shutil
+    from pathlib import Path
+    from coordinators.avatar_watcher import INCOMING_DIR, VALID_EXTENSIONS
+
+    raw_path = args.get("source_path") or args.get("path") or ""
+    source = Path(str(raw_path))
+    if not source.is_absolute():
+        source = PROJECT_ROOT / source
+    if not source.exists():
+        return f"swap_avatar_sprite: source not found: {source}"
+    if source.suffix.lower() not in VALID_EXTENSIONS:
+        return f"swap_avatar_sprite: unsupported format {source.suffix!r} (use png/jpg/webp)"
+
+    dest = INCOMING_DIR / source.name
+    shutil.copy2(str(source), str(dest))
+    return f"swap_avatar_sprite: queued {source.name} -> incoming/ (watcher will install + broadcast)"
+
 _WHITELIST_HANDLERS: dict[str, Callable[[dict[str, Any]], Any]] = {
     "read_file": _handle_read_file,
     "list_directory": _handle_list_directory,
@@ -403,6 +429,7 @@ _WHITELIST_HANDLERS: dict[str, Callable[[dict[str, Any]], Any]] = {
     "focus_window": _handle_focus_window,
     "click_element": _handle_click_element,
     "click_bbox": _handle_click_bbox,
+    "swap_avatar_sprite": _handle_swap_avatar_sprite,
 }
 
 

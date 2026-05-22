@@ -60,12 +60,12 @@ TIERS: dict[int, TierConfig] = {
     ),
     TIER_STANDARD: TierConfig(
         base_url=None,
-        sensory_model="claude-3-5-haiku-20241022",
+        sensory_model="claude-haiku-4-5-20251001",
         reason_model="claude-sonnet-4-6",
     ),
     TIER_ENHANCED: TierConfig(
         base_url=None,
-        sensory_model="claude-3-5-haiku-20241022",
+        sensory_model="claude-haiku-4-5-20251001",
         reason_model="claude-opus-4-6",
     ),
 }

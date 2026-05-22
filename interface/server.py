@@ -26,6 +26,7 @@ if str(INTERFACE_DIR) not in sys.path:
 
 from coordinators.base import read_coordinator_log_entries  # noqa: E402
 from coordinators.brain_loop import BrainLoop  # noqa: E402
+from coordinators.avatar_watcher import AvatarWatcher  # noqa: E402
 from interface import bot, stt, tts  # noqa: E402
 from sensors.vision_sensor import VisionSensor  # noqa: E402
 
@@ -541,6 +542,20 @@ def _emit_persona_alert(coordinator: str = "sensory", focus_window: str = "") ->
     _emit_persona_state("alert", coordinator=coordinator, focus_window=focus_window)
 
 
+def _emit_avatar_asset(asset_path: str) -> None:
+    """Broadcast a texture-swap command to all connected Godot avatar clients."""
+    payload = json.dumps({"type": "swap_texture", "path": asset_path})
+    with _avatar_ws_lock:
+        dead_clients = set()
+        for ws in _avatar_ws_clients:
+            try:
+                ws.send(payload)
+            except Exception:
+                dead_clients.add(ws)
+        for ws in dead_clients:
+            _avatar_ws_clients.discard(ws)
+
+
 brain_loop = BrainLoop(
     audit_event_emitter=_emit_audit_update,
     proactive_response_emitter=_emit_proactive_response,
@@ -764,6 +779,13 @@ def handle_message(data):
         response = _process_message(text.strip())
     except Exception:
         app.logger.exception("WebSocket message failed")
+        emit("response", {"text": "Please send a non-empty message."})
+        return
+
+    try:
+        response = _process_message(text.strip())
+    except Exception:
+        app.logger.exception("WebSocket message failed")
         emit("response", {"text": "The message could not be processed."})
         return
 
@@ -777,6 +799,7 @@ if __name__ == "__main__":
     run_startup_script()
     start_brain_loop()
     VisionSensor.start()
+    AvatarWatcher(_emit_avatar_asset).start()
     try:
         socketio.run(
             app,

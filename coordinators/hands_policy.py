@@ -43,6 +43,7 @@ WHITELIST_ACTIONS: frozenset[str] = frozenset(
         "mouse_move",
         "get_window_list",
         "focus_window",
+        "swap_avatar_sprite",   # installs an asset into current/ and broadcasts to Godot
     }
 )
 

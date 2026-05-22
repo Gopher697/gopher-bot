@@ -274,7 +274,7 @@ class Dream(Coordinator):
         self._save_dream_log(result)
         return result
 
-    def _triage(self, driver) -> list[dict]:
+    def _triage(self, driver, graph_module: Any | None = None) -> list[dict]:
         """
         TRIAGE phase: fetch recent observations and return consolidation
         candidates.
@@ -289,8 +289,9 @@ class Dream(Coordinator):
             return []
 
         try:
-            graph = import_module("world_models.graph")
-            recent = graph.get_recent_observations(
+            if graph_module is None:
+                graph_module = import_module("world_models.graph")
+            recent = graph_module.get_recent_observations(
                 driver,
                 environment=self.environment,
                 hours=24.0,
@@ -379,15 +380,17 @@ class Dream(Coordinator):
         from_name: str,
         rel_type: str,
         to_name: str,
+        graph_module: Any | None = None,
     ) -> int:
         """
         Apply Hebbian strengthening to one edge. Returns 1 if successful,
         0 if the edge does not exist or the update fails.
         """
         try:
-            graph = import_module("world_models.graph")
+            if graph_module is None:
+                graph_module = import_module("world_models.graph")
 
-            current = graph.get_edge_synaptic_weights(
+            current = graph_module.get_edge_synaptic_weights(
                 driver, from_name, rel_type, to_name, self.environment
             )
             if current is None:
@@ -395,11 +398,11 @@ class Dream(Coordinator):
 
             new_weight = min(1.0, current["weight"] + HEBBIAN_WEIGHT_DELTA)
             new_variance = max(
-                graph.MIN_CONSOLIDATION_VARIANCE,
+                graph_module.MIN_CONSOLIDATION_VARIANCE,
                 current["consolidation_variance"] * HEBBIAN_VARIANCE_DECAY,
             )
 
-            updated = graph.update_edge_synaptic_weights(
+            updated = graph_module.update_edge_synaptic_weights(
                 driver,
                 from_name=from_name,
                 rel_type=rel_type,

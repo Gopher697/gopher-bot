@@ -167,10 +167,9 @@ def test_triage_returns_empty_when_no_driver():
     assert result == []
 
 
-def test_triage_filters_low_confidence(monkeypatch):
+def test_triage_filters_low_confidence():
     """_triage excludes observations below TRIAGE_MIN_CONFIDENCE."""
     from types import SimpleNamespace
-    from coordinators import dream as dream_module
 
     observations = [
         {"content": "A", "confidence": 0.9, "status": "active"},
@@ -178,40 +177,21 @@ def test_triage_filters_low_confidence(monkeypatch):
         {"content": "C", "confidence": 0.5, "status": "active"},
     ]
 
-    monkeypatch.setattr(
-        dream_module,
-        "graph" if hasattr(dream_module, "graph") else "__builtins__",
-        SimpleNamespace(
-            get_recent_observations=lambda driver, environment, hours: observations
-        ),
-        raising=False,
-    )
-
-    # Patch the import inside _triage instead.
-    import sys
     fake_graph = SimpleNamespace(
         get_recent_observations=lambda driver, environment, hours: observations
     )
-    original = sys.modules.get("world_models.graph")
-    sys.modules["world_models.graph"] = fake_graph
 
-    try:
-        dream = Dream(
-            driver_fn=lambda: object(),
-            sleep_window_fn=lambda: False,
-        )
-        # Use a sentinel driver — _triage won't be None-guarded
-        candidates = dream._triage(object())
-        assert len(candidates) == 2
-        contents = [c["content"] for c in candidates]
-        assert "A" in contents
-        assert "C" in contents
-        assert "B" not in contents
-    finally:
-        if original is None:
-            del sys.modules["world_models.graph"]
-        else:
-            sys.modules["world_models.graph"] = original
+    dream = Dream(
+        driver_fn=lambda: object(),
+        sleep_window_fn=lambda: False,
+    )
+    # Use a sentinel driver — _triage won't be None-guarded
+    candidates = dream._triage(object(), graph_module=fake_graph)
+    assert len(candidates) == 2
+    contents = [c["content"] for c in candidates]
+    assert "A" in contents
+    assert "C" in contents
+    assert "B" not in contents
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +240,6 @@ def test_strengthen_edge_applies_hebbian_update():
     class FakeDriver:
         def session(self, **kwargs): return FakeSession()
 
-    import sys
     from types import SimpleNamespace
 
     fake_graph = SimpleNamespace(
@@ -278,27 +257,19 @@ def test_strengthen_edge_applies_hebbian_update():
         MIN_CONSOLIDATION_VARIANCE=MIN_CONSOLIDATION_VARIANCE,
     )
 
-    original = sys.modules.get("world_models.graph")
-    sys.modules["world_models.graph"] = fake_graph
-
-    try:
-        dream = Dream(environment="global")
-        result = dream._strengthen_edge(FakeDriver(), "Alice", "RELATED_TO", "Bob")
-        assert result == 1
-        assert len(strengthened_calls) == 1
-        call = strengthened_calls[0]
-        assert call["new_weight"] == pytest.approx(0.6 + HEBBIAN_WEIGHT_DELTA)
-        assert call["new_variance"] == pytest.approx(0.5 * HEBBIAN_VARIANCE_DECAY)
-    finally:
-        if original is None:
-            del sys.modules["world_models.graph"]
-        else:
-            sys.modules["world_models.graph"] = original
+    dream = Dream(environment="global")
+    result = dream._strengthen_edge(
+        FakeDriver(), "Alice", "RELATED_TO", "Bob", graph_module=fake_graph
+    )
+    assert result == 1
+    assert len(strengthened_calls) == 1
+    call = strengthened_calls[0]
+    assert call["new_weight"] == pytest.approx(0.6 + HEBBIAN_WEIGHT_DELTA)
+    assert call["new_variance"] == pytest.approx(0.5 * HEBBIAN_VARIANCE_DECAY)
 
 
 def test_strengthen_edge_returns_zero_when_edge_not_found():
     """_strengthen_edge returns 0 when the edge does not exist."""
-    import sys
     from types import SimpleNamespace
 
     fake_graph = SimpleNamespace(
@@ -307,18 +278,11 @@ def test_strengthen_edge_returns_zero_when_edge_not_found():
         MIN_CONSOLIDATION_VARIANCE=0.01,
     )
 
-    original = sys.modules.get("world_models.graph")
-    sys.modules["world_models.graph"] = fake_graph
-
-    try:
-        dream = Dream(environment="global")
-        result = dream._strengthen_edge(object(), "X", "RELATED_TO", "Y")
-        assert result == 0
-    finally:
-        if original is None:
-            del sys.modules["world_models.graph"]
-        else:
-            sys.modules["world_models.graph"] = original
+    dream = Dream(environment="global")
+    result = dream._strengthen_edge(
+        object(), "X", "RELATED_TO", "Y", graph_module=fake_graph
+    )
+    assert result == 0
 
 
 # ---------------------------------------------------------------------------

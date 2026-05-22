@@ -16,7 +16,8 @@ Rules applied in order (first match wins):
   1. Path-based blacklist checks (config.py, .env, credentials)
   2. Action-type blacklist
   3. Action-type greylist
-  4. Default: whitelist
+  4. Action-type whitelist (explicit)
+  5. Default: greylist  <- unknown action types are NEVER silently permitted
 """
 
 from __future__ import annotations
@@ -40,9 +41,7 @@ WHITELIST_ACTIONS: frozenset[str] = frozenset(
         "search_web",       # placeholder — real impl in future
         "append_note",      # append-only to designated notes path
         "screenshot",
-        "mouse_move",
         "get_window_list",
-        "focus_window",
         "swap_avatar_sprite",   # installs an asset into current/ and broadcasts to Godot
     }
 )
@@ -60,6 +59,8 @@ GREYLIST_ACTIONS: frozenset[str] = frozenset(
         "click_bbox",
         "type_text",
         "key_press",
+        "mouse_move",       # moved from whitelist — focus/move before type_text risks wrong-window input
+        "focus_window",     # moved from whitelist — focus before greylist action must itself be approved
     }
 )
 
@@ -138,17 +139,22 @@ def classify_action(action_type: str, args: dict[str, Any]) -> PolicyDecision:
             path=path,
         )
 
-    # Rule 4 — whitelist by default (includes WHITELIST_ACTIONS and unknowns
-    # that didn't match above — unknowns get whitelist because they have no
-    # side-effects by definition; add them to GREYLIST_ACTIONS if they do)
+    # Rule 4 — explicit whitelist
+    if action_type in WHITELIST_ACTIONS:
+        return PolicyDecision(
+            action_type=action_type,
+            policy_class="whitelist",
+            reason=f"action type {action_type!r} is whitelisted",
+            path=path,
+        )
+
+    # Rule 5 — default-deny: unknown action types require Awareness approval.
+    # Unknown does NOT mean harmless — it means unreviewed. Add to WHITELIST_ACTIONS
+    # or GREYLIST_ACTIONS once the action is understood and tested.
     return PolicyDecision(
         action_type=action_type,
-        policy_class="whitelist",
-        reason=(
-            f"action type {action_type!r} is whitelisted"
-            if action_type in WHITELIST_ACTIONS
-            else f"action type {action_type!r} not in taxonomy — defaulting to whitelist"
-        ),
+        policy_class="greylist",
+        reason=f"action type {action_type!r} not in taxonomy — defaulting to greylist (pending review)",
         path=path,
     )
 

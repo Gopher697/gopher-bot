@@ -208,6 +208,23 @@ def check_vision_sensor() -> None:
         check(WARN, "VisionSensor", f"import failed: {e}")
 
 
+def check_config_validity() -> None:
+    try:
+        from utils.config_validator import validate_config
+        issues = validate_config()
+        fails = [i for i in issues if i.severity == "fail"]
+        warns = [i for i in issues if i.severity == "warn"]
+        if not issues:
+            check(PASS, "Config validity", "API keys and model names look correct")
+        else:
+            for issue in fails:
+                check(FAIL, f"Config: {issue.field}", issue.detail)
+            for issue in warns:
+                check(WARN, f"Config: {issue.field}", issue.detail)
+    except Exception as e:
+        check(FAIL, "Config validity", f"validator error: {e}")
+
+
 def check_git_state() -> None:
     try:
         result = subprocess.run(
@@ -263,6 +280,7 @@ def main() -> None:
         check_python_version,
         check_required_modules,
         check_config_loaded,
+        check_config_validity,
         check_secrets_not_tracked,
         check_neo4j_reachable,
         check_web_port,

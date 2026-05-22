@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Callable, Optional
 
 _reflex_handler: Optional[Callable[[str, str], None]] = None

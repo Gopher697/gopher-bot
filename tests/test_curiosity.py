@@ -57,19 +57,19 @@ def test_wandering_gap_is_appended_to_wandering_queue():
     assert list(curiosity.state.wandering_queue) == ["Why does this matter?"]
 
 
-def test_wandering_gap_routes_to_mirror_chad_queue_when_provided():
+def test_wandering_gap_routes_to_mirror_user_queue_when_provided():
     from coordinators.bid import BidQueue
     from coordinators.curiosity import Curiosity
 
-    mirror_chad_queue = queue.Queue()
+    mirror_user_queue = queue.Queue()
     curiosity = Curiosity(gap_detector=lambda: [_gap("Why does this matter?", False)])
 
-    asyncio.run(curiosity.background_tick(BidQueue(), mirror_chad_queue))
+    asyncio.run(curiosity.background_tick(BidQueue(), mirror_user_queue))
 
-    assert mirror_chad_queue.get_nowait() == "Why does this matter?"
+    assert mirror_user_queue.get_nowait() == "Why does this matter?"
 
 
-def test_wandering_gap_is_silently_dropped_when_mirror_chad_queue_is_none():
+def test_wandering_gap_is_silently_dropped_when_mirror_user_queue_is_none():
     from coordinators.bid import BidQueue
     from coordinators.curiosity import Curiosity
 
@@ -161,18 +161,18 @@ def test_wandering_queue_overflow_enforces_maxlen_twenty():
     assert "wandering 24" in curiosity.state.wandering_queue
 
 
-def test_mirror_chad_queue_full_drops_wandering_gap_without_error():
+def test_mirror_user_queue_full_drops_wandering_gap_without_error():
     from coordinators.bid import BidQueue
     from coordinators.curiosity import Curiosity
 
-    mirror_chad_queue = queue.Queue(maxsize=1)
-    mirror_chad_queue.put_nowait("already full")
+    mirror_user_queue = queue.Queue(maxsize=1)
+    mirror_user_queue.put_nowait("already full")
     curiosity = Curiosity(gap_detector=lambda: [_gap("overflow", False)])
 
-    asyncio.run(curiosity.background_tick(BidQueue(), mirror_chad_queue))
+    asyncio.run(curiosity.background_tick(BidQueue(), mirror_user_queue))
 
     assert list(curiosity.state.wandering_queue) == ["overflow"]
-    assert mirror_chad_queue.qsize() == 1
+    assert mirror_user_queue.qsize() == 1
 
 
 # ── Bid content ──────────────────────────────────────────────────────────────
@@ -373,13 +373,13 @@ def test_grounded_and_wandering_gap_route_to_separate_streams():
 
     gaps = [_gap("grounded question", True), _gap("wandering question", False)]
     awareness_queue = BidQueue()
-    mirror_chad_queue = queue.Queue()
+    mirror_user_queue = queue.Queue()
     curiosity = Curiosity(gap_detector=lambda: gaps)
 
-    asyncio.run(curiosity.background_tick(awareness_queue, mirror_chad_queue))
+    asyncio.run(curiosity.background_tick(awareness_queue, mirror_user_queue))
 
     assert awareness_queue.get_pending()[0].content == "grounded question"
-    assert mirror_chad_queue.get_nowait() == "wandering question"
+    assert mirror_user_queue.get_nowait() == "wandering question"
 
 
 # ── BrainLoop integration ────────────────────────────────────────────────────
@@ -394,19 +394,19 @@ def test_brain_loop_default_registry_uses_real_curiosity_at_180s_cadence():
     assert brain_loop.intervals["curiosity"] == 180.0
 
 
-def test_brain_loop_passes_mirror_chad_queue_to_curiosity_when_available():
+def test_brain_loop_passes_mirror_user_queue_to_curiosity_when_available():
     from coordinators.bid import BidQueue
     from coordinators.brain_loop import BrainLoop
     from coordinators.curiosity import Curiosity
 
     current_time = [1000.0]
     awareness_queue = BidQueue()
-    mirror_chad_queue = queue.Queue()
+    mirror_user_queue = queue.Queue()
     curiosity = Curiosity(gap_detector=lambda: [_gap("mirror-bound", False)])
     awareness = SimpleNamespace(
         bid_queue=awareness_queue,
         last_active=current_time[0],
-        mirror_chad_queue=mirror_chad_queue,
+        mirror_user_queue=mirror_user_queue,
     )
     brain_loop = BrainLoop(
         coordinators={"curiosity": curiosity},
@@ -418,4 +418,4 @@ def test_brain_loop_passes_mirror_chad_queue_to_curiosity_when_available():
 
     asyncio.run(brain_loop.tick_once())
 
-    assert mirror_chad_queue.get_nowait() == "mirror-bound"
+    assert mirror_user_queue.get_nowait() == "mirror-bound"

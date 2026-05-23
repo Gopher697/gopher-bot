@@ -15,7 +15,7 @@ from coordinators.base import (
 from coordinators.bid import PRIORITY_PATTERN, BidQueue
 from coordinators.archivist import ARCHIVIST_CADENCE_SECONDS
 from coordinators.keeper import KEEPER_CADENCE_SECONDS
-from coordinators.mirror_chad import INCUBATION_MAXLEN
+from coordinators.mirror_user import INCUBATION_MAXLEN
 from coordinators.wisdom import WISDOM_CADENCE_SECONDS
 
 
@@ -24,7 +24,7 @@ _SENTINEL = object()   # used to distinguish "attr absent" from "attr is None"
 BACKGROUND_INTERVALS = {
     "feeling": 30.0,
     "neuromodulation": 30.0,
-    "mirror_chad": 60.0,
+    "mirror_user": 60.0,
     "mirror_self": 120.0,
     "pattern_monitor": 90.0,
     "curiosity": 180.0,
@@ -39,7 +39,7 @@ PROACTIVE_VOICE_RATE_LIMIT_SECONDS = 60.0
 BACKGROUND_COORDINATORS = (
     "feeling",
     "neuromodulation",
-    "mirror_chad",
+    "mirror_user",
     "mirror_self",
     "pattern_monitor",
     "curiosity",
@@ -69,7 +69,7 @@ class BrainLoop:
         time_fn: Callable[[], float] = time.time,
         sleep_interval: float = 1.0,
         idle_threshold: float = DREAM_IDLE_SECONDS,
-        mirror_chad_queue: Any | None = None,
+        mirror_user_queue: Any | None = None,
         coordinator_log_writer: Callable[[dict[str, Any]], None] | None = None,
         audit_event_emitter: Callable[[dict[str, Any]], None] | None = None,
         proactive_response_emitter: Callable[[str], None] | None = None,
@@ -87,8 +87,8 @@ class BrainLoop:
         self.last_errors: dict[str, str] = {}
         self.awareness: Any | None = None
         self.bid_queue: BidQueue | None = None
-        self._mirror_chad_queue_was_provided = mirror_chad_queue is not None
-        self.mirror_chad_queue = mirror_chad_queue or asyncio.Queue(
+        self._mirror_user_queue_was_provided = mirror_user_queue is not None
+        self.mirror_user_queue = mirror_user_queue or asyncio.Queue(
             maxsize=INCUBATION_MAXLEN
         )
         self.coordinator_log_writer = (
@@ -106,10 +106,10 @@ class BrainLoop:
     def bind_awareness(self, awareness: Any) -> None:
         self.awareness = awareness
         self.bid_queue = awareness.bid_queue
-        if not self._mirror_chad_queue_was_provided:
-            awareness_mirror_queue = getattr(awareness, "mirror_chad_queue", None)
+        if not self._mirror_user_queue_was_provided:
+            awareness_mirror_queue = getattr(awareness, "mirror_user_queue", None)
             if awareness_mirror_queue is not None:
-                self.mirror_chad_queue = awareness_mirror_queue
+                self.mirror_user_queue = awareness_mirror_queue
         awareness_last_active = float(getattr(awareness, "last_active", 0.0) or 0.0)
         if awareness_last_active:
             self.last_active = awareness_last_active
@@ -205,7 +205,7 @@ class BrainLoop:
         error: str | None = None
         try:
             if _accepts_mirror_queue(coordinator):
-                await coordinator.background_tick(self.bid_queue, self.mirror_chad_queue)
+                await coordinator.background_tick(self.bid_queue, self.mirror_user_queue)
             else:
                 await coordinator.background_tick(self.bid_queue)
             self.last_errors.pop(name, None)
@@ -342,7 +342,7 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
     from coordinators.drive import Drive
     from coordinators.feeling import Feeling
     from coordinators.keeper import Keeper
-    from coordinators.mirror_chad import MirrorChad
+    from coordinators.mirror_user import MirrorUser
     from coordinators.mirror_self import MirrorSelf
     from coordinators.neuromodulation import Neuromodulation
     from coordinators.pattern_monitor import PatternMonitor
@@ -351,7 +351,7 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
     return {
         "feeling": Feeling(),
         "neuromodulation": Neuromodulation(),
-        "mirror_chad": MirrorChad(),
+        "mirror_user": MirrorUser(),
         "mirror_self": MirrorSelf(),
         "pattern_monitor": PatternMonitor(),
         "curiosity": Curiosity(),
@@ -367,7 +367,7 @@ def _default_background_coordinators() -> dict[str, Coordinator]:
             not in {
                 "feeling",
                 "neuromodulation",
-                "mirror_chad",
+                "mirror_user",
                 "mirror_self",
                 "pattern_monitor",
                 "curiosity",

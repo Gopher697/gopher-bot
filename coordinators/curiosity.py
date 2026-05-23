@@ -64,7 +64,7 @@ class Curiosity(Coordinator):
     async def background_tick(
         self,
         awareness_queue,
-        mirror_chad_queue=None,
+        mirror_user_queue=None,
     ) -> None:
         gaps = self.gap_detector()
         self.state.gap_count += len(gaps)
@@ -81,8 +81,8 @@ class Curiosity(Coordinator):
                 continue
 
             self.state.wandering_queue.append(question)
-            if mirror_chad_queue is not None:
-                _put_nonblocking(mirror_chad_queue, question)
+            if mirror_user_queue is not None:
+                _put_nonblocking(mirror_user_queue, question)
 
     def process(self, packet: dict) -> dict:
         for key in ("message", "reason_output", "memory_result"):

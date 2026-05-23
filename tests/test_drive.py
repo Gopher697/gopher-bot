@@ -568,7 +568,7 @@ def test_brain_loop_calls_drive_with_standard_signature_after_refactor():
     awareness = SimpleNamespace(
         bid_queue=queue,
         last_active=current_time[0],
-        mirror_chad_queue=object(),
+        mirror_user_queue=object(),
     )
     brain_loop = BrainLoop(
         coordinators={"drive": drive},

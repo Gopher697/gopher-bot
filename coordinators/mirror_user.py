@@ -12,8 +12,8 @@ from datetime import UTC, datetime
 from coordinators.base import Coordinator
 
 
-MIRROR_CHAD_PRIORITY = 2
-MIRROR_CHAD_CADENCE_SECONDS = 60
+MIRROR_USER_PRIORITY = 2
+MIRROR_USER_CADENCE_SECONDS = 60
 INCUBATION_MAXLEN = 20
 
 AFFECT_NEUTRAL = "neutral"
@@ -83,7 +83,7 @@ _CURIOSITY_PATTERN = re.compile(
 
 
 @dataclass
-class ChadState:
+class UserState:
     affect: str = AFFECT_NEUTRAL
     interaction_count: int = 0
     frustration_run: int = 0
@@ -95,24 +95,24 @@ class ChadState:
 
 
 @dataclass(frozen=True)
-class MirrorChadBid:
+class MirrorUserBid:
     coordinator_name: str
     content: str
     timestamp: float
-    priority: int = MIRROR_CHAD_PRIORITY
-    source: str = "mirror_chad"
+    priority: int = MIRROR_USER_PRIORITY
+    source: str = "mirror_user"
     type: str = "state_signal"
 
 
 Clock = Callable[[], datetime]
 
 
-class MirrorChad(Coordinator):
-    name = "mirror_chad"
+class MirrorUser(Coordinator):
+    name = "mirror_user"
 
     def __init__(self, clock: Clock | None = None) -> None:
         self.clock = clock or (lambda: datetime.now(UTC))
-        self.state = ChadState()
+        self.state = UserState()
 
     def observe(self, text: str) -> str:
         affect = _detect_affect(text)
@@ -131,36 +131,36 @@ class MirrorChad(Coordinator):
     async def background_tick(
         self,
         awareness_queue,
-        mirror_chad_queue=None,
+        mirror_user_queue=None,
     ) -> None:
-        self._drain_incubation_queue(mirror_chad_queue)
+        self._drain_incubation_queue(mirror_user_queue)
         observation = _build_observation(self.state)
         if not observation:
             return
         if observation == self.state.last_bid_content:
             return
 
-        _submit_mirror_chad_bid(awareness_queue, observation)
+        _submit_mirror_user_bid(awareness_queue, observation)
         self.state.last_bid_content = observation
 
     def process(self, packet: dict) -> dict:
         text = _first_text(packet)
         if text:
             self.observe(text)
-        packet["mirror_chad_affect"] = self.state.affect
+        packet["mirror_user_affect"] = self.state.affect
         return packet
 
-    def _drain_incubation_queue(self, mirror_chad_queue) -> None:
-        if mirror_chad_queue is None:
+    def _drain_incubation_queue(self, mirror_user_queue) -> None:
+        if mirror_user_queue is None:
             return
 
         while True:
             try:
-                item = mirror_chad_queue.get_nowait()
+                item = mirror_user_queue.get_nowait()
             except (asyncio.QueueEmpty, queue.Empty):
                 return
             self.incubate(str(item))
-            task_done = getattr(mirror_chad_queue, "task_done", None)
+            task_done = getattr(mirror_user_queue, "task_done", None)
             if callable(task_done):
                 try:
                     task_done()
@@ -180,7 +180,7 @@ def _detect_affect(text: str) -> str:
     return AFFECT_FOCUSED
 
 
-def _build_observation(state: ChadState) -> str | None:
+def _build_observation(state: UserState) -> str | None:
     if state.frustration_run >= 3:
         return (
             "Frustration pattern detected — "
@@ -194,15 +194,15 @@ def _build_observation(state: ChadState) -> str | None:
         )
     if state.affect == AFFECT_DRIFTING:
         return (
-            "Drift signal detected — Chad may have lost the thread. "
+            "Drift signal detected — user may have lost the thread. "
             "Consider reorienting."
         )
     return None
 
 
-def _submit_mirror_chad_bid(awareness_queue, observation: str) -> None:
-    bid = MirrorChadBid(
-        coordinator_name="mirror_chad",
+def _submit_mirror_user_bid(awareness_queue, observation: str) -> None:
+    bid = MirrorUserBid(
+        coordinator_name="mirror_user",
         content=observation,
         timestamp=time.time(),
     )

@@ -52,7 +52,7 @@ Drive → assess_tier → Sensory → Memory → [bid drain]
 |---|---|---|
 | **Feeling** | 30s | Affective state — valence/arousal tracking |
 | **Neuromodulation** | 60s | DA/NE/5HT/ACh channel modulation |
-| **Mirror-Chad** | 120s | External self-model — what others likely see |
+| **Mirror-User** | 120s | External self-model — what others likely see |
 | **Mirror-Self** | 60s | Internal self-model updates |
 | **Pattern Monitor** | 90s | Anomaly and pattern detection |
 | **Curiosity** | 180s | Knowledge gap detection; generates grounded questions |

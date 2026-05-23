@@ -112,7 +112,7 @@ The Critic Router evaluates two signals:
 - **Surprise**: how much does this contradict or extend existing graph beliefs?
 - **Utility**: how useful is this for future decision-making?
 
-**For Gopher-bot:** This is exactly what Neuromodulation (Task 28) needs. The SystemState graph node should track a `dopamine` field (current RPE signal strength). Awareness can query SystemState.dopamine before routing — high dopamine → all background coordinators wake for a tick, low dopamine → only Feeling and Mirror-Chad tick (resource conservation). The D-MEM Critic Router logic (Surprise + Utility) becomes the core of Neuromodulation's `assess_salience()` method.
+**For Gopher-bot:** This is exactly what Neuromodulation (Task 28) needs. The SystemState graph node should track a `dopamine` field (current RPE signal strength). Awareness can query SystemState.dopamine before routing — high dopamine → all background coordinators wake for a tick, low dopamine → only Feeling and Mirror-User tick (resource conservation). The D-MEM Critic Router logic (Surprise + Utility) becomes the core of Neuromodulation's `assess_salience()` method.
 
 **New task generated:** Task 45 — D-MEM Critic Router in Neuromodulation (implement RPE = Surprise + Utility scoring in Neuromodulation coordinator; SystemState.dopamine drives tick frequency)
 
@@ -140,7 +140,7 @@ The paper (soul.py) demonstrates that AI systems lose coherent identity when rel
 - Add `SOUL.md` to the repo as Gopher-bot's stable identity anchor (values, not personality)
 - Mirror-Self maintains a `self_probe_responses.json` baseline and runs drift checks via Hamming distance every 50 sessions
 - SALIENCE.md equivalent: a dynamic "what Gopher-bot finds salient right now" node in the graph (Pattern Monitor feeds this)
-- RELATIONS.md equivalent: already partially covered by Mirror-Chad's user model; needs formal relation nodes in the graph
+- RELATIONS.md equivalent: already partially covered by Mirror-User's user model; needs formal relation nodes in the graph
 - Hybrid retrieval routing: Memory coordinator should split queries — short focused queries → vector, long relational queries → full graph traversal
 
 **New tasks generated:** 

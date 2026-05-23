@@ -8,7 +8,7 @@ Mirror-Self must become the generative model — the component that holds world-
 expectations, measures prediction error, and surfaces when its model is consistently wrong.
 
 Key insight: predictions originate from the AI's own self-model (Mirror-Self), not from
-the user model (Mirror-Chad). Mirror-Chad contributes data; Mirror-Self generates the
+the user model (Mirror-User). Mirror-User contributes data; Mirror-Self generates the
 prediction.
 
 Two things to build:

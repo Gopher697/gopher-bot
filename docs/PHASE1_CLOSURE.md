@@ -1,7 +1,7 @@
 # Phase 1 Closure — Gopher-bot
 
 **Closed:** 2026-05-23
-**Authority:** Chad Crouse (Gopher)
+**Authority:** Gopher (Gopher)
 **Status:** All Phase 1 implementation committed. Working tree clean. This document is the formal record of what Phase 1 delivered, what it did not, and what carries forward.
 
 ---
@@ -135,4 +135,4 @@ Phase 2 may begin. The following are the relevant entry conditions inherited fro
 
 ---
 
-*This document was authored by Claude (Sonnet 4.6) under direction of Chad Crouse and is the permanent Phase 1 closure record.*
+*This document was authored by Claude (Sonnet 4.6) under direction of Gopher and is the permanent Phase 1 closure record.*

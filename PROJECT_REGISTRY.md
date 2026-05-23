@@ -21,7 +21,7 @@
 - Actual first file to read: `AGENT_CHARTER.md` (constitutional law, read first for any coordinator startup per Article IX); then `AGENT_COMMITMENTS.md` (active obligations); then `README.md` for operational setup context; then `PROJECT.md` for project summary.
 - Current authority status: Registered Workbench server project; `config\projects.yaml` defines project boundary; `sops\` defines Workbench-wide SOP authority; `AGENT_CHARTER.md` governs all coordinators and overrides subordinate rules.
 - Governance layer (ratified 2026-05-18):
-  - `AGENT_CHARTER.md` — constitutional law; Ratified v0.6; authority: Chad Crouse (Gopher)
+  - `AGENT_CHARTER.md` — constitutional law; Ratified v0.6; authority: Gopher (Gopher)
   - `AGENT_COMMITMENTS.md` — standing goals and active obligations (commitment shape per charter Article VI)
   - `COORDINATOR_REGISTRY.md` — named coordinator roles, backing agents, behavioral constraints (operational planning doc, not ratified doctrine)
   - `proposals/pending/` — proposals awaiting human decision

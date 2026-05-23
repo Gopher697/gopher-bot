@@ -463,7 +463,7 @@ Phase 1 is essentially complete and committed:
 - `interface/stt.py` / `tts.py` — Speech-to-text and text-to-speech modules
 - `interface/static/index.html` — Dark-theme web frontend (CSS variables, Inter font, responsive)
 
-C-004 completion criteria is close. What remains: Pattern Monitor coordinator submitting bids, audit panel showing live coordinator activity, first proactive Voice output from BrainLoop without Chad prompt.
+C-004 completion criteria is close. What remains: Pattern Monitor coordinator submitting bids, audit panel showing live coordinator activity, first proactive Voice output from BrainLoop without Gopher prompt.
 
 ---
 
@@ -473,7 +473,7 @@ C-004 completion criteria is close. What remains: Pattern Monitor coordinator su
 Chat + voice endpoints. BrainLoop daemon. Static frontend. Gopher-bot as a web app you open.
 
 **Phase 2 — Tauri ambient desktop presence**
-Wrap the Flask/SocketIO backend in a Tauri (Rust + webview) desktop app. Key unlock: Sensory gains passive OS-level context — active app, open files, window focus changes — without Chad typing anything. The brain becomes ambient; it runs whether the UI is open or not.
+Wrap the Flask/SocketIO backend in a Tauri (Rust + webview) desktop app. Key unlock: Sensory gains passive OS-level context — active app, open files, window focus changes — without Gopher typing anything. The brain becomes ambient; it runs whether the UI is open or not.
 
 Design constraint for Task 29 (Hands): Hands must be designed with Phase 2 in mind from day one. System-level access patterns (file paths, subprocess scope, network endpoints) should be declared and policy-gated at the Tauri layer, not bolted on after. The fault-tolerant sandboxing pattern (policy interception + transactional snapshots from 2512.12806) maps directly onto Tauri's IPC invoke layer.
 

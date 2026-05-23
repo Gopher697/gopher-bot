@@ -1,6 +1,6 @@
 # Gopher-bot Development Charter
 
-**Authority:** Chad Crouse (Gopher)
+**Authority:** Gopher (Gopher)
 **Last updated:** 2026-05-22
 **Purpose:** Persistent rules for any AI session working on this codebase.
 Load this file at the start of every session. These rules are not suggestions.

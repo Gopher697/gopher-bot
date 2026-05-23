@@ -1,7 +1,7 @@
 # Proposals
 
 **Governed by:** Persistent Agent Charter (`AGENT_CHARTER.md`) Article VI
-**Authority:** Chad Crouse (Gopher)
+**Authority:** Gopher (Gopher)
 
 This directory is the promotion mechanism — the controlled path by which working-scratch
 knowledge earns permanence in the system's durable layers (world models, commitments,

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Gopher-bot</title>
+  <title>{{ bot_name }}</title>
   <style>
     :root {
       color-scheme: dark;
@@ -175,14 +175,14 @@
 <body>
   <main>
     <header>
-      <h1>Gopher-bot</h1>
+      <h1>{{ bot_name }}</h1>
       <div id="status">Ready</div>
     </header>
 
     <section id="history" aria-live="polite" aria-label="Conversation history"></section>
 
     <form id="chat-form">
-      <input id="message" name="message" type="text" autocomplete="off" placeholder="Message Gopher-bot" aria-label="Message">
+      <input id="message" name="message" type="text" autocomplete="off" placeholder="Message {{ bot_name }}" aria-label="Message">
       <button id="send" type="submit">Send</button>
       <button id="mic" type="button">Mic</button>
     </form>

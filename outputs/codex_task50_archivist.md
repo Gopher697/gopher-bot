@@ -320,7 +320,7 @@ BACKGROUND_INTERVALS = {
 
 ```python
 BACKGROUND_COORDINATORS = (
-    "feeling", "neuromodulation", "mirror_chad", "mirror_self",
+    "feeling", "neuromodulation", "mirror_user", "mirror_self",
     "pattern_monitor", "curiosity", "drive", "dream", "keeper",
     "archivist",   # <-- add
 )

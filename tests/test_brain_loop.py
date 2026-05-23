@@ -535,6 +535,22 @@ def test_chat_interface_listens_for_proactive_responses():
     assert "/proactive-messages" in html
 
 
+def test_chat_interface_uses_configured_bot_name(monkeypatch):
+    from interface import server
+
+    monkeypatch.setattr(server, "BOT_NAME", "TestBot", raising=False)
+    client = server.app.test_client()
+
+    response = client.get("/")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "<title>TestBot</title>" in html
+    assert "<h1>TestBot</h1>" in html
+    assert 'placeholder="Message TestBot"' in html
+    assert "Gopher-bot" not in html
+
+
 def test_proactive_messages_endpoint_returns_unread_messages(monkeypatch):
     from interface import server
 

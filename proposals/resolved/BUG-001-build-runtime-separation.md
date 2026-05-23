@@ -16,7 +16,7 @@
 | `destination_path` | D:\gopher-workbench-mcp\AGENT_CHARTER.md — Article VII rewrite + Article VIII update |
 | `human_decision` | approved |
 | `decision_timestamp` | 2026-05-19T00:00:00Z |
-| `decided_by` | Gopher (Chad Crouse) |
+| `decided_by` | Gopher (Gopher) |
 | `decision_source` | Cowork session — current session ratification |
 | `decision_statement` | "No, i would like to fix this now. That session was already poisoned with rules that should apply to the brain, not to me. Even now, you are talking about amendments when I am the one asking for this fix. So, I am ratifying it... Gopher-bot is a distinct AI, not a background personality chatbots can pick up." |
 | `notes` | Ratified immediately in the session it was proposed. Charter v0.7 implements the fix: session_role declaration (build vs runtime) required before any action; runtime marker written to SystemState graph node by BrainLoop on launch; separate log paths (logs/build/ vs logs/actions/); build sessions explicitly denied runtime coordinator authority even after completing Article IX startup. Severity was originally filed as Medium but elevated by Gopher — the identity boundary between the build tool and the persistent AI is architecturally fundamental, not a moderate operational concern. |

@@ -3,7 +3,7 @@
 **Status:** Ratified v0.7
 **Version:** 0.7
 **Ratified:** 2026-05-19
-**Authority:** Chad Crouse (Gopher) — sole ratification authority at this stage
+**Authority:** Gopher (Gopher) — sole ratification authority at this stage
 
 ---
 
@@ -426,5 +426,5 @@ charter wins. When two subordinate systems conflict, Article IV applies.
 | 2026-05-18 | 0.3 | Split action tiers (forbidden/approval/allowed); defined working scratch concretely; fixed authority hierarchy order; limited session-instruction authority; added coordinator/subagent distinction; added audit logging; added ratification procedure; renamed from DAO_CONSTITUTION.md | Not ratified |
 | 2026-05-18 | 0.4 | Fixed Tier 1 protected-file clause; sensitive-file Tier 3 exception; allowed-commands argument restriction; WORKBENCH_ROOT variable; removed DAO bot naming; coordinator status conditional on startup; named coordinator table; proposal approval evidence fields | Not ratified |
 | 2026-05-18 | 0.5 | Moved coordinator roster to COORDINATOR_REGISTRY.md; replaced organ/tool with agent/tool in schemas; replaced ratified_at with decision_timestamp; updated Article X | Not ratified |
-| 2026-05-18 | 0.6 | Removed coordinator names from Article X (now references registry only); narrowed Tier 3 screenshot permission to exclude private/restricted visible content | Chad Crouse (Gopher) |
-| 2026-05-19 | 0.7 | BUG-001: Added `session_role` declaration requirement (build vs runtime); Article VII rewritten to deny runtime coordinator authority to build sessions; separate log paths (logs/build/ vs logs/actions/); runtime marker written to SystemState graph node by BrainLoop on launch; Article VIII updated with session_role field; Article X updated to web interface; Discord coordinator row replaced | Chad Crouse (Gopher) |
+| 2026-05-18 | 0.6 | Removed coordinator names from Article X (now references registry only); narrowed Tier 3 screenshot permission to exclude private/restricted visible content | Gopher (Gopher) |
+| 2026-05-19 | 0.7 | BUG-001: Added `session_role` declaration requirement (build vs runtime); Article VII rewritten to deny runtime coordinator authority to build sessions; separate log paths (logs/build/ vs logs/actions/); runtime marker written to SystemState graph node by BrainLoop on launch; Article VIII updated with session_role field; Article X updated to web interface; Discord coordinator row replaced | Gopher (Gopher) |

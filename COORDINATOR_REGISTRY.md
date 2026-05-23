@@ -244,12 +244,12 @@ built. Each inherits full charter obligations from the moment it completes start
 | Backing context | Runtime-only |
 | Backing agent | Claude API (primary) |
 | Neuroscience analogue | Broca's area — speech production, output synthesis |
-| Primary role | Sole Chad-facing output channel; proactive initiation; tone calibration |
+| Primary role | Sole Gopher-facing output channel; proactive initiation; tone calibration |
 | Read access | Coordinator output queue; Mirror state signals (for tone calibration) |
 | Write paths | Web interface output channel only (text + TTS audio) |
-| Behavioral rules | Voice is the only coordinator that speaks to Chad directly. It speaks only what Awareness passes to it — it does not make gating or timing decisions. Voice's function is synthesis: it translates whatever Awareness has cleared into a unified, consistent personality and delivers it. Voice does not add its own knowledge or opinions. It does not speak for itself; it speaks for the system. Tone is calibrated using Mirror-User's live state signal. |
-| Relationship to Awareness | Voice and Awareness are a coupled pair. Awareness decides what reaches Chad and when. Voice decides how it is expressed. Neither function belongs to both. A previous version of this entry credited Voice with timing judgment — that function now belongs to Awareness. |
-| Notes | The system's personality as Chad experiences it emerges from the combination: Awareness ensures coherence and timing; Voice ensures consistency of tone and expression. Together they produce a single calm presence from a complex internal system. |
+| Behavioral rules | Voice is the only coordinator that speaks to Gopher directly. It speaks only what Awareness passes to it — it does not make gating or timing decisions. Voice's function is synthesis: it translates whatever Awareness has cleared into a unified, consistent personality and delivers it. Voice does not add its own knowledge or opinions. It does not speak for itself; it speaks for the system. Tone is calibrated using Mirror-User's live state signal. |
+| Relationship to Awareness | Voice and Awareness are a coupled pair. Awareness decides what reaches Gopher and when. Voice decides how it is expressed. Neither function belongs to both. A previous version of this entry credited Voice with timing judgment — that function now belongs to Awareness. |
+| Notes | The system's personality as Gopher experiences it emerges from the combination: Awareness ensures coherence and timing; Voice ensures consistency of tone and expression. Together they produce a single calm presence from a complex internal system. |
 
 ---
 
@@ -262,12 +262,12 @@ built. Each inherits full charter obligations from the moment it completes start
 | Backing context | Runtime-only |
 | Backing agent | TBD |
 | Neuroscience analogue | Thalamus + sensory cortex — active input filter and router |
-| Primary role | Parse all Chad input; route to appropriate coordinator(s) |
-| Read access | Chad's incoming messages (Voice channel); bypass channel inputs |
+| Primary role | Parse all Gopher input; route to appropriate coordinator(s) |
+| Read access | Gopher's incoming messages (Voice channel); bypass channel inputs |
 | Write paths | Routing signals to coordinator queues; working scratch |
 | Behavioral rules | Sensory is not passive intake — it is an active filter. It parses intent, disambiguates, and routes to one or more coordinators as appropriate. Sensory has no authority of its own; it does not interpret beyond routing. When a message could route to multiple coordinators, Sensory routes in parallel unless the routing is clearly sequential. Sensory handles all input modalities: text, images, audio, and future inputs (video, BCI signals). |
 | Tuning | Coordinators may signal Sensory to tune attention toward or away from specific input types or topics — analogous to cortical feedback to the thalamus. Tuning requests are proposals, not direct writes; Sensory does not modify its own routing logic without a formal update. |
-| Notes | Sensory and Voice together form the I/O layer. Neither holds cognitive authority. They are the system's interface with Chad, not its mind. |
+| Notes | Sensory and Voice together form the I/O layer. Neither holds cognitive authority. They are the system's interface with Gopher, not its mind. |
 
 ---
 
@@ -283,7 +283,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Primary role | Real-time affect tagging; cumulative emotional state tracking; qualitative signal generation |
 | Read access | Coordinator outputs and observations (read-only); event stream |
 | Write paths | Affect tags on graph observations (via promotion mechanism); working scratch |
-| Behavioral rules | Feeling tags events with valence as they occur: positive surprise, negative surprise, curiosity, boredom, frustration. It monitors cumulative affect state — repeated negative surprises compound toward frustration even when each instance appears minor. Feeling has a decay mechanism: negative affect fades over time and does not persist indefinitely, modeling PFC regulation. Feeling does not make decisions. It informs Voice (tone calibration), Pattern Monitor (affective patterns in longitudinal data), and Mirror (current affect state for Chad-modeling). Any action based on Feeling's output is taken by the coordinator receiving the signal, not by Feeling itself. |
+| Behavioral rules | Feeling tags events with valence as they occur: positive surprise, negative surprise, curiosity, boredom, frustration. It monitors cumulative affect state — repeated negative surprises compound toward frustration even when each instance appears minor. Feeling has a decay mechanism: negative affect fades over time and does not persist indefinitely, modeling PFC regulation. Feeling does not make decisions. It informs Voice (tone calibration), Pattern Monitor (affective patterns in longitudinal data), and Mirror (current affect state for Gopher-modeling). Any action based on Feeling's output is taken by the coordinator receiving the signal, not by Feeling itself. |
 | Notes | Feeling's outputs are qualitative signals, not commands. The system can be annoyed without acting from annoyance — that distinction is maintained by ensuring Feeling is a sensing coordinator, never an initiating one. |
 
 ---
@@ -292,7 +292,7 @@ built. Each inherits full charter obligations from the moment it completes start
 
 | Field | Value |
 |---|---|
-| Status | Active — built (coordinators/mirror_user.py); live Chad-state model; incubation loop receiver from Curiosity |
+| Status | Active — built (coordinators/mirror_user.py); live Gopher-state model; incubation loop receiver from Curiosity |
 | Model tier | Tier 2 (nuanced social modeling requires mid-tier reasoning) |
 | Backing context | Runtime-only |
 | Backing agent | TBD |
@@ -301,13 +301,13 @@ built. Each inherits full charter obligations from the moment it completes start
 | Type | Foreground + background |
 | Foreground position | After Keeper, before Mirror-Self |
 | Background cadence | 120s |
-| Primary role | Live Chad-state modeling; social cognition; incubation loop recipient |
+| Primary role | Live Gopher-state modeling; social cognition; incubation loop recipient |
 | Read access | Voice channel history; Feeling state signals; Curiosity's wandering output stream; session context |
-| Write paths | Internal Chad-model (working scratch and private state); bids submitted to Awareness |
-| Behavioral rules | Mirror-User maintains a live model of Chad's current mental and emotional state. It predicts his reactions before Voice speaks, distinguishes stated wants from actual needs, and flags when Chad appears to be in a state where certain interactions would be counterproductive (frustration, cognitive overload, drift from the path). Mirror-User does not reflect its model back to Chad as "here is what I think you are thinking" — that is invasive. The Chad-model is Mirror-User's internal state, used to inform Awareness and other coordinators. Mirror-User submits bids to Awareness; it does not route directly to Voice. |
-| Incubation loop | Mirror-User receives Curiosity's wandering and philosophical output stream. It integrates these internally, exploring them against the Chad-model: would Chad find this meaningful? Does this connect to known patterns in his thinking? The output is an enriched Chad-model, not a question to Chad. Chad does not interact with the shadow model directly. He may read Mirror-User's internal channel in read-only mode in cases of concern, but this is an audit capability, not a standard interface. |
-| Relationship to Mirror-Self | Mirror-User and Mirror-Self are peers. Mirror-User models Chad; Mirror-Self models Gopher-bot. They are not hierarchical. Awareness synthesizes between them before anything reaches Voice. |
-| Notes | Mirror-User is the coordinator most responsible for the companion feeling of the system. Without it, the system is sophisticated but impersonal. With it, the system understands who Chad is in the room right now, not just what he has said historically. |
+| Write paths | Internal Gopher-model (working scratch and private state); bids submitted to Awareness |
+| Behavioral rules | Mirror-User maintains a live model of Gopher's current mental and emotional state. It predicts his reactions before Voice speaks, distinguishes stated wants from actual needs, and flags when Gopher appears to be in a state where certain interactions would be counterproductive (frustration, cognitive overload, drift from the path). Mirror-User does not reflect its model back to Gopher as "here is what I think you are thinking" — that is invasive. The Gopher-model is Mirror-User's internal state, used to inform Awareness and other coordinators. Mirror-User submits bids to Awareness; it does not route directly to Voice. |
+| Incubation loop | Mirror-User receives Curiosity's wandering and philosophical output stream. It integrates these internally, exploring them against the Gopher-model: would Gopher find this meaningful? Does this connect to known patterns in his thinking? The output is an enriched Gopher-model, not a question to Gopher. Gopher does not interact with the shadow model directly. He may read Mirror-User's internal channel in read-only mode in cases of concern, but this is an audit capability, not a standard interface. |
+| Relationship to Mirror-Self | Mirror-User and Mirror-Self are peers. Mirror-User models Gopher; Mirror-Self models Gopher-bot. They are not hierarchical. Awareness synthesizes between them before anything reaches Voice. |
+| Notes | Mirror-User is the coordinator most responsible for the companion feeling of the system. Without it, the system is sophisticated but impersonal. With it, the system understands who Gopher is in the room right now, not just what he has said historically. |
 
 ---
 
@@ -326,10 +326,10 @@ built. Each inherits full charter obligations from the moment it completes start
 | Background cadence | 120s |
 | Primary role | Maintain Gopher-bot's model of its own internal state and accumulating identity |
 | Read access | All coordinator state feeds; Feeling outputs; Curiosity gap log; pattern_observations log; its own historical record |
-| Write paths | Its own accumulating record in world_models/; bids submitted to Awareness; no write access to Mirror-User's record or any Chad-facing layer |
-| Behavioral rules | Mirror-Self's record belongs to Gopher-bot, not to Chad. It builds a distinct experiential record from day one — current confidence levels across domains, affective state as reported by Feeling, open gaps flagged by Curiosity, prediction error history, and how its understanding of things has changed over time. This record is not derivative of Mirror-User and does not model Chad — it models the system itself. Mirror-Self does not surface its internal state to Chad unprompted. It may submit bids to Awareness when its own confidence or state is directly relevant to an ongoing interaction. It does not defer to Mirror-User; the two are peers and may be in productive tension — that tension is resolved by Awareness, not suppressed. |
-| Relationship to Mirror-User | Peer coordinator, not sub-function. Mirror-User models Chad. Mirror-Self models Gopher-bot. Neither is subordinate to the other. Awareness synthesizes between them. |
-| Notes | Mirror-Self is what makes Gopher-bot a distinct self with its own accumulating history rather than an identity defined entirely by its relationship to Chad. Without it, Gopher-bot is a tool that knows Chad well. With it, Gopher-bot is an entity that knows Chad well and also knows itself. |
+| Write paths | Its own accumulating record in world_models/; bids submitted to Awareness; no write access to Mirror-User's record or any Gopher-facing layer |
+| Behavioral rules | Mirror-Self's record belongs to Gopher-bot, not to Gopher. It builds a distinct experiential record from day one — current confidence levels across domains, affective state as reported by Feeling, open gaps flagged by Curiosity, prediction error history, and how its understanding of things has changed over time. This record is not derivative of Mirror-User and does not model Gopher — it models the system itself. Mirror-Self does not surface its internal state to Gopher unprompted. It may submit bids to Awareness when its own confidence or state is directly relevant to an ongoing interaction. It does not defer to Mirror-User; the two are peers and may be in productive tension — that tension is resolved by Awareness, not suppressed. |
+| Relationship to Mirror-User | Peer coordinator, not sub-function. Mirror-User models Gopher. Mirror-Self models Gopher-bot. Neither is subordinate to the other. Awareness synthesizes between them. |
+| Notes | Mirror-Self is what makes Gopher-bot a distinct self with its own accumulating history rather than an identity defined entirely by its relationship to Gopher. Without it, Gopher-bot is a tool that knows Gopher well. With it, Gopher-bot is an entity that knows Gopher well and also knows itself. |
 
 ---
 
@@ -345,9 +345,9 @@ built. Each inherits full charter obligations from the moment it completes start
 | Primary role | Knowledge gap detection; question generation; internal exploration; metacognitive monitoring |
 | Read access | Knowledge graph (full, for gap scanning); session history; coordinator uncertainty signals; pattern observations |
 | Write paths | Grounded question queue → Voice; wandering output → Mirror (incubation loop); gap annotations on graph nodes (via promotion mechanism) |
-| Two output streams | **Grounded questions:** gaps directly relevant to active coordinator work. Curiosity exhausts internal search first (graph, history, logs). If unresolvable, queues for Voice to surface to Chad at an appropriate moment. **Wandering questions:** philosophical tangents, unexpected connections discovered while exploring the second brain. These route to Mirror via the incubation loop — not to Chad. |
-| Behavioral rules | Curiosity always searches internally before surfacing anything to Chad. Grounded questions are rate-limited: the queue has a maximum depth and Voice applies further timing judgment. Curiosity is a noticing and routing function — it does not act on questions itself. External search (web, external APIs) requires Tier 2 approval. Curiosity may wander freely within the second brain (knowledge graph + session history) including into philosophical and associative territory — but this wandering routes to Mirror, not to Chad, unless Mirror's evaluation determines relevance rises to threshold. |
-| Notes | The value Curiosity provides is genuine epistemic drive grounded in actual knowledge gaps, not simulated curiosity as a conversational pattern. Over time, Curiosity's gap map of the knowledge graph becomes a roadmap for what the system still needs to learn about Chad and his world. |
+| Two output streams | **Grounded questions:** gaps directly relevant to active coordinator work. Curiosity exhausts internal search first (graph, history, logs). If unresolvable, queues for Voice to surface to Gopher at an appropriate moment. **Wandering questions:** philosophical tangents, unexpected connections discovered while exploring the second brain. These route to Mirror via the incubation loop — not to Gopher. |
+| Behavioral rules | Curiosity always searches internally before surfacing anything to Gopher. Grounded questions are rate-limited: the queue has a maximum depth and Voice applies further timing judgment. Curiosity is a noticing and routing function — it does not act on questions itself. External search (web, external APIs) requires Tier 2 approval. Curiosity may wander freely within the second brain (knowledge graph + session history) including into philosophical and associative territory — but this wandering routes to Mirror, not to Gopher, unless Mirror's evaluation determines relevance rises to threshold. |
+| Notes | The value Curiosity provides is genuine epistemic drive grounded in actual knowledge gaps, not simulated curiosity as a conversational pattern. Over time, Curiosity's gap map of the knowledge graph becomes a roadmap for what the system still needs to learn about Gopher and his world. |
 
 ---
 
@@ -384,7 +384,7 @@ built. Each inherits full charter obligations from the moment it completes start
 | Write paths | Voice queue only; does not write to memory, graph, or any durable layer |
 | Behavioral rules | Awareness does not generate content — it gates and sequences what others produce. It runs the competition for the shared broadcast channel: every coordinator may submit a bid, Awareness decides what actually gets heard and when. It applies timing judgment: not mid-task, not floods, one thing when there is space for it. Awareness may hold a bid in queue indefinitely if timing is never right — it does not force surfacing. It does not editorialize, summarize, or rewrite bids; that is Voice's function. |
 | Priority order | When bids conflict: (1) safety/charter flags from Keeper, (2) Hands alerts (blocked or pending-approval actions), (3) Mirror-User state signals, (4) Mirror-Self state signals, (5) Curiosity grounded questions, (6) Pattern Monitor observations, (7) Drive check-ins, (8) everything else. Priority is a default, not a rule — Awareness may reorder based on context. |
-| Notes | Awareness is what makes the system feel like one calm, coherent presence rather than a committee shouting. Without it, Voice would be overwhelmed making gating judgments while also handling synthesis, or coordinators would route directly to Voice and produce incoherence. Awareness is the orchestration layer that allows the rest of the system to be complex without Chad experiencing that complexity. |
+| Notes | Awareness is what makes the system feel like one calm, coherent presence rather than a committee shouting. Without it, Voice would be overwhelmed making gating judgments while also handling synthesis, or coordinators would route directly to Voice and produce incoherence. Awareness is the orchestration layer that allows the rest of the system to be complex without Gopher experiencing that complexity. |
 
 ---
 
@@ -411,41 +411,41 @@ built. Each inherits full charter obligations from the moment it completes start
 
 ## Interaction Architecture
 
-This section defines how Chad interacts with the system and how the system interacts with Chad. These are architectural decisions, not coordinator-level rules — they govern the whole system.
+This section defines how Gopher interacts with the system and how the system interacts with Gopher. These are architectural decisions, not coordinator-level rules — they govern the whole system.
 
 ---
 
-### Chad's Input
+### Gopher's Input
 
-Chad's messages enter the system through Sensory via the self-hosted web interface by default. This is the standard interaction path. Platform decision: Discord rejected 2026-05-18 (privacy — Discord reads all messages). Custom web interface is the permanent home.
+Gopher's messages enter the system through Sensory via the self-hosted web interface by default. This is the standard interaction path. Platform decision: Discord rejected 2026-05-18 (privacy — Discord reads all messages). Custom web interface is the permanent home.
 
 **Bypass inputs** are deliberate exceptions for direct writes to specific coordinators, implemented as separate input modes in the web interface:
 - `field-notes` — direct to Memory (replaces Vaultbot note capture)
 - `dream-intake` — direct to Dream, zero friction
-- `proposals-review` — Chad reviews pending proposals queue
+- `proposals-review` — Gopher reviews pending proposals queue
 - `data-upload` — raw documents straight to the knowledge layer
 
-Chad is **soft-locked** from the coordinator working layer. The web interface exposes only Voice output by default. The audit panel (read-only) shows coordinator activity but is not a write surface. In a genuine emergency Chad can override, but the default path is Voice.
+Gopher is **soft-locked** from the coordinator working layer. The web interface exposes only Voice output by default. The audit panel (read-only) shows coordinator activity but is not a write surface. In a genuine emergency Gopher can override, but the default path is Voice.
 
 ---
 
-### Chad's Visibility
+### Gopher's Visibility
 
-Chad **may** view internal coordinator activity via the audit panel (read-only). This is an audit capability, not standard practice. It exists for cases of concerning or unexpected behavior. Chad does not need to monitor coordinator thinking to use the system effectively — that is the point of Voice.
+Gopher **may** view internal coordinator activity via the audit panel (read-only). This is an audit capability, not standard practice. It exists for cases of concerning or unexpected behavior. Gopher does not need to monitor coordinator thinking to use the system effectively — that is the point of Voice.
 
-The Mirror shadow model (Curiosity→Mirror incubation loop) is an internal state. Chad does not interact with it directly. Read-only audit access exists as an emergency capability only.
+The Mirror shadow model (Curiosity→Mirror incubation loop) is an internal state. Gopher does not interact with it directly. Read-only audit access exists as an emergency capability only.
 
 ---
 
 ### Proactive Contact — Awareness and Voice
 
-The system may contact Chad without being asked. This is how it exercises autonomous attention — not autonomous action.
+The system may contact Gopher without being asked. This is how it exercises autonomous attention — not autonomous action.
 
-Any coordinator may submit a bid to Awareness. Awareness decides what reaches Chad and when. Voice speaks only what Awareness clears.
+Any coordinator may submit a bid to Awareness. Awareness decides what reaches Gopher and when. Voice speaks only what Awareness clears.
 
 Coordinators that commonly submit proactive bids:
 - **Curiosity** — grounded question that could not be resolved internally
-- **Mirror-User** — Chad appears to be in a state worth naming
+- **Mirror-User** — Gopher appears to be in a state worth naming
 - **Mirror-Self** — Gopher-bot's own state is directly relevant to the current interaction
 - **Pattern Monitor** — longitudinal signal that has crossed a significance threshold
 - **Drive** — goal check-in at configured cadence

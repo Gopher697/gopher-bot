@@ -35,11 +35,11 @@ def main() -> int:
 
         person_id = graph.add_entity(
             driver,
-            name="Chad Crouse",
+            name="Gopher",
             entity_type="person",
             environment=ENVIRONMENT,
         )
-        print(f"Added entity Chad Crouse: {person_id}")
+        print(f"Added entity Gopher: {person_id}")
 
         governed_by = graph.relate(
             driver,
@@ -57,12 +57,12 @@ def main() -> int:
             driver,
             from_name="AGENT_CHARTER.md",
             rel_type="AUTHORED_BY",
-            to_name="Chad Crouse",
+            to_name="Gopher",
             environment=ENVIRONMENT,
         )
         print(
             "Added relationship AGENT_CHARTER.md -[:AUTHORED_BY]-> "
-            f"Chad Crouse: {authored_by}"
+            f"Gopher: {authored_by}"
         )
 
         observation_id = graph.add_observation(

@@ -10,7 +10,7 @@ import threading
 import time
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template_string, request, send_from_directory
+from flask import Flask, jsonify, render_template_string, request
 from flask_socketio import SocketIO, emit
 from flask_sock import Sock
 
@@ -29,6 +29,7 @@ from coordinators.brain_loop import BrainLoop  # noqa: E402
 from coordinators.avatar_watcher import AvatarWatcher  # noqa: E402
 from interface import bot, stt, tts  # noqa: E402
 from sensors.vision_sensor import VisionSensor  # noqa: E402
+from world_models.config_utils import BOT_NAME  # noqa: E402
 
 
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -686,7 +687,8 @@ def _unread_proactive_messages(since: int) -> list[dict[str, object]]:
 
 @app.get("/")
 def index():
-    return send_from_directory(app.static_folder, "index.html")
+    template = (Path(app.static_folder) / "index.html").read_text(encoding="utf-8")
+    return render_template_string(template, bot_name=BOT_NAME)
 
 
 @app.route("/audit")

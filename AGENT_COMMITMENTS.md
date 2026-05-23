@@ -2,7 +2,7 @@
 
 **Governed by:** Persistent Agent Charter (`AGENT_CHARTER.md`) Article VI
 **Last updated:** 2026-05-20 (C-004 closed; C-006 closed — all inner defender criteria met)
-**Authority:** Chad Crouse (Gopher)
+**Authority:** Gopher (Gopher)
 
 All entries must conform to the commitment shape defined in the charter. Entries that
 cannot be expressed in this shape belong in GopherVault notes, not here.
@@ -68,10 +68,10 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 | `owner` | gopher-workbench |
 | `status` | closed |
 | `closed` | 2026-05-20 |
-| `description` | Build the full coordinator architecture on a self-hosted web interface (not Discord — privacy decision made 2026-05-18). Includes: async bid-gating Awareness hub, background brain loop running coordinators on independent cadences, all planned coordinators implemented as async workers, web UI for Chad interaction (voice + text), and audit panel for coordinator activity. Absorbs Vaultbot into Memory when Memory is operational. |
+| `description` | Build the full coordinator architecture on a self-hosted web interface (not Discord — privacy decision made 2026-05-18). Includes: async bid-gating Awareness hub, background brain loop running coordinators on independent cadences, all planned coordinators implemented as async workers, web UI for Gopher interaction (voice + text), and audit panel for coordinator activity. Absorbs Vaultbot into Memory when Memory is operational. |
 | `scope` | global — interface and coordinator execution layer for the whole system |
-| `completion_criteria` | Background brain loop running alongside Flask. At least three background coordinators (Feeling, Pattern Monitor, Curiosity) submitting bids to Awareness independently of Chad input. Voice responding both reactively (to Chad messages) and proactively (from coordinator bids). Audit panel shows live coordinator activity. |
-| `review_trigger` | After first proactive Voice output surfaces from background brain without Chad prompt |
+| `completion_criteria` | Background brain loop running alongside Flask. At least three background coordinators (Feeling, Pattern Monitor, Curiosity) submitting bids to Awareness independently of Gopher input. Voice responding both reactively (to Gopher messages) and proactively (from coordinator bids). Audit panel shows live coordinator activity. |
+| `review_trigger` | After first proactive Voice output surfaces from background brain without Gopher prompt |
 | `blocking_proposals` | none |
 
 ---
@@ -84,7 +84,7 @@ cannot be expressed in this shape belong in GopherVault notes, not here.
 | `created` | 2026-05-19 |
 | `owner` | gopher-workbench |
 | `status` | active |
-| `description` | Build the interface layer in three phases toward a purpose-built AI-native execution environment. Phase 1 (done): Flask + SocketIO web app with voice and text, BrainLoop daemon thread, static frontend. Phase 2: Tauri desktop wrapper giving Gopher-bot OS-level ambient awareness — Sensory receives passive screen/file/app context without explicit Chad input; Hands and Sensory designed for system-level access from day one. Phase 3 (the dream): NixOS-based custom Linux environment where coordinators are first-class system services with MAC enforcement (AppArmor/SELinux), the knowledge graph is the persistence primitive, build/runtime separation is a kernel-level privilege boundary, and the interface is a spatial navigator through the knowledge graph rather than a chat window. |
+| `description` | Build the interface layer in three phases toward a purpose-built AI-native execution environment. Phase 1 (done): Flask + SocketIO web app with voice and text, BrainLoop daemon thread, static frontend. Phase 2: Tauri desktop wrapper giving Gopher-bot OS-level ambient awareness — Sensory receives passive screen/file/app context without explicit Gopher input; Hands and Sensory designed for system-level access from day one. Phase 3 (the dream): NixOS-based custom Linux environment where coordinators are first-class system services with MAC enforcement (AppArmor/SELinux), the knowledge graph is the persistence primitive, build/runtime separation is a kernel-level privilege boundary, and the interface is a spatial navigator through the knowledge graph rather than a chat window. |
 | `scope` | global — interface and execution environment for the whole system |
 | `completion_criteria` | Phase 1: Flask server running with BrainLoop, voice + text endpoints live (done). Phase 2: Tauri app wrapping Flask; Sensory receiving passive OS-level context; Hands built with policy interception designed for system-scope. Phase 3: NixOS distro config committing coordinator services, MAC profiles, and graph-as-persistence layout. |
 | `review_trigger` | When Hands coordinator (Task 29) is being designed — must account for Phase 2 system-level access patterns before implementation. |

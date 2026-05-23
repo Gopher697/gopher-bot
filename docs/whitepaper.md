@@ -1,12 +1,5 @@
 # Gopher-bot: Toward a Governed Neurosymbolic Runtime for Persistent Personal AI
 
-**Draft v0.5**
-**Changes from v0.4:** Phase 1 implementation is now complete. Graph write audit logging (`utils/graph_write_audit.py`) has been committed: all 16 write functions in `world_models/graph.py` now append JSONL entries to `logs/graph_writes/`, with a `ProposalRequiredError` stub reserved for the Phase 2 policy layer. Graph schema versioning (`world_models/schema_version.py`), migration runner (`scripts/run_migrations.py`), and baseline migration (`scripts/migrations/migrate_001_baseline.py`) are also committed. §12.4 is updated to reflect partial resolution. §13.1 reflects completion of audit logging and schema versioning. Appendix B adds the new implemented items. Appendix C adds research question 21.
-Prepared for: Gopher / Chad Crouse
-AI Programs used: Claude Desktop Sonnet 4.6 (director); OpenAI Codex for Desktop GPT-5.5 (coding); Google Antigravity 3.1 Pro (auditing and review); ChatGPT Pro GPT-5.5 (brainstorming, writing); DeepSeek v4 (brainstorming, critic)
-Basis: Claude Cowork design transcript, `gopher-bot` repository snapshot, architectural review feedback, and Phase 1 hardening work, May 2026
-Status: Technical whitepaper / architectural research draft; not a peer-reviewed paper. Implementation status is reported as a project snapshot, not as a live development log. The personal origin story is retained intentionally because it explains the system's motivating use case: joining physical work, mobile capture, game-agent experimentation, and local AI architecture into one persistent substrate.
-
 ---
 
 ## Abstract
@@ -855,3 +848,14 @@ Gopher-bot is therefore not yet an autonomous digital organism. It is a credible
 19. How should evaluation results be represented in a model-switch proposal so that a non-technical user can make an informed ratification decision?
 20. At what point in the trust and audit record is it appropriate to allow the system to propose acquiring credentials for a new provider autonomously?
 21. Should internal coordinator-to-coordinator communication use a representation format other than natural language? LLM reasoning quality is highest in the language of its primary training data, but structured internal formats—typed schemas, symbolic assertions, or constrained output grammars—may reduce ambiguity, improve parsability by downstream coordinators, and surface the "language of thought" question in concrete engineering terms. What would a minimal experiment look like to test whether tighter output schemas from Reason produce measurably better downstream behavior in Memory, Ethos, or Mirror-Self?
+
+---
+
+## Version History
+
+**v0.5 (May 2026)**
+Prepared for: Gopher
+AI assistance: Claude Sonnet 4.6 (direction); Codex GPT-5.5 (implementation); ChatGPT GPT-5.5 (writing, brainstorming); DeepSeek v4 (critic review)
+Basis: Repository snapshot and design transcripts, May 2026
+Status: Technical whitepaper / architectural research draft; not a peer-reviewed paper.
+Changes: Phase 1 implementation complete. Graph write audit logging, schema versioning, migration runner, and baseline migration committed. §12.4, §13.1, Appendix B, and Appendix C updated.

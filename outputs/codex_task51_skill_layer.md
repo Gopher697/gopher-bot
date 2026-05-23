@@ -48,7 +48,7 @@ VALID_SKILL_DOMAINS = {
     "reasoning",          # multi-step reasoning quality (Reason)
     "interaction",        # conversation shaping (Voice)
     "pattern_detection",  # anomaly and pattern identification (Pattern Monitor)
-    "introspection",      # self-state accuracy (Mirror-Self, Mirror-Chad)
+    "introspection",      # self-state accuracy (Mirror-Self, Mirror-User)
     "research",           # gap detection and knowledge synthesis (Curiosity, Archivist)
     "tool_use",           # Hands action success rate
 }

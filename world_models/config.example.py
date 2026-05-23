@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+# The name this bot identifies itself as at runtime.
+# Change this to personalise your instance.
+BOT_NAME = "gopher-bot"
+# Rename to config.py and fill in all values before running.
+
 NEO4J_URI = "neo4j://127.0.0.1:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASSWORD = "your-neo4j-password-here"

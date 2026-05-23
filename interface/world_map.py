@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 import win32gui
 import pywinauto
 import websocket
+from world_models.config_utils import BOT_NAME
 
 # Scale factor to fit monitors on screen
 SCALE = 0.25
@@ -129,7 +130,7 @@ class MapGraphicsView(QGraphicsView):
 class WorldMapWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Gopher-bot World Map")
+        self.setWindowTitle(f"{BOT_NAME} World Map")
         self.resize(1000, 700)
 
         # Canvas

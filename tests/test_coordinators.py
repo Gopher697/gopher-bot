@@ -37,8 +37,9 @@ def test_voice_formats_reason_output_as_final_response():
 
 def test_voice_exports_system_prompt_for_personality_contract():
     from coordinators.voice import VOICE_SYSTEM_PROMPT
+    from world_models.config_utils import BOT_NAME
 
-    assert "You are Gopher-bot" in VOICE_SYSTEM_PROMPT
+    assert f"You are {BOT_NAME}" in VOICE_SYSTEM_PROMPT
     assert "You address your user as Gopher" in VOICE_SYSTEM_PROMPT
     assert "be useful" in VOICE_SYSTEM_PROMPT
 

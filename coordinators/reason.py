@@ -11,6 +11,7 @@ from openai import OpenAI
 from coordinators.base import Coordinator
 from coordinators.memory import Memory
 from coordinators.tier_config import DEFAULT_TIER, get_tier_config
+from world_models.config_utils import BOT_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ class Reason(Coordinator):
     ) -> str:
         tier_config = get_tier_config(tier)
         system_prompt = (
-            "You are Gopher-bot's reasoning layer. You have been given "
+            f"You are {BOT_NAME}'s reasoning layer. You have been given "
             "memory context from a knowledge graph. Use it to ground your response.\n"
             f"Memory context: {memory_context}\n"
             "If memory context is empty, say so and respond from first principles.\n"
@@ -76,7 +77,7 @@ class Reason(Coordinator):
 
 
 def _exchange_observation(message: str, response: str) -> str:
-    return f"User said: {message}\nGopher-bot replied: {response}"
+    return f"User said: {message}\n{BOT_NAME} replied: {response}"
 
 
 def _extract_text(response: Any) -> str:

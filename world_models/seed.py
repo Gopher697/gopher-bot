@@ -8,6 +8,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from world_models import graph
+from world_models.config_utils import BOT_NAME
 
 
 ENVIRONMENT = "global"
@@ -18,11 +19,11 @@ def main() -> int:
     try:
         project_id = graph.add_entity(
             driver,
-            name="gopher-bot",
+            name=BOT_NAME,
             entity_type="project",
             environment=ENVIRONMENT,
         )
-        print(f"Added entity gopher-bot: {project_id}")
+        print(f"Added entity {BOT_NAME}: {project_id}")
 
         charter_id = graph.add_entity(
             driver,
@@ -42,13 +43,13 @@ def main() -> int:
 
         governed_by = graph.relate(
             driver,
-            from_name="gopher-bot",
+            from_name=BOT_NAME,
             rel_type="GOVERNED_BY",
             to_name="AGENT_CHARTER.md",
             environment=ENVIRONMENT,
         )
         print(
-            "Added relationship gopher-bot -[:GOVERNED_BY]-> "
+            f"Added relationship {BOT_NAME} -[:GOVERNED_BY]-> "
             f"AGENT_CHARTER.md: {governed_by}"
         )
 
@@ -70,7 +71,7 @@ def main() -> int:
             environment=ENVIRONMENT,
             coordinator="seed.py",
             confidence=1.0,
-            entity_names=["gopher-bot", "AGENT_CHARTER.md"],
+            entity_names=[BOT_NAME, "AGENT_CHARTER.md"],
         )
         print(f"Added observation: {observation_id}")
 

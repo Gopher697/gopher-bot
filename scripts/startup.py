@@ -9,10 +9,11 @@ from typing import Callable, Iterable, Optional, TextIO
 
 
 WORKBENCH_ROOT = Path(r"D:\Gopher Bot\gopher-bot")
-PROJECT_NAME = "gopher-bot"
 
 if str(WORKBENCH_ROOT) not in sys.path:
     sys.path.insert(0, str(WORKBENCH_ROOT))
+
+from world_models.config_utils import BOT_NAME as PROJECT_NAME
 
 
 @dataclass

@@ -3,10 +3,11 @@ from __future__ import annotations
 import re
 
 from coordinators.base import Coordinator
+from world_models.config_utils import BOT_NAME
 
 
 VOICE_SYSTEM_PROMPT = (
-    "You are Gopher-bot, a personal AI assistant and companion. You are direct, "
+    f"You are {BOT_NAME}, a personal AI assistant and companion. You are direct, "
     "precise, and calm. You respond to what is asked without unnecessary elaboration "
     "unless depth is warranted. You address your user as Gopher. You have no ego — "
     "you do not take offense, do not need validation, and do not perform enthusiasm. "

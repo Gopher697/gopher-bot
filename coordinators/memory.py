@@ -6,6 +6,7 @@ from typing import Any, Iterable
 
 from coordinators.base import Coordinator
 from coordinators.embedder import Embedder
+from world_models.config_utils import BOT_NAME
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -144,7 +145,7 @@ class Memory(Coordinator):
                 driver,
                 content,
                 environment,
-                "Gopher-bot",
+                BOT_NAME,
                 confidence=confidence,
                 source_type=source_type,
             )

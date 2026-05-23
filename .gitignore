@@ -34,12 +34,11 @@ logs/dream/
 logs/archivist/
 logs/actions/*.md
 
-# Skill binaries
-docs/*.skill
-
 # Codex internal config
 .codex/
 PROJECT_REGISTRY.md
 WORKBENCH_INDEX.md
 KNOWLEDGE_SPACES.md
 PROJECT.md
+docs/*.skill
+prompts/codex_build_new_workbench_mcp.md

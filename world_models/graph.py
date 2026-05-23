@@ -6,6 +6,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from neo4j import GraphDatabase
 
+from utils.graph_write_audit import audit_graph_write
 from world_models import config
 
 
@@ -190,6 +191,22 @@ def _now_iso() -> str:
 
 def _session(driver):
     return driver.session(database=config.NEO4J_DATABASE)
+
+
+def _audit_after_graph_write(
+    action: str,
+    node_label: str,
+    properties: dict | None = None,
+) -> None:
+    try:
+        audit_graph_write(
+            action=action,
+            node_label=node_label,
+            coordinator="unknown",
+            properties=properties,
+        )
+    except Exception:
+        pass
 
 
 def get_schema_version(driver) -> int | None:
@@ -474,7 +491,9 @@ def add_entity(driver, name, entity_type, environment, properties=None):
         return record["element_id"]
 
     with _session(driver) as session:
-        return session.execute_write(write)
+        element_id = session.execute_write(write)
+        _audit_after_graph_write("add_entity", "Entity", props)
+        return element_id
 
 
 def add_observation(
@@ -519,7 +538,9 @@ def add_observation(
         return element_id
 
     with _session(driver) as session:
-        return session.execute_write(write)
+        element_id = session.execute_write(write)
+        _audit_after_graph_write("add_observation", "Observation", props)
+        return element_id
 
 
 def add_episode(
@@ -595,6 +616,7 @@ def add_episode(
 
     with _session(driver) as session:
         session.execute_write(write)
+        _audit_after_graph_write("add_episode", "Episode", props)
 
     return episode_id
 
@@ -1310,6 +1332,7 @@ def create_goal(
 
     with _session(driver) as session:
         session.execute_write(write)
+        _audit_after_graph_write("create_goal", "Goal", props)
 
     return goal_id
 
@@ -1601,7 +1624,14 @@ def update_goal(
         return result.single() is not None
 
     with _session(driver) as session:
-        return session.execute_write(write)
+        updated = session.execute_write(write)
+        if updated:
+            _audit_after_graph_write(
+                "update_goal",
+                "Goal",
+                {"goal_id": goal_id, "environment": environment, "updates": updates},
+            )
+        return updated
 
 
 def decay_stale_candidates(
@@ -2006,6 +2036,7 @@ def create_source(
 
     with _session(driver) as session:
         session.execute_write(write)
+        _audit_after_graph_write("create_source", "Source", props)
     return source_id
 
 
@@ -2037,6 +2068,7 @@ def create_claim(
 
     with _session(driver) as session:
         session.execute_write(write)
+        _audit_after_graph_write("create_claim", "Claim", props)
     return claim_id
 
 
@@ -2064,6 +2096,7 @@ def create_belief(
 
     with _session(driver) as session:
         session.execute_write(write)
+        _audit_after_graph_write("create_belief", "Belief", props)
     return belief_id
 
 
@@ -2091,6 +2124,7 @@ def create_principle(
 
     with _session(driver) as session:
         session.execute_write(write)
+        _audit_after_graph_write("create_principle", "Principle", props)
     return principle_id
 
 
@@ -2120,6 +2154,7 @@ def create_doctrine(
 
     with _session(driver) as session:
         session.execute_write(write)
+        _audit_after_graph_write("create_doctrine", "Doctrine", props)
     return doctrine_id
 
 
@@ -2153,6 +2188,7 @@ def create_learning_episode(
 
     with _session(driver) as session:
         session.execute_write(write)
+        _audit_after_graph_write("create_learning_episode", "LearningEpisode", props)
     return learning_id
 
 
@@ -2262,7 +2298,18 @@ def link_claim_to_belief(
         return bool(record and record["matched"] > 0)
 
     with _session(driver) as session:
-        return session.execute_write(write)
+        linked = session.execute_write(write)
+        if linked:
+            _audit_after_graph_write(
+                "link_claim_to_belief",
+                "Claim",
+                {
+                    "claim_id": claim_id,
+                    "belief_id": belief_id,
+                    "environment": environment,
+                },
+            )
+        return linked
 
 
 def link_belief_to_principle(
@@ -2293,7 +2340,18 @@ def link_belief_to_principle(
         return bool(record and record["matched"] > 0)
 
     with _session(driver) as session:
-        return session.execute_write(write)
+        linked = session.execute_write(write)
+        if linked:
+            _audit_after_graph_write(
+                "link_belief_to_principle",
+                "Belief",
+                {
+                    "belief_id": belief_id,
+                    "principle_id": principle_id,
+                    "environment": environment,
+                },
+            )
+        return linked
 
 
 def link_principle_to_doctrine(
@@ -2319,7 +2377,18 @@ def link_principle_to_doctrine(
         return bool(record and record["matched"] > 0)
 
     with _session(driver) as session:
-        return session.execute_write(write)
+        linked = session.execute_write(write)
+        if linked:
+            _audit_after_graph_write(
+                "link_principle_to_doctrine",
+                "Principle",
+                {
+                    "principle_id": principle_id,
+                    "doctrine_id": doctrine_id,
+                    "environment": environment,
+                },
+            )
+        return linked
 
 
 def update_claim_status(
@@ -2615,6 +2684,7 @@ def create_skill(
 
     with _session(driver) as session:
         session.execute_write(write)
+        _audit_after_graph_write("create_skill", "Skill", props)
     return skill_id
 
 
@@ -2780,7 +2850,18 @@ def update_skill_status(
         return bool(record and record["matched"] > 0)
 
     with _session(driver) as session:
-        return session.execute_write(write)
+        updated = session.execute_write(write)
+        if updated:
+            _audit_after_graph_write(
+                "update_skill_status",
+                "Skill",
+                {
+                    "skill_id": skill_id,
+                    "environment": environment,
+                    "status": status,
+                },
+            )
+        return updated
 
 
 def close(driver):

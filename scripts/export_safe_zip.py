@@ -67,6 +67,7 @@ EXCLUDED_DIR_PREFIXES: list[str] = [
     "logs/audit/",
     "logs/build/",
     "logs/dream/",
+    "logs/graph_writes/",
     "logs/pattern_observations/",
     "logs/wisdom/",
 ]

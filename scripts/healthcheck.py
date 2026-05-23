@@ -31,6 +31,7 @@ from world_models.schema_version import CURRENT_SCHEMA_VERSION
 # ---------------------------------------------------------------------------
 
 PASS = "PASS"
+INFO = "INFO"
 WARN = "WARN"
 FAIL = "FAIL"
 
@@ -39,7 +40,7 @@ results: list[dict] = []
 
 def check(status: str, name: str, detail: str = "") -> None:
     results.append({"status": status, "name": name, "detail": detail})
-    icon = {"PASS": "  OK  ", "WARN": " WARN ", "FAIL": " FAIL "}[status]
+    icon = {"PASS": "  OK  ", "INFO": " INFO ", "WARN": " WARN ", "FAIL": " FAIL "}[status]
     line = f"[{icon}] {name}"
     if detail:
         line += f" — {detail}"
@@ -212,6 +213,19 @@ def check_web_port() -> None:
         check(WARN, f"Web port {port}", "already in use — another instance may be running")
     except (ConnectionRefusedError, TimeoutError, OSError):
         check(PASS, f"Web port {port}", "free")
+
+
+def check_graph_write_audit_log_dir(
+    log_dir: Path = REPO_ROOT / "logs" / "graph_writes",
+) -> None:
+    try:
+        if log_dir.exists():
+            check(PASS, "Graph write audit log directory", "Graph write audit log directory present")
+            return
+        log_dir.mkdir(parents=True, exist_ok=True)
+        check(INFO, "Graph write audit log directory", "Created logs/graph_writes/ directory")
+    except OSError as e:
+        check(WARN, "Graph write audit log directory", f"could not create directory: {e}")
 
 
 def check_coordinators_importable() -> None:
@@ -425,6 +439,7 @@ def main() -> None:
         check_secrets_not_tracked,
     ]
     post_graph_checks = [
+        check_graph_write_audit_log_dir,
         check_web_port,
         check_coordinators_importable,
         check_hands_policy,
@@ -449,17 +464,18 @@ def main() -> None:
                     break
 
     # Summary
+    infos = sum(1 for r in results if r["status"] == INFO)
     passes = sum(1 for r in results if r["status"] == PASS)
     warns  = sum(1 for r in results if r["status"] == WARN)
     fails  = sum(1 for r in results if r["status"] == FAIL)
 
     if args.json:
-        print(json.dumps({"results": results, "summary": {"pass": passes, "warn": warns, "fail": fails}}, indent=2))
+        print(json.dumps({"results": results, "summary": {"info": infos, "pass": passes, "warn": warns, "fail": fails}}, indent=2))
         sys.exit(2 if fails else 1 if warns else 0)
 
     print()
     print("=" * 60)
-    print(f"  {passes} passed  |  {warns} warnings  |  {fails} failed")
+    print(f"  {passes} passed  |  {infos} info  |  {warns} warnings  |  {fails} failed")
     if fails:
         print("  STATUS: NOT SAFE TO START — fix failures above")
         sys.exit(2)

@@ -18,6 +18,8 @@ notes/sessions/*.md
 config/projects.yaml
 config/allowed_commands.yaml
 *.egg-info/
+logs/graph_writes/*
+!logs/graph_writes/.gitkeep
 
 # Godot editor cache and generated files
 avatar/.godot/

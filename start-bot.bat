@@ -48,7 +48,7 @@ echo     Neo4j process launched (minimized).
 goto neo4j_wait
 
 :no_jre
-echo     [NOTE] No Java found. Click 'Start' on gopher-bot-data in Neo4j Desktop.
+echo     [NOTE] DBMS path not configured or Java not found. Start your DBMS manually in Neo4j Desktop.
 
 :: Wait for Neo4j to be reachable on port 7687 (up to 60 seconds)
 :neo4j_wait

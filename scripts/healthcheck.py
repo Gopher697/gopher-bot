@@ -205,6 +205,49 @@ def check_graph_schema_version(
         )
 
 
+def check_safety_contract(
+    *,
+    neo4j_reachable: bool | None = None,
+    safety_runner=None,
+) -> None:
+    if neo4j_reachable is False:
+        check(
+            WARN,
+            "Safety contract",
+            "skipped - requires a live Neo4j connection",
+        )
+        return
+
+    if safety_runner is None:
+        from scripts.verify_safety import run_safety_checks as safety_runner
+
+    try:
+        safety_results = safety_runner()
+    except Exception as e:
+        check(FAIL, "Safety contract", f"verification failed: {e.__class__.__name__}")
+        return
+
+    failures = [result for result in safety_results if result["status"] == FAIL]
+    warnings = [result for result in safety_results if result["status"] == WARN]
+
+    if failures:
+        detail = "; ".join(
+            f"{result['name']}: {result['detail']}" for result in failures[:3]
+        )
+        if len(failures) > 3:
+            detail += f"; {len(failures) - 3} more failure(s)"
+        check(FAIL, "Safety contract", detail)
+    elif warnings:
+        detail = "; ".join(
+            f"{result['name']}: {result['detail']}" for result in warnings[:3]
+        )
+        if len(warnings) > 3:
+            detail += f"; {len(warnings) - 3} more warning(s)"
+        check(WARN, "Safety contract", detail)
+    else:
+        check(PASS, "Safety contract", f"{len(safety_results)} invariant(s) passed")
+
+
 def check_web_port() -> None:
     port = 5000
     try:
@@ -456,6 +499,9 @@ def main() -> None:
         neo4j_reachable = check_neo4j_reachable()
         if not (args.fail_fast and results and results[-1]["status"] == FAIL):
             check_graph_schema_version(neo4j_reachable=neo4j_reachable)
+
+        if not (args.fail_fast and results and results[-1]["status"] == FAIL):
+            check_safety_contract(neo4j_reachable=neo4j_reachable)
 
         if not (args.fail_fast and results and results[-1]["status"] == FAIL):
             for fn in post_graph_checks:

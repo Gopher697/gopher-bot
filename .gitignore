@@ -40,3 +40,6 @@ docs/*.skill
 # Codex internal config
 .codex/
 PROJECT_REGISTRY.md
+WORKBENCH_INDEX.md
+KNOWLEDGE_SPACES.md
+PROJECT.md

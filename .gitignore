@@ -30,6 +30,7 @@ avatar/export/
 # Runtime logs
 logs/dream/
 logs/archivist/
+logs/actions/*.md
 
 # Skill binaries
 docs/*.skill

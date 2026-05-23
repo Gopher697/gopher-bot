@@ -50,11 +50,11 @@ def test_classify_env_path_is_blacklisted():
     assert decision.policy_class == "blacklist"
 
 
-def test_classify_unknown_action_defaults_to_whitelist():
+def test_classify_unknown_action_defaults_to_greylist():
     from coordinators.hands_policy import classify_action
 
     decision = classify_action("unknown_future_action", {})
-    assert decision.policy_class == "whitelist"
+    assert decision.policy_class == "greylist"
 
 
 # ---------------------------------------------------------------------------

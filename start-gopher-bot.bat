@@ -12,7 +12,9 @@ echo.
 :: Priority: (1) system JAVA_HOME set by Temurin/OpenJDK installer,
 ::           (2) JRE bundled in Neo4j Desktop Cache (fallback).
 :: We never override a system JAVA_HOME — if it's already set and valid, use it as-is.
-set DBMS_DIR=C:\Users\gophe\.Neo4jDesktop2\Data\dbmss\dbms-54750ef6-52b6-4e69-b36e-2920fb10a8db
+:: Set this to your Neo4j DBMS directory.
+:: Find it in Neo4j Desktop: click the three-dot menu on your DBMS → "Open Folder" → "DBMS"
+set DBMS_DIR=C:\path\to\.Neo4jDesktop2\Data\dbmss\your-dbms-id
 set NEO4J_BAT=%DBMS_DIR%\bin\neo4j.bat
 
 :: 1) System Java (Temurin 21 etc.) — JAVA_HOME already in environment

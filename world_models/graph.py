@@ -192,6 +192,52 @@ def _session(driver):
     return driver.session(database=config.NEO4J_DATABASE)
 
 
+def get_schema_version(driver) -> int | None:
+    """
+    Read the SchemaVersion node from the graph.
+
+    Returns the version integer, or None if no SchemaVersion node exists.
+    Never raises on a missing node.
+    """
+    def read(tx):
+        result = tx.run(
+            """
+            MATCH (s:SchemaVersion)
+            RETURN s.version AS version
+            LIMIT 1
+            """
+        )
+        record = result.single()
+        if record is None:
+            return None
+        version = record["version"]
+        return None if version is None else int(version)
+
+    with _session(driver) as session:
+        return session.execute_read(read)
+
+
+def set_schema_version(driver, version: int) -> None:
+    """
+    Create or update the single SchemaVersion node with the given version integer.
+
+    Uses MERGE so it is safe to call repeatedly. Stores version and applied_at.
+    """
+    def write(tx):
+        tx.run(
+            """
+            MERGE (s:SchemaVersion)
+            SET s.version = $version,
+                s.applied_at = $applied_at
+            """,
+            version=int(version),
+            applied_at=_now_iso(),
+        )
+
+    with _session(driver) as session:
+        session.execute_write(write)
+
+
 def _clamp_unit(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
 

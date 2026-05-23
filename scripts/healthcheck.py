@@ -24,6 +24,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
+from world_models.schema_version import CURRENT_SCHEMA_VERSION
+
 # ---------------------------------------------------------------------------
 # Report primitives
 # ---------------------------------------------------------------------------
@@ -124,7 +126,7 @@ def check_secrets_not_tracked() -> None:
         check(WARN, "Secrets git check", "git not found on PATH — skipped")
 
 
-def check_neo4j_reachable() -> None:
+def check_neo4j_reachable() -> bool:
     try:
         import world_models.config as cfg
         uri = getattr(cfg, "NEO4J_URI", "neo4j://127.0.0.1:7687")
@@ -139,10 +141,67 @@ def check_neo4j_reachable() -> None:
         sock = socket.create_connection((host, port), timeout=3)
         sock.close()
         check(PASS, "Neo4j port reachable", f"{host}:{port}")
+        return True
     except (ConnectionRefusedError, TimeoutError, OSError):
         check(WARN, "Neo4j port reachable", "not reachable — start the database before running the bot")
+        return False
     except Exception as e:
         check(WARN, "Neo4j port reachable", f"check failed: {e}")
+        return False
+
+
+def check_graph_schema_version(
+    *,
+    neo4j_reachable: bool | None = None,
+    driver_factory=None,
+    version_reader=None,
+    expected_version: int = CURRENT_SCHEMA_VERSION,
+) -> None:
+    if neo4j_reachable is False:
+        check(
+            WARN,
+            "Graph schema version",
+            "skipped - requires a live Neo4j connection",
+        )
+        return
+
+    if driver_factory is None:
+        from world_models.graph import connect as driver_factory
+    if version_reader is None:
+        from world_models.graph import get_schema_version as version_reader
+
+    driver = None
+    try:
+        driver = driver_factory()
+        actual_version = version_reader(driver)
+    except Exception as e:
+        check(WARN, "Graph schema version", f"skipped - requires a live Neo4j connection ({e})")
+        return
+    finally:
+        close_driver = getattr(driver, "close", None)
+        if callable(close_driver):
+            close_driver()
+
+    if actual_version is None:
+        check(
+            WARN,
+            "Graph schema version",
+            "Graph has no SchemaVersion node. Run: python scripts/run_migrations.py",
+        )
+    elif actual_version < expected_version:
+        check(
+            FAIL,
+            "Graph schema version",
+            f"Graph schema version {actual_version} is behind expected {expected_version}. Run: python scripts/run_migrations.py",
+        )
+    elif actual_version == expected_version:
+        check(PASS, "Graph schema version", f"v{actual_version}")
+    else:
+        check(
+            WARN,
+            "Graph schema version",
+            f"Graph schema version {actual_version} is ahead of codebase {expected_version}. Is this the right branch?",
+        )
 
 
 def check_web_port() -> None:
@@ -357,14 +416,15 @@ def main() -> None:
         print("  Gopher-bot Health Check")
         print("=" * 60)
 
-    checks = [
+    pre_graph_checks = [
         check_python_version,
         check_required_modules,
         check_config_loaded,
         check_config_validity,
         check_model_registry,
         check_secrets_not_tracked,
-        check_neo4j_reachable,
+    ]
+    post_graph_checks = [
         check_web_port,
         check_coordinators_importable,
         check_hands_policy,
@@ -373,10 +433,20 @@ def main() -> None:
         check_export_script,
     ]
 
-    for fn in checks:
+    for fn in pre_graph_checks:
         fn()
         if args.fail_fast and results and results[-1]["status"] == FAIL:
             break
+    else:
+        neo4j_reachable = check_neo4j_reachable()
+        if not (args.fail_fast and results and results[-1]["status"] == FAIL):
+            check_graph_schema_version(neo4j_reachable=neo4j_reachable)
+
+        if not (args.fail_fast and results and results[-1]["status"] == FAIL):
+            for fn in post_graph_checks:
+                fn()
+                if args.fail_fast and results and results[-1]["status"] == FAIL:
+                    break
 
     # Summary
     passes = sum(1 for r in results if r["status"] == PASS)

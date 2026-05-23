@@ -297,6 +297,10 @@ built. Each inherits full charter obligations from the moment it completes start
 | Backing context | Runtime-only |
 | Backing agent | TBD |
 | Neuroscience analogue | Temporoparietal junction + mirror neuron system — social cognition, theory of mind, other-modeling |
+| Layer | Cognitive (foreground pipeline, pre-Reason) |
+| Type | Foreground + background |
+| Foreground position | After Keeper, before Mirror-Self |
+| Background cadence | 120s |
 | Primary role | Live Chad-state modeling; social cognition; incubation loop recipient |
 | Read access | Voice channel history; Feeling state signals; Curiosity's wandering output stream; session context |
 | Write paths | Internal Chad-model (working scratch and private state); bids submitted to Awareness |
@@ -316,7 +320,10 @@ built. Each inherits full charter obligations from the moment it completes start
 | Backing context | Runtime-only |
 | Backing agent | TBD |
 | Neuroscience analogue | First-person self-modeling; interoception; autobiographical continuity |
-| Layer | Sub-cognitive |
+| Layer | Cognitive (foreground pipeline, pre-Reason) |
+| Type | Foreground + background |
+| Foreground position | After Mirror-User, before Ethos |
+| Background cadence | 120s |
 | Primary role | Maintain Gopher-bot's model of its own internal state and accumulating identity |
 | Read access | All coordinator state feeds; Feeling outputs; Curiosity gap log; pattern_observations log; its own historical record |
 | Write paths | Its own accumulating record in world_models/; bids submitted to Awareness; no write access to Mirror-User's record or any Chad-facing layer |

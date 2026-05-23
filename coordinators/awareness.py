@@ -19,6 +19,7 @@ from coordinators.sensory import Sensory
 from coordinators.voice import Voice
 from coordinators.orientation import Orientation
 from coordinators.keeper import Keeper
+from coordinators.mirror_user import MirrorUser
 from coordinators.mirror_self import MirrorSelf
 from coordinators.ethos import Ethos
 from utils.time_utils import now_iso, unix_to_iso
@@ -41,6 +42,7 @@ class Awareness:
         hands: "Hands | None" = None,
         orientation: Orientation | Coordinator | None = None,
         keeper: Keeper | Coordinator | None = None,
+        mirror_user: MirrorUser | Coordinator | None = None,
         mirror_self: MirrorSelf | Coordinator | None = None,
         ethos: Ethos | Coordinator | None = None,
         drive: Drive | Coordinator | None = None,
@@ -54,6 +56,7 @@ class Awareness:
         self.hands = hands
         self.orientation = orientation or Orientation()
         self.keeper = keeper or Keeper()
+        self.mirror_user = mirror_user or MirrorUser()
         self.mirror_self = mirror_self or MirrorSelf()
         self.ethos = ethos or Ethos()
         self.drive = drive or Drive()
@@ -158,6 +161,16 @@ class Awareness:
                 packet = self.keeper.process(packet)
             except Exception:
                 pass  # Keeper failure is non-fatal -- pipeline continues
+            # -----------------------------------------------------------------
+
+            # --- Mirror-User: user affect model ------------------------------
+            # Models user emotional state per-turn; must run after Keeper so
+            # trust level is known, and before Mirror-Self so self-affect can
+            # respond to user state.
+            try:
+                packet = self.mirror_user.process(packet)
+            except Exception:
+                pass  # Mirror-User failure is non-fatal -- pipeline continues
             # -----------------------------------------------------------------
 
             # --- Mirror-Self: generative model -------------------------------

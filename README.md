@@ -34,7 +34,7 @@ The runtime has two layers:
 
 **Foreground pipeline** (per-turn, synchronous):
 ```
-Drive → Sensory → Memory → Orientation → Keeper → Mirror-User → Ethos → Reason → Hands → Voice → Feeling → Turn log
+Drive → Sensory → Memory → Orientation → Keeper → Mirror-User → Mirror-Self → Ethos → Reason → Hands → Voice → Feeling → Turn log
 ```
 
 **Background runtime** (BrainLoop scheduler, cadence-based):

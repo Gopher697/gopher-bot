@@ -29,7 +29,7 @@ The coordinator fabric simulates the functional divisions of an active brain. Ea
 
 ```
 Drive → assess_tier → Sensory → Memory → [bid drain]
-→ Orientation → Keeper → Mirror-Self → Ethos → Reason → [Hands] → Voice
+→ Orientation → Keeper → Mirror-User → Mirror-Self → Ethos → Reason → [Hands] → Voice
 → [Feeling.observe] → [turn log]
 ```
 

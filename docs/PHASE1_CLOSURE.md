@@ -17,7 +17,7 @@ Phase 1 was built by Gopher using Claude (director/reviewer) and Codex (implemen
 ## What Was Delivered
 
 ### Coordinator Runtime
-- Foreground pipeline: Drive → Sensory → Memory → Orientation → Keeper → Mirror-Self → Ethos → Reason → Hands → Voice → Feeling → Turn log
+- Foreground pipeline: Drive → Sensory → Memory → Orientation → Keeper → Mirror-User → Mirror-Self → Ethos → Reason → Hands → Voice → Feeling → Turn log
 - Background runtime: BrainLoop scheduler with 11 background coordinators on cadence intervals
 - Background coordinators: Feeling, Neuromodulation, Curiosity, Dream, Keeper, Archivist, Drive, Mirror-Self, Mirror-User, Pattern Monitor, Wisdom
 - Awareness foreground hub with bid queue and global-workspace-style context gating

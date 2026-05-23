@@ -34,3 +34,6 @@ logs/actions/*.md
 
 # Skill binaries
 docs/*.skill
+
+# Codex internal config
+.codex/

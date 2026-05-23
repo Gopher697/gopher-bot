@@ -4,6 +4,7 @@ __pycache__/
 .env.*
 world_models/config.py
 world_models/neuromodulation_state.json
+world_models/wisdom_state.json
 .venv/
 .pytest_cache/
 .tmp/
@@ -13,6 +14,7 @@ pytest-cache-files-*/
 logs/*.jsonl
 logs/audit/*.jsonl
 logs/actions/*.jsonl
+logs/wisdom/
 logs/pattern_monitor.jsonl
 notes/sessions/*.md
 config/projects.yaml

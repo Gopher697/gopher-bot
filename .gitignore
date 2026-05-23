@@ -39,3 +39,4 @@ docs/*.skill
 
 # Codex internal config
 .codex/
+PROJECT_REGISTRY.md

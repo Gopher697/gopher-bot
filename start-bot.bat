@@ -14,7 +14,7 @@ echo.
 :: We never override a system JAVA_HOME — if it's already set and valid, use it as-is.
 :: Set this to your Neo4j DBMS directory.
 :: Find it in Neo4j Desktop: click the three-dot menu on your DBMS → "Open Folder" → "DBMS"
-set DBMS_DIR=C:\path\to\.Neo4jDesktop2\Data\dbmss\your-dbms-id
+set DBMS_DIR=C:\Users\gophe\.Neo4jDesktop2\Data\dbmss\dbms-54750ef6-52b6-4e69-b36e-2920fb10a8db
 set NEO4J_BAT=%DBMS_DIR%\bin\neo4j.bat
 
 :: 1) System Java (Temurin 21 etc.) — JAVA_HOME already in environment
@@ -68,6 +68,27 @@ if %_tries% geq 30 (
 timeout /t 2 /nobreak >nul
 goto neo4j_poll
 :neo4j_ready
+echo.
+
+:: -- Schema migrations ---------------------------------------
+echo [1.5/2] Running database migrations...
+python "%~dp0scripts\run_migrations.py"
+if %errorlevel% neq 0 (
+    echo     [ERROR] Migration failed. Check Neo4j is running and config is correct.
+    pause
+    exit /b 1
+)
+echo     [OK] Schema up to date.
+echo.
+
+:: -- Health check --------------------------------------------
+echo [1.75/2] Running health check...
+python "%~dp0scripts\healthcheck.py"
+if %errorlevel% geq 2 (
+    echo     [ERROR] Health check found hard failures. Fix above before starting.
+    pause
+    exit /b 1
+)
 echo.
 
 :: -- Python backend -------------------------------------------

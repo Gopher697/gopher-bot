@@ -214,8 +214,9 @@ flowchart TD
     E --> F[Bid drain<br/>background signals]
     F --> G[Orientation<br/>goals + deferred context]
     G --> H[Keeper<br/>trust/autonomy constraints]
-    H --> I[Mirror-Self<br/>self-prediction comparison]
-    I --> J[Ethos<br/>active doctrine injection]
+    H --> I[Mirror-User<br/>user-state modeling]
+    I --> I2[Mirror-Self<br/>self-prediction comparison]
+    I2 --> J[Ethos<br/>active doctrine injection]
     J --> K[Reason<br/>LLM inference]
     K --> L[Hands<br/>policy-gated actions]
     L --> M[Voice<br/>response formatting]
@@ -230,6 +231,7 @@ In this pipeline:
 * Memory retrieves relevant context from graph/vector/keyword stores.
 * Orientation injects active goals, deferred items, and situational continuity.
 * Keeper computes trust/autonomy constraints.
+* Mirror-User models the user's current emotional and cognitive state.
 * Mirror-Self compares prediction with current turn and forms next prediction.
 * Ethos injects adopted doctrine from the graph.
 * Reason performs the main LLM reasoning call.

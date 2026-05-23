@@ -93,7 +93,7 @@ Copy the example config and fill in your values:
 copy world_models\config.example.py world_models\config.py
 ```
 
-Edit `world_models/config.py` with your Neo4j credentials and API key(s). **This file is gitignored and will never be committed.**
+Edit `world_models/config.py` with your Neo4j credentials and API key(s). Also set `BOT_NAME` to whatever you want your instance called — this name propagates into the system prompt, world model, and interface. **This file is gitignored and will never be committed.**
 
 ### Database
 

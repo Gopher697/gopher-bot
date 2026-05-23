@@ -123,7 +123,7 @@ Added as task #68 in task system.
 **Impact:** This is the defining feature of Gopher-bot as a persistent cognitive entity, not a chat tool. The spatial map makes the AI's presence and attention visible and real.
 
 ### Milestone: T68 Complete
-percepts.py + Sensory update committed. 684 tests passing. start-gopher-bot.bat stub also created by Antigravity during its audit (stale path data fixed silently — acceptable for a bat file, not acceptable for governance files).
+percepts.py + Sensory update committed. 684 tests passing. start-bot.bat stub also created by Antigravity during its audit (stale path data fixed silently — acceptable for a bat file, not acceptable for governance files).
 
 ### Milestone: T69 Complete
 Hands computer-use expansion committed. pyproject.toml updated with [vision] extras. hands_policy.py and hands.py updated with new actions per policy classifications decided earlier.
@@ -194,7 +194,7 @@ What Wisdom does that Memory cannot:
 Tracked as task #72. Depends on Archivist claim extraction being wired first.
 
 ### Milestone: T68 Complete — One-Click Launcher Working
-start-gopher-bot.bat and stop-gopher-bot.bat committed and tested end-to-end:
+start-bot.bat and stop-bot.bat committed and tested end-to-end:
 - Neo4j Desktop auto-detected via HKLM registry wildcard search (installed at C:\Program Files\Neo4j Desktop 2\Neo4j Desktop.exe)
 - Polling loop waits up to 60s for port 7687 (2s intervals) instead of fixed timeout
 - Python backend starts in minimized window titled "Gopher-bot Backend"

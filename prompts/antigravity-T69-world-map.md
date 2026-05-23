@@ -10,7 +10,7 @@ Architecture snapshot:
 - **Python backend** (`interface/server.py`) — Flask + SocketIO on port 5000
 - **16 Python coordinators** in `coordinators/` — the cognitive pipeline
 - **Godot avatar** — transparent borderless overlay window; connects to backend via `ws://localhost:5000/avatar-ws`
-- **start-gopher-bot.bat** — launcher that starts Neo4j Desktop, polls port 7687, then starts backend + avatar
+- **start-bot.bat** — launcher that starts Neo4j Desktop, polls port 7687, then starts backend + avatar
 
 Commit all work. Never commit `world_models/config.py` (contains Neo4j credentials — it is gitignored). Always use single-line `-m '...'` commit messages. Run pytest with `--basetemp .tmp/pytest_T69` before committing.
 
@@ -18,7 +18,7 @@ Commit all work. Never commit `world_models/config.py` (contains Neo4j credentia
 
 ## Task A: Fix Neo4j launcher (10 minutes)
 
-**Problem:** `start-gopher-bot.bat` opens Neo4j Desktop but the database starts STOPPED — user must manually click Start each time. The `neo4j.bat start` command fails with "Unable to determine path to java.exe" because the bat file can't find the bundled JRE.
+**Problem:** `start-bot.bat` opens Neo4j Desktop but the database starts STOPPED — user must manually click Start each time. The `neo4j.bat start` command fails with "Unable to determine path to java.exe" because the bat file can't find the bundled JRE.
 
 **What you know:**
 - DBMS path: `C:\Users\gophe\.Neo4jDesktop2\Data\dbmss\dbms-54750ef6-52b6-4e69-b36e-2920fb10a8db\`
@@ -28,7 +28,7 @@ Commit all work. Never commit `world_models/config.py` (contains Neo4j credentia
 
 **What to do:**
 1. Search `C:\Users\gophe\.Neo4jDesktop2\Cache\` for `java.exe` — this is where the bundled JRE lives
-2. Once you find the JRE path, update the `JAVA_EXE` and `JAVA_HOME` detection block in `start-gopher-bot.bat`
+2. Once you find the JRE path, update the `JAVA_EXE` and `JAVA_HOME` detection block in `start-bot.bat`
 3. Call `neo4j.bat start` with JAVA_HOME set — this starts the DBMS as a background process (same as what Desktop's Start button does)
 4. The existing 60-second polling loop for port 7687 handles the wait — no changes needed there
 5. Neo4j Desktop still gets opened (it's useful for monitoring), but the DB starts automatically without user interaction
@@ -106,7 +106,7 @@ class WorldMapWindow(QMainWindow):
 
 #### 5. App entry point
 
-Add to `start-gopher-bot.bat` after the backend starts (before avatar):
+Add to `start-bot.bat` after the backend starts (before avatar):
 ```batch
 echo [1.5/2] Launching world map...
 start "" python "%~dp0interface\world_map.py"

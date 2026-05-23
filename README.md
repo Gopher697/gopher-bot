@@ -112,7 +112,7 @@ python scripts/healthcheck.py
 ### Running
 
 ```powershell
-start-gopher-bot.bat
+start-bot.bat
 ```
 
 This starts Neo4j (if not already running), the Python backend on `http://localhost:5000`, and the world map interface.

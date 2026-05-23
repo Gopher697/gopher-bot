@@ -1,5 +1,5 @@
 @echo off
-title Gopher-bot Launcher
+title Bot Launcher
 cd /d "%~dp0"
 
 echo ============================================================
@@ -99,7 +99,7 @@ echo   Gopher-bot is running.
 echo   Backend: minimized window "Gopher-bot Backend"
 echo   Avatar:  floating on your desktop
 echo   Web UI:  http://localhost:5000
-echo   Run stop-gopher-bot.bat to shut everything down.
+echo   Run stop-bot.bat to shut everything down.
 echo ============================================================
 echo.
 pause

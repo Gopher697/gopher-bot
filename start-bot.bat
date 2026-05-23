@@ -3,7 +3,7 @@ title Bot Launcher
 cd /d "%~dp0"
 
 echo ============================================================
-echo   Gopher-bot -- Starting up...
+echo   Starting up...
 echo ============================================================
 echo.
 
@@ -72,7 +72,7 @@ echo.
 
 :: -- Python backend -------------------------------------------
 echo [2/2] Starting Python backend...
-start "Gopher-bot Backend" /min cmd /c "cd /d %~dp0 && python interface/server.py & pause"
+start "Bot Backend" /min cmd /c "cd /d %~dp0 && python interface/server.py & pause"
 
 echo     Waiting for server to initialize...
 timeout /t 4 /nobreak >nul
@@ -95,8 +95,8 @@ if exist "%AVATAR_EXE%" (
 
 echo.
 echo ============================================================
-echo   Gopher-bot is running.
-echo   Backend: minimized window "Gopher-bot Backend"
+echo   Bot is running.
+echo   Backend: minimized window "Bot Backend"
 echo   Avatar:  floating on your desktop
 echo   Web UI:  http://localhost:5000
 echo   Run stop-bot.bat to shut everything down.

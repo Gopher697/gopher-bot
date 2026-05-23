@@ -42,3 +42,4 @@ KNOWLEDGE_SPACES.md
 PROJECT.md
 docs/*.skill
 prompts/codex_build_new_workbench_mcp.md
+prompts/

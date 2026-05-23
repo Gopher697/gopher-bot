@@ -196,6 +196,18 @@ A recurring operational challenge in AI-assisted development is that constructio
 
 The development charter codifies credential handling, risk-first sequencing, scope control, build/runtime separation, and the limits of different AI work environments. This represents a governance pattern worth generalizing: the rules governing how the system is built should be as inspectable and revisable as the rules governing how it runs.
 
+### 5.6 Safety Invariants and the Runtime Contract
+
+The governance layer defines what actors may do and under what conditions. The safety contract defines what the system must never become, independent of who is acting and regardless of authority level. These are complementary layers, not redundant ones.
+
+A coordinator granted authority to write a Belief node may legitimately do so under the governance model. Whether a Belief node may exist without traceable provenance from at least one Claim or Source is a separate question — not a permission question but an invariant question. Governance is satisfied when the right actor followed the right process. The safety contract is satisfied when the resulting graph state meets structural predicates that must hold regardless of how the graph was produced.
+
+Gopher-bot's Phase 1 governance model was designed and ratified without a corresponding formal safety contract. This was identified as a foundational gap in post-closure architectural review. The gap is not subtle: the proposal schema (§5.4) already implies most of the invariants — Doctrine requires an approved Proposal, Beliefs require provenance, epistemic chain promotion requires evidence — but those implications had no independent verification mechanism. A set of rules without a verifier is a declaration, not a guarantee.
+
+The gap is addressed in Phase 1 post-closure hardening. `SAFETY_CONTRACT.md` formalizes the minimum invariants: epistemic chain provenance (every Belief must have at least one Claim or Source ancestor), Doctrine governance (every Doctrine must link to an approved Proposal), Principle support (every Principle must have Belief support), epistemic chain acyclicity, audit log completeness, schema currency, and absence of blacklisted action records in the audit log. `scripts/verify_safety.py` implements a runtime checker for each invariant, and the startup healthcheck gates system launch on their outcome. The safety contract is itself versioned and governed: modifications require a proposal and human approval, following the same process applied to Doctrine changes.
+
+This establishes the proper two-layer architecture: governance defines what is permitted; the safety contract verifies what is true. Both are necessary. Neither substitutes for the other.
+
 ---
 
 ## 6. Coordinator Runtime Architecture
@@ -622,8 +634,7 @@ The kernel should remain boring before the system adds more autonomy. Priorities
 * Persistent build-session governance rules.
 * Coordinator health register visible in audit/avatar surfaces.
 * Message double-processing regression tests and turn-id/idempotency guarantees.
-* ~~Graph write audit logging for Neo4j mutations~~ — *implemented: `utils/graph_write_audit.py`, all 16 `graph.py` write functions hooked.* Remaining: policy-gated blocking for Principle/Doctrine direct writes (Phase 2, `ProposalRequiredError` stub in place).
-* ~~Graph migration discipline~~ — *implemented: `world_models/schema_version.py`, `scripts/run_migrations.py`, `scripts/migrations/migrate_001_baseline.py`, `SchemaVersion` node in Neo4j, healthcheck integration.*
+* Policy-gated blocking for Principle and Doctrine direct writes: graph write audit logging is in place; the remaining work is a `ProposalRequiredError` enforcement layer that rejects coordinator writes to those node types without an approved proposal.
 * Clear local-only network/security posture.
 * Pre-commit checks for secret leakage and unsafe export patterns.
 * Bid queue limits, priority rules, and starvation-prevention policy.
@@ -802,6 +813,7 @@ Gopher-bot is therefore not yet an autonomous digital organism. It is a credible
 * Graph schema versioning (`world_models/schema_version.py`): `CURRENT_SCHEMA_VERSION`, `KNOWN_NODE_LABELS`, `KNOWN_RELATIONSHIP_TYPES`; `SchemaVersion` node in Neo4j via `get_schema_version`/`set_schema_version`.
 * Migration runner (`scripts/run_migrations.py`) and baseline migration (`scripts/migrations/migrate_001_baseline.py`): idempotent schema stamp, sorted migration discovery, `--dry-run` support, healthcheck integration.
 * Test suite covering many runtime, policy, and startup pieces.
+* Safety contract (`SAFETY_CONTRACT.md`): versioned runtime invariants for the world model graph, enforced by `scripts/verify_safety.py`; healthcheck integration gates startup on invariant outcome.
 
 ### Partially Implemented
 
@@ -860,6 +872,9 @@ Gopher-bot is therefore not yet an autonomous digital organism. It is a credible
 ---
 
 ## Version History
+
+**v0.6 (May 2026)**
+Changes: Post-closure architectural review identified missing safety contract layer. §5.6 added distinguishing governance (what is permitted) from safety invariants (what must be structurally true). `SAFETY_CONTRACT.md` and `scripts/verify_safety.py` committed; startup healthcheck updated to gate on invariant outcome. §13.1 cleaned of development-log formatting. Appendix B updated.
 
 **v0.5 (May 2026)**
 Prepared for: Gopher

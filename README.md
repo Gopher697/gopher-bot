@@ -58,6 +58,7 @@ See [`COORDINATOR_REGISTRY.md`](COORDINATOR_REGISTRY.md) for the full coordinato
 - World-model graph schema versioned and migration-tracked
 - Graph write audit logging active
 - Model registry and provider fallback routing
+- Safety contract in place (`SAFETY_CONTRACT.md`): versioned runtime invariants with runtime checker and healthcheck integration
 
 **Phase 2 — Planned.** See [`docs/VISION.md`](docs/VISION.md) for the roadmap. Key targets: full predictive world-model loop, avatar, mobile capture bridge, governed self-distillation.
 
@@ -147,13 +148,14 @@ AGENT_CHARTER.md        identity strata, authority tiers, proposal schema
 AGENT_COMMITMENTS.md    governed slow-layer obligations
 COORDINATOR_REGISTRY.md full coordinator role specifications
 DEVELOPMENT_CHARTER.md  rules governing AI-assisted build sessions
+SAFETY_CONTRACT.md      versioned runtime invariants the world model must always satisfy
 ```
 
 ---
 
 ## Research paper
 
-[`docs/whitepaper.md`](docs/whitepaper.md) — *Gopher-bot: A Governed Neurosymbolic Personal AI Runtime* (v0.5)
+[`docs/whitepaper.md`](docs/whitepaper.md) — *Gopher-bot: A Governed Neurosymbolic Personal AI Runtime* (v0.6)
 
 The paper covers the theoretical motivation, architecture design, implementation status, known limitations, and open research questions. It is written to be read independently of the code.
 
@@ -161,7 +163,7 @@ The paper covers the theoretical motivation, architecture design, implementation
 
 ## Governance
 
-This project takes the governance of AI systems seriously as a design constraint, not an afterthought. The [`AGENT_CHARTER.md`](AGENT_CHARTER.md) defines identity strata, authority tiers, and the proposal mechanism by which the system can request changes to its own high-level structure. The [`DEVELOPMENT_CHARTER.md`](DEVELOPMENT_CHARTER.md) governs how AI-assisted build sessions interact with the codebase.
+This project takes the governance of AI systems seriously as a design constraint, not an afterthought. The [`AGENT_CHARTER.md`](AGENT_CHARTER.md) defines identity strata, authority tiers, and the proposal mechanism by which the system can request changes to its own high-level structure. The [`SAFETY_CONTRACT.md`](SAFETY_CONTRACT.md) defines the structural invariants the world model graph must always satisfy, enforced at runtime by `scripts/verify_safety.py`. The [`DEVELOPMENT_CHARTER.md`](DEVELOPMENT_CHARTER.md) governs how AI-assisted build sessions interact with the codebase.
 
 Build agents (Claude, Codex) are not runtime coordinators. They do not possess coordinator authority. This boundary is permanent and structural.
 

@@ -1,29 +1,28 @@
 from __future__ import annotations
 
+import json
+from collections.abc import Callable
 from typing import Any
-
-from openai import OpenAI
+from urllib import request
 
 
 EMBEDDING_BASE_URL = "http://localhost:1234/v1"
 EMBEDDING_MODEL = "text-embedding-nomic-embed-text-v1.5@q8_0"
+PostJson = Callable[[str, dict[str, Any]], Any]
 
 
 class Embedder:
-    def __init__(self):
-        self._client = None
-
-    @property
-    def client(self):
-        if self._client is None:
-            self._client = OpenAI(base_url=EMBEDDING_BASE_URL, api_key="local")
-        return self._client
+    def __init__(self, post_json: PostJson | None = None):
+        self._post_json = post_json or _post_json
 
     def embed(self, text: str) -> list[float] | None:
         try:
-            response = self.client.embeddings.create(
-                model=EMBEDDING_MODEL,
-                input=text,
+            response = self._post_json(
+                _embeddings_url(),
+                {
+                    "model": EMBEDDING_MODEL,
+                    "input": text,
+                },
             )
             embedding = _extract_embedding(response)
             if embedding is None:
@@ -31,6 +30,22 @@ class Embedder:
             return [float(value) for value in embedding]
         except Exception:
             return None
+
+
+def _embeddings_url() -> str:
+    return f"{EMBEDDING_BASE_URL.rstrip('/')}/embeddings"
+
+
+def _post_json(url: str, payload: dict[str, Any]) -> Any:
+    body = json.dumps(payload).encode("utf-8")
+    http_request = request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with request.urlopen(http_request, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
 def _extract_embedding(response: Any) -> list[Any] | None:

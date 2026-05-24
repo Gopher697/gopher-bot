@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 from typing import Any, Iterable
@@ -8,6 +9,7 @@ from coordinators.base import Coordinator
 from coordinators.embedder import Embedder
 from world_models.config_utils import BOT_NAME
 
+logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -17,6 +19,24 @@ from world_models import config, graph, vector_index  # noqa: E402
 
 
 MAX_CONTEXT_ITEMS = 12
+INGEST_CHUNK_SIZE = 1500   # characters per chunk
+INGEST_MAX_CHUNKS = 20     # max chunks per document (~30KB)
+
+
+def _chunk_text(text: str, chunk_size: int, max_chunks: int) -> list[str]:
+    """Split text into chunks of at most chunk_size characters."""
+    chunks = []
+    start = 0
+    while start < len(text) and len(chunks) < max_chunks:
+        end = start + chunk_size
+        # Prefer breaking at a newline near the boundary
+        if end < len(text):
+            newline = text.rfind("\n", start, end)
+            if newline > start:
+                end = newline
+        chunks.append(text[start:end].strip())
+        start = end
+    return [chunk for chunk in chunks if chunk]
 
 
 class Memory(Coordinator):
@@ -28,6 +48,25 @@ class Memory(Coordinator):
     def process(self, packet: dict) -> dict:
         keywords = packet.get("keywords") or []
         packet["memory_context"] = self.retrieve(keywords)
+
+        # Ingest user-provided content into the graph for future retrieval.
+        text_attachments = packet.get("text_attachments") or []
+        visual_percept = packet.get("visual_percept") or {}
+        visual_description = ""
+        visual_filename = ""
+        if visual_percept.get("scene_type") == "user_attachment":
+            visual_description = str(visual_percept.get("description") or "").strip()
+            desc = visual_description
+            if desc.startswith("[") and "]:" in desc:
+                visual_filename = desc[1:desc.index("]")]
+
+        if text_attachments or visual_description:
+            self.ingest_attachments(
+                text_attachments=text_attachments,
+                visual_description=visual_description,
+                visual_filename=visual_filename,
+                session_id=str(packet.get("session_id") or ""),
+            )
         return packet
 
     def retrieve(self, keywords: Iterable[str], environment: str = "global") -> str:
@@ -126,6 +165,48 @@ class Memory(Coordinator):
         finally:
             if driver is not None:
                 graph.close(driver)
+
+    def ingest_attachments(
+        self,
+        text_attachments: list[dict],
+        visual_description: str = "",
+        visual_filename: str = "",
+        session_id: str = "",
+    ) -> None:
+        """
+        Write user-provided content to the graph as retrievable Observations.
+
+        Text attachments are chunked and stored as Observations so Memory can
+        retrieve them on future turns via vector or keyword search.
+        """
+        for attachment in text_attachments:
+            filename = attachment.get("filename") or "untitled"
+            content = str(attachment.get("content") or "").strip()
+            if not content:
+                continue
+            try:
+                chunks = _chunk_text(content, INGEST_CHUNK_SIZE, INGEST_MAX_CHUNKS)
+                for index, chunk in enumerate(chunks):
+                    if len(chunks) > 1:
+                        label = f"[{filename} chunk {index + 1}/{len(chunks)}]"
+                    else:
+                        label = f"[{filename}]"
+                    self.store(
+                        f"{label}\n{chunk}",
+                        source_type="external_content",
+                    )
+            except Exception as exc:
+                logger.warning("Failed to ingest text attachment %s: %s", filename, exc)
+
+        if visual_description:
+            try:
+                label = f"[image: {visual_filename}]" if visual_filename else "[image]"
+                self.store(
+                    f"{label}\n{visual_description}",
+                    source_type="external_content",
+                )
+            except Exception as exc:
+                logger.warning("Failed to ingest image description: %s", exc)
 
     def store(
         self,

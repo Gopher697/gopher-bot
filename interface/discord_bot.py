@@ -115,21 +115,23 @@ def _split_reply(text: str) -> list[str]:
     return chunks
 
 
-async def _read_all_text_attachments(message: discord.Message) -> str:
+async def _read_all_text_attachments(
+    message: discord.Message,
+) -> tuple[str, list[dict]]:
     """
-    Read all non-image attachments and return their combined content as text.
+    Read all non-image attachments.
 
-    For each attachment not in IMAGE_EXTENSIONS:
-    - If the file decodes as UTF-8: inject the full content under a filename header.
-    - If the file is binary (decode fails): inject a note so the bot knows
-      something was sent even if it cannot read it.
-    - Files over MAX_ATTACHMENT_BYTES are skipped with a console note.
+    Returns:
+        (combined_text, structured_list)
+        combined_text: concatenated content for current-turn context.
+        structured_list: [{"filename": str, "content": str}, ...] for graph ingestion.
     """
     parts: list[str] = []
+    structured: list[dict] = []
     for attachment in message.attachments:
         suffix = Path(attachment.filename or "").suffix.lower()
         if suffix in IMAGE_EXTENSIONS:
-            continue  # handled by _download_image_attachments
+            continue
         if attachment.size and attachment.size > MAX_ATTACHMENT_BYTES:
             print(f"[discord] Skipping oversized attachment: {attachment.filename}")
             parts.append(f"[{attachment.filename}]: (file too large to transmit)")
@@ -143,12 +145,13 @@ async def _read_all_text_attachments(message: discord.Message) -> str:
         try:
             text = data.decode("utf-8", errors="strict")
             parts.append(f"[{attachment.filename}]:\n{text}")
+            structured.append({"filename": attachment.filename, "content": text})
         except UnicodeDecodeError:
             # Binary file -- note it so the bot is aware something was sent
             parts.append(
                 f"[{attachment.filename}]: (binary file -- content cannot be displayed)"
             )
-    return "\n\n".join(parts)
+    return "\n\n".join(parts), structured
 
 
 async def _download_image_attachments(message: discord.Message) -> list[dict]:
@@ -207,7 +210,7 @@ async def on_message(message: discord.Message) -> None:
         try:
             # Combine message text with any readable non-image file attachments
             content = (message.content or "").strip()
-            attachment_text = await _read_all_text_attachments(message)
+            attachment_text, text_attachments = await _read_all_text_attachments(message)
             if attachment_text:
                 content = f"{content}\n\n{attachment_text}".strip() if content else attachment_text
 
@@ -222,6 +225,7 @@ async def on_message(message: discord.Message) -> None:
                     bot.awareness.synchronous_run,
                     content,
                     image_attachments=image_attachments,
+                    text_attachments=text_attachments,
                 )
 
             reply = bot.response_from_packet(packet)

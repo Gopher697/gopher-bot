@@ -19,6 +19,8 @@ from coordinators.tier_config import DEFAULT_TIER, get_tier_config
 logger = logging.getLogger(__name__)
 
 
+SENSORY_TIMEOUT_SECONDS = 30
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -159,7 +161,11 @@ def _call_local_classifier(
         if lm_studio_api_key is None
         else lm_studio_api_key
     )
-    client = OpenAI(base_url=tier_config["base_url"], api_key=api_key)
+    client = OpenAI(
+        base_url=tier_config["base_url"],
+        api_key=api_key,
+        timeout=SENSORY_TIMEOUT_SECONDS,
+    )
     return client.chat.completions.create(
         model=tier_config["sensory_model"],
         max_tokens=256,
@@ -171,7 +177,10 @@ def _call_local_classifier(
 
 
 def _call_anthropic_classifier(message: str, system_prompt: str, tier_config: dict) -> Any:
-    client = Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    client = Anthropic(
+        api_key=config.ANTHROPIC_API_KEY,
+        timeout=SENSORY_TIMEOUT_SECONDS,
+    )
     return client.messages.create(
         model=tier_config["sensory_model"],
         max_tokens=256,
@@ -204,7 +213,10 @@ def _describe_image(image_data: bytes, filename: str, tier_config: dict) -> str:
     if not model:
         return ""
     try:
-        client = Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        client = Anthropic(
+            api_key=config.ANTHROPIC_API_KEY,
+            timeout=SENSORY_TIMEOUT_SECONDS,
+        )
         media_type = _media_type_from_filename(filename)
         encoded = base64.standard_b64encode(image_data).decode("utf-8")
         response = client.messages.create(

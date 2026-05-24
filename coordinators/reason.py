@@ -16,6 +16,8 @@ from world_models.config_utils import BOT_NAME
 logger = logging.getLogger(__name__)
 
 
+REASON_TIMEOUT_SECONDS = 90
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -124,7 +126,11 @@ def _call_local_reasoner(
         if lm_studio_api_key is not None
         else config.LM_STUDIO_API_KEY
     )
-    client = OpenAI(base_url=tier_config["base_url"], api_key=api_key)
+    client = OpenAI(
+        base_url=tier_config["base_url"],
+        api_key=api_key,
+        timeout=REASON_TIMEOUT_SECONDS,
+    )
     return client.chat.completions.create(
         model=tier_config["reason_model"],
         max_tokens=1024,
@@ -136,7 +142,10 @@ def _call_local_reasoner(
 
 
 def _call_anthropic_reasoner(message: str, system_prompt: str, tier_config: dict) -> Any:
-    client = Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    client = Anthropic(
+        api_key=config.ANTHROPIC_API_KEY,
+        timeout=REASON_TIMEOUT_SECONDS,
+    )
     return client.messages.create(
         model=tier_config["reason_model"],
         max_tokens=1024,

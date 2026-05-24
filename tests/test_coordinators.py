@@ -285,7 +285,7 @@ def test_awareness_assigns_tier_by_complexity_without_overriding_manual_tier():
 
 def test_sensory_uses_local_openai_compatible_client_for_tier_one(monkeypatch):
     import coordinators.sensory as sensory_module
-    from coordinators.sensory import Sensory
+    from coordinators.sensory import SENSORY_TIMEOUT_SECONDS, Sensory
 
     calls = {}
 
@@ -322,6 +322,7 @@ def test_sensory_uses_local_openai_compatible_client_for_tier_one(monkeypatch):
     assert calls["client_kwargs"] == {
         "base_url": "http://localhost:1234/v1",
         "api_key": "local",
+        "timeout": SENSORY_TIMEOUT_SECONDS,
     }
     assert calls["model"] == "qwen2.5-3b-instruct"
 
@@ -358,7 +359,7 @@ def test_sensory_uses_anthropic_client_for_tier_two(monkeypatch):
 
 def test_reason_uses_local_openai_compatible_client_for_tier_one(monkeypatch):
     import coordinators.reason as reason_module
-    from coordinators.reason import Reason
+    from coordinators.reason import REASON_TIMEOUT_SECONDS, Reason
 
     calls = {}
 
@@ -394,6 +395,7 @@ def test_reason_uses_local_openai_compatible_client_for_tier_one(monkeypatch):
     assert calls["client_kwargs"] == {
         "base_url": "http://localhost:1234/v1",
         "api_key": "local",
+        "timeout": REASON_TIMEOUT_SECONDS,
     }
     assert calls["model"] == "qwen3.5"
     assert "local response" in calls["stored"]

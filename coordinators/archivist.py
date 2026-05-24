@@ -8,6 +8,7 @@ from pathlib import Path
 from coordinators.base import Coordinator
 
 
+ARCHIVIST_TIMEOUT_SECONDS = 20
 ARCHIVIST_CADENCE_SECONDS = 300
 ARCHIVIST_PRIORITY = 5
 ARCHIVIST_BATCH_SIZE = 10
@@ -82,6 +83,7 @@ def _extract_claims(message: str, response: str) -> list[dict]:
         client = OpenAI(
             base_url="http://localhost:1234/v1",
             api_key="lm-studio",
+            timeout=ARCHIVIST_TIMEOUT_SECONDS,
         )
         completion = client.chat.completions.create(
             model="qwen2.5-3b-instruct",

@@ -1,0 +1,133 @@
+# Gopher-bot Backlog
+
+**Maintained by:** Claude (Director)  
+**Last updated:** 2026-05-24 (Task 68 committed b2b683f)  
+**Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
+
+---
+
+## Status Key
+
+| Symbol | Meaning |
+|---|---|
+| ✅ | Done and committed |
+| 🔄 | In progress right now |
+| 📋 | Has a Codex prompt ready |
+| ⬜ | Backlog — not started |
+| 🔒 | Blocked by another item |
+
+---
+
+## Phase 1 — Complete
+
+All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSURE.md`.
+
+---
+
+## Phase 2 — Interface & Embodiment
+
+### Done This Phase
+
+| Item | Notes |
+|---|---|
+| ✅ Sensory schema (percepts.py) | VisualPercept + AuditoryPercept dataclasses, Sensory coordinator updated to accept percept dicts. 684 tests. |
+| ✅ Hands computer-use expansion | pywinauto, pyautogui, mss, YOLO bbox clicking. pyproject.toml [vision] extras. Policy classifications: screenshot/mouse_move/get_window_list/focus_window = whitelist; clicks/type_text/key_press = greylist. |
+| ✅ One-click launcher | start-bot.bat / stop-bot.bat. Neo4j auto-start via JRE detection (system Temurin 21 preferred over Cache Zulu 17). Polling loop for port 7687. Commit 4783671. |
+| ✅ PySide6 World Map | QGraphicsScene live desktop map, monitor zones, window rooms, AvatarMarker with 300ms animation. WSClientThread → ws://localhost:5000/avatar-ws. Audit sidebar with turns.jsonl tail. |
+| ✅ Discord bridge | interface/discord_bot.py. Channel filter, rate limiting, .txt attachment ingestion, process lock, reply chunking. Reads DISCORD_BOT_TOKEN and DISCORD_CHANNEL from config.py. |
+| ✅ Discord image vision | Commit b2b683f. _describe_image() in Sensory via tier's sensory_model. image_attachments packet key: bridge → Sensory → VisualPercept.description. 13 new tests passing. |
+
+### Ready / Next
+
+| Item | Notes |
+|---|---|
+| ⬜ VisionSensor: YOLO + OpenCV | Replace stub VisionSensor loop with real YOLO v8 (ultralytics) object detection + OpenCV motion detection. Output → VisualPercept.objects (bounding boxes). EasyOCR for text_in_scene. MediaPipe for face count + pose. Requires [vision] extras installed. |
+| ⬜ AudioSensor | Silero VAD (gate) → Whisper (transcription) → YAMNet (sound class) → Librosa (prosody). Output → AuditoryPercept. |
+| ⬜ Sensory pipeline decision | Decide: sequential (500ms tick) vs. event-driven (threshold interrupt → <100ms reflex). Event-driven chosen in principle; interrupt model for BrainLoop not yet designed. Needs a Codex task once decision is finalized. |
+| ⬜ Godot avatar full implementation | Scaffold exists and connects to /avatar-ws. Full animation states: meditating (graph query), typing (code), pacing/napping (idle), startle (sensory anomaly). Humanized execution: avatar walks to app icon before action fires. |
+| ⬜ PySide6 / Godot persona event schema | /persona event should be designed for dual consumers: Godot avatar AND PySide6 world map. Not just simple state strings — needs to carry attention focus, coordinator state, neuromodulator levels. |
+| ⬜ Tailscale setup | Private mesh tunnel. Flask already binds 0.0.0.0. No code change needed for basic phone access to web interface. Operational task, not a Codex task. |
+
+---
+
+## Phase 2 — Memory & Cognition
+
+| Item | Notes |
+|---|---|
+| ⬜ Archivist claim extraction | Archivist currently creates LearningEpisode + Source nodes but writes no LLM-extracted claim text. The epistemic pipeline is hollow. Must be wired before Wisdom or organic node emergence can work. |
+| ⬜ Observation/Inference separation (P-001 Refinement 1) | Add source_type: observed / inferred / proposed to Observation nodes. Memory coordinator tags every write. Pattern Monitor + Reason treat inferred nodes with lower default confidence. Proposal P-001 approved by Gopher. |
+| ⬜ Confidence weights + decay (P-001 Refinement 2) | confidence float + last_confirmed_at on Observation nodes. Dream applies decay during idle. Pattern Monitor watches decaying clusters. |
+| ⬜ Organic node-type emergence | Dream CONSOLIDATE detects clusters of Beliefs without a name → flags for Wisdom. Wisdom proposes new node labels. Depends on: Archivist claim extraction wired first. |
+| 🔒 Wisdom coordinator (temporal-epistemic) | Wisdom is distinct from Memory — it compares current Doctrines to prior Claims, identifies recurring correction patterns, names novel Belief clusters. Depends on: Archivist claim extraction. Weekly cadence or Dream AUDIT trigger. |
+| ⬜ Drive instance sharing | BrainLoop and Awareness currently run separate Drive instances. Should share one to prevent budget tracking drift. |
+| ⬜ SkillNode practice recording | record_skill_practice() exists but isn't wired into coordinators that have measurable outcomes. Wire into Reason (at minimum) post-Phase 2 stabilization. |
+
+---
+
+## Phase 2 — BrainLoop Kernel Hardening
+
+These are required before deep Phase 2 sensor work or the bid queue will degrade under load.
+
+| Item | Notes |
+|---|---|
+| ⬜ P0–P4 bid priority tier system | P0=SAFETY (bypass queue), P1=CAPTURE (mobile/user input, preempts Dream), P2=HEALTH (Drive warnings), P3=INSIGHT (Pattern Monitor, Wisdom, Mirror-Self), P4=AMBIENT (Curiosity, Feeling probes, rate-limited, oldest-bid eviction). |
+| ⬜ Dream checkpointing (interruptible) | Refactor Dream into TRIAGE → CONSOLIDATE → AUDIT as checkpointed stages. Yield + check for P1+ bids between stages. Resume from checkpoint rather than restart. Prevents long consolidation runs blocking mobile capture. |
+| ⬜ Curiosity queue depth cap | Max 3 Curiosity bids in queue. Oldest evicted when cap reached. Stale questions are worse than no questions. |
+| ⬜ Queue depth as health signal | Awareness surfaces P3/P4 backlog depth to coordinator dashboard. Drive factors persistent P4 backlog into tier decisions. |
+| ⬜ Mobile capture inbox queue | Mobile input → provisional PortableCapture struct → inbox (not yet promoted to Source). Awareness surfaces inbox items at next desktop interaction for confirm/discard. On confirm: promoted to Source → Archivist pipeline. |
+
+---
+
+## Phase 2 — Mobile Bridge
+
+| Item | Notes |
+|---|---|
+| ⬜ Mobile bridge (T74 in old numbering) | Flutter or React Native. Lightweight — no AI on phone. Streams sensory data (audio, camera → VisualPercept dict over Tailscale, not raw video). |
+| ⬜ Phone percept schemas | LocationPercept (GPS, moving/still, speed), MotionPercept (accelerometer + gyro: walking/running/sitting/sleeping), ambient light. Feed alongside VisualPercept and AuditoryPercept. |
+| ⬜ Focus handoff state machine | Tap "Call" → PC avatar exit → perception loop shifts to phone → avatar materializes on phone. Presence is singular, not duplicated. |
+
+---
+
+## Architecture Decision Gate
+
+| Decision | Status | Notes |
+|---|---|---|
+| SQLite vs Neo4j | ⬜ Pending | Evaluate before implementing Neo4j-specific Phase 2 features (graph projections, native vector index). If SQLite can support predict-observe-revise query patterns without unacceptable complexity, migrate now. If not, commit to Neo4j. Make this explicit, not by default. |
+| Sequential vs event-driven Sensory | ⬜ Pending | Leaning event-driven (<100ms reflex). BrainLoop interrupt model needs design before Codex task is written. |
+| Persona event schema | ⬜ Pending | Design for dual consumers (Godot + PySide6) before implementing either side's consumption logic. |
+
+---
+
+## Deferred Indefinitely
+
+| Item | Reason |
+|---|---|
+| WiFi CSI spatial sensing | Requires raw hardware CSI access, consumer routers don't expose it, needs multiple APs + specialized firmware. Worth revisiting if project matures. |
+| Docker/VNC autonomous workspace | Docker can't reach real Windows desktop or Steam games. Replaced by: designated browser window + D:\gopher-bot\workspace\ as Gopher-bot's home. |
+| Governed self-distillation | Design documented. No training pipeline. Far future. |
+| Model evaluation framework | Provider discovery done. Benchmark-based switching is Phase 3+. |
+
+---
+
+## Uncommitted Work (Current State)
+
+The following exist in the working tree but are not yet committed:
+
+| File | Status | Description |
+|---|---|---|
+| AGENTS.md | Modified | Rewrote — removed dead Workbench references, now points to BACKLOG.md + CLAUDE.md + DEVELOPMENT_CHARTER.md |
+| CLAUDE.md | New | Project-specific context + general behavioral guidelines for all Claude/Codex sessions |
+| docs/BACKLOG.md | New | This file — canonical project status tracker |
+| outputs/codex_task68_discord_image_vision.md | New | Codex prompt for Task 68 (for historical reference) |
+| requirements.txt | Modified | Added discord.py>=2.0 |
+
+Suggested commit:
+```
+git add AGENTS.md CLAUDE.md docs/BACKLOG.md outputs/codex_task68_discord_image_vision.md requirements.txt
+git commit -m "chore: project orientation files — AGENTS.md, CLAUDE.md, BACKLOG.md"
+git push origin main
+```
+
+### Known Test Suite Issue
+
+`tests/test_awareness_orientation.py` is very slow — first test alone took ~44 seconds in Codex's environment, causing full suite runs to time out at 5 and 15 minutes. This is not a failure, but the full suite cannot be verified in a single Codex run until this is investigated. Workaround: run targeted test files rather than the full suite for now.

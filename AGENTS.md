@@ -1,60 +1,34 @@
-# Workbench Agent Instructions
+# Agent Instructions — Gopher-bot
 
-This repository uses a Workbench wiki orientation layer.
+Before doing anything else, read these files in order:
 
-Before doing any planning, editing, cleanup, documentation, code changes, or project-specific work, read:
+1. `docs/BACKLOG.md` — canonical project status: what is done, what is in progress, what is next, and the current uncommitted working tree state. This is the single source of truth. If it conflicts with anything else, it wins.
+2. `CLAUDE.md` — architecture invariants, security rules, role definitions, and behavioral guidelines. Non-negotiable.
+3. `DEVELOPMENT_CHARTER.md` — formal project principles and authority model.
 
-1. `WORKBENCH_INDEX.md`
-2. `PROJECT_REGISTRY.md`
+## Role Model
 
-Follow the authority model defined there.
+- **Gopher** — owner and final decision authority.
+- **Claude (Cowork / Director)** — designs tasks, writes Codex prompt files to `outputs/`, manages `docs/BACKLOG.md`. Does not implement.
+- **Codex (OpenAI Codex for Desktop)** — reads prompts from `outputs/`, implements, runs tests, commits, pushes. Codex is the only agent that writes git history.
 
-## Required Startup Behavior
+Do not blur these roles. If you are Codex: implement what the prompt says, run the tests, commit, push. Do not redesign features or change architecture without a Director prompt.
 
-At the start of any task:
+## Before Starting Any Task
 
-1. Identify which registered project the task concerns.
-2. Look up that project in `PROJECT_REGISTRY.md`.
-3. Read the listed actual first file for that project.
-4. Check open authority questions before relying on old notes.
-5. Treat session notes, staging folders, raw imports, archived reports, pasted handoffs, and old agent outputs as historical/reference unless promoted by a current-state file.
-6. Do not treat more detailed notes as more authoritative.
-7. Do not import assumptions from one project into another.
+1. Read `docs/BACKLOG.md`. Identify which item the current prompt addresses.
+2. Check the "Uncommitted Work" section — do not start new work if there is a pending commit sequence.
+3. Read the relevant prompt file in `outputs/` fully before writing any code.
+4. State which files you expect to change before changing anything.
 
-## SOP Authority
+## Security Gate — Check Before Every Commit
 
-Workbench-wide SOP authority lives in:
+`world_models/config.py` is gitignored and contains live credentials. Run `git status` before staging. If `world_models/config.py` appears, **stop immediately — do not commit**.
 
-`D:\gopher-workbench\sops\`
+## Testing
 
-`D:\GopherVault\20-SOPs\` and project-local SOPs may be useful references or promotion candidates, but they are not Workbench-wide authority unless explicitly promoted or mirrored into the Workbench `sops\` directory.
+```
+pytest --ignore=tests/test_graph.py -v
+```
 
-More comprehensive does not mean more authoritative.
-
-## Ambiguity Rule
-
-When file authority, project entrypoint, or current-state status is ambiguous, flag the ambiguity instead of resolving it silently.
-
-## Claude-Specific Limitations
-
-**If you are Claude running in Cowork or a similar sandboxed environment, read this before touching git:**
-
-Claude runs in a Linux container accessing this repo through a filesystem mount. Git read operations (`status`, `diff`, `log`) work. Git write operations (`add`, `commit`, `stash`, `push`) will fail with a lock file error — every time, without exception. Do not retry. Do not ask Gopher to delete lock files.
-
-**For all git commits:** prepare the exact commands and have Gopher run them in a native Windows terminal, or include them in a Codex prompt. This is not a workaround — it is the correct workflow.
-
-Read `DEVELOPMENT_CHARTER.md` Article V before starting any implementation work.
-
-## Safety Gates
-
-The instructions above are orientation rules, not a substitute for normal safety checks.
-
-For implementation tasks, continue to use narrow scopes, explicit expected file changes, and `git status --short` verification.
-
-Before modifying files, state:
-
-- which project is being worked on
-- which entrypoint/current-state file was read
-- which SOPs apply
-- whether any authority ambiguity exists
-- exactly which files are expected to change
+Tests must pass before committing. Pre-existing failures unrelated to your change must be documented in the commit message.

@@ -12,5 +12,8 @@ openai>=1.0
 flask>=3.0
 flask-socketio>=5.0
 
+# Discord interface
+discord.py>=2.0
+
 # Dev / testing
 pytest>=8.0

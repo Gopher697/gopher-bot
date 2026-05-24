@@ -15,13 +15,15 @@ class Embedder:
     def __init__(self, post_json: PostJson | None = None):
         self._post_json = post_json or _post_json
 
-    def embed(self, text: str) -> list[float] | None:
+    def embed(self, input_data: str | list[str]) -> list[float] | None:
         try:
+            if isinstance(input_data, str):
+                input_data = [input_data]
             response = self._post_json(
                 _embeddings_url(),
                 {
                     "model": EMBEDDING_MODEL,
-                    "input": text,
+                    "input": input_data,
                 },
             )
             embedding = _extract_embedding(response)

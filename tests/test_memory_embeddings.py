@@ -23,17 +23,35 @@ def test_embedder_embed_returns_float_list_and_sends_minimal_payload():
             "http://localhost:1234/v1/embeddings",
             {
                 "model": "text-embedding-nomic-embed-text-v1.5@q8_0",
-                "input": "memory text",
+                "input": ["memory text"],
             },
         ),
         (
             "http://localhost:1234/v1/embeddings",
             {
                 "model": "text-embedding-nomic-embed-text-v1.5@q8_0",
-                "input": "more memory text",
+                "input": ["more memory text"],
             },
         ),
     ]
+    assert "encoding_format" not in calls[0][1]
+
+
+def test_embedder_preserves_list_input_payload():
+    from coordinators.embedder import Embedder
+
+    calls = []
+
+    def fake_post_json(url, payload):
+        calls.append((url, payload))
+        return {"data": [{"embedding": [0.1, 0.2, 0.3]}]}
+
+    assert Embedder(post_json=fake_post_json).embed(["first", "second"]) == [
+        0.1,
+        0.2,
+        0.3,
+    ]
+    assert calls[0][1]["input"] == ["first", "second"]
     assert "encoding_format" not in calls[0][1]
 
 
@@ -72,7 +90,7 @@ def test_embedder_http_request_omits_encoding_format(monkeypatch):
         assert Embedder().embed("memory text") == [0.1, 0.2, 0.3]
         assert captured[0]["path"] == "/v1/embeddings"
         assert captured[0]["body"]["model"] == "text-embedding-nomic-embed-text-v1.5@q8_0"
-        assert captured[0]["body"]["input"] == "memory text"
+        assert captured[0]["body"]["input"] == ["memory text"]
         assert "encoding_format" not in captured[0]["body"]
     finally:
         server.shutdown()

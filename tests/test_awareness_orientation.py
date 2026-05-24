@@ -67,13 +67,18 @@ class _MemoryWithContext(Coordinator):
 # ---------------------------------------------------------------------------
 
 def _make_awareness(orientation=None, memory=None) -> Awareness:
-    """Minimal Awareness with noop coordinators, no external calls."""
+    """Minimal Awareness with all noop coordinators -- no external calls, no Neo4j."""
     return Awareness(
         sensory=_NoopCoordinator(),
         memory=memory or _NoopCoordinator(),
         reason=_NoopCoordinator(),
         voice=_NoopCoordinator(),
         orientation=orientation or _MockOrientation(),
+        keeper=_NoopCoordinator(),
+        mirror_user=_NoopCoordinator(),
+        mirror_self=_NoopCoordinator(),
+        ethos=_NoopCoordinator(),
+        drive=_NoopCoordinator(),
     )
 
 
@@ -148,6 +153,12 @@ def test_awareness_instantiates_orientation_by_default():
         memory=_NoopCoordinator(),
         reason=_NoopCoordinator(),
         voice=_NoopCoordinator(),
+        keeper=_NoopCoordinator(),
+        mirror_user=_NoopCoordinator(),
+        mirror_self=_NoopCoordinator(),
+        ethos=_NoopCoordinator(),
+        drive=_NoopCoordinator(),
+        # orientation intentionally omitted -- testing that it defaults to a real Orientation
     )
     assert aw.orientation is not None
 

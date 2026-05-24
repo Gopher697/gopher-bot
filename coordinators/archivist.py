@@ -53,6 +53,66 @@ def _default_research_log_writer(entry: dict) -> None:
         handle.write(json.dumps(entry, sort_keys=True) + "\n")
 
 
+def _extract_claims(message: str, response: str) -> list[dict]:
+    """
+    Call the local LLM (qwen2.5-3b-instruct via LM Studio) to extract
+    1-3 durable factual claims from a conversation turn.
+
+    Returns a list of dicts: [{"text": str, "confidence": float}, ...]
+    Returns [] on any failure - extraction is always optional.
+    """
+    import json
+
+    text = f"User: {message}\nAssistant: {response}".strip()
+    if not text or text == "User: \nAssistant:":
+        return []
+
+    prompt = (
+        "Extract 1 to 3 factual, durable claims from this conversation turn.\n"
+        "A claim is a short declarative statement about what is true or was observed.\n"
+        "Return a JSON array of objects with keys: \"text\" (string) and "
+        "\"confidence\" (float 0.0-1.0).\n"
+        "Return ONLY the JSON array. No explanation.\n\n"
+        f"{text}"
+    )
+
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(
+            base_url="http://localhost:1234/v1",
+            api_key="lm-studio",
+        )
+        completion = client.chat.completions.create(
+            model="qwen2.5-3b-instruct",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=256,
+            temperature=0.2,
+        )
+        raw = (completion.choices[0].message.content or "").strip()
+        # Strip markdown fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        parsed = json.loads(raw)
+        if not isinstance(parsed, list):
+            return []
+        result = []
+        for item in parsed:
+            if not isinstance(item, dict):
+                continue
+            text_val = str(item.get("text") or "").strip()
+            if not text_val:
+                continue
+            conf = float(item.get("confidence") or 0.5)
+            conf = max(0.0, min(1.0, conf))
+            result.append({"text": text_val, "confidence": conf})
+        return result[:3]
+    except Exception:
+        return []
+
+
 def _default_graph_writer(
     session_id: str,
     environment: str,
@@ -99,6 +159,52 @@ def _default_graph_writer(
                 pass
 
 
+def _default_claim_writer(
+    source_id: str,
+    learning_id: str,
+    claims: list[dict],
+    environment: str,
+) -> list[str]:
+    """
+    Write extracted claims to the graph and link them to the given
+    Source and LearningEpisode. Returns list of created claim_ids.
+    """
+    if not claims or not source_id:
+        return []
+
+    driver = None
+    try:
+        from world_models import graph
+
+        driver = graph.connect()
+        claim_ids: list[str] = []
+        for claim in claims:
+            claim_id = graph.create_claim(
+                driver=driver,
+                content=claim["text"],
+                source_id=source_id,
+                environment=environment,
+                coordinator="archivist",
+                confidence=claim.get("confidence", 0.5),
+                status="candidate",
+            )
+            graph.link_source_to_claim(driver, source_id, claim_id, environment)
+            if learning_id:
+                graph.link_learning_episode_to_claim(
+                    driver, learning_id, claim_id, environment
+                )
+            claim_ids.append(claim_id)
+        return claim_ids
+    except Exception:
+        return []
+    finally:
+        if driver is not None:
+            try:
+                graph.close(driver)
+            except Exception:
+                pass
+
+
 def _filter_unprocessed(
     turns: list[dict],
     last_processed_turn_id: str,
@@ -123,7 +229,11 @@ def _is_noteworthy(turn: dict) -> bool:
     return ema < ARCHIVIST_LOW_EMA_THRESHOLD
 
 
-def _build_research_entry(turn: dict, graph_writer: Callable) -> dict:
+def _build_research_entry(
+    turn: dict,
+    graph_writer: Callable,
+    claim_writer: Callable,
+) -> dict:
     import uuid
 
     turn_id = str(turn.get("turn_id") or "")
@@ -148,6 +258,16 @@ def _build_research_entry(turn: dict, graph_writer: Callable) -> dict:
         turn_id or None,
     )
 
+    # Claim extraction - optional, fails silently.
+    message = str(turn.get("message") or "")
+    response = str(turn.get("response") or "")
+    claims: list[dict] = []
+    claim_ids: list[str] = []
+    if message or response:
+        claims = _extract_claims(message, response)
+        if claims and source_id:
+            claim_ids = claim_writer(source_id, learning_id, claims, "global")
+
     return {
         "research_id": uuid.uuid4().hex,
         "timestamp": datetime.now(UTC).isoformat(),
@@ -159,6 +279,8 @@ def _build_research_entry(turn: dict, graph_writer: Callable) -> dict:
         "has_error": has_error,
         "source_id": source_id,
         "learning_id": learning_id,
+        "claim_count": len(claim_ids),
+        "claim_ids": claim_ids,
         "status": "filed",
     }
 
@@ -174,11 +296,16 @@ class Archivist(Coordinator):
             [str, str, str, str, str | None],
             tuple[str, str],
         ] | None = None,
+        claim_writer: Callable[
+            [str, str, list[dict], str],
+            list[str],
+        ] | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self.turn_log_reader = turn_log_reader or _default_turn_log_reader
         self.research_log_writer = research_log_writer or _default_research_log_writer
         self.graph_writer = graph_writer or _default_graph_writer
+        self.claim_writer = claim_writer or _default_claim_writer
         self.clock = clock or (lambda: datetime.now(UTC))
         self.state = ArchivistState()
 
@@ -203,7 +330,7 @@ class Archivist(Coordinator):
         last_turn_id = self.state.last_processed_turn_id
 
         for turn in noteworthy:
-            entry = _build_research_entry(turn, self.graph_writer)
+            entry = _build_research_entry(turn, self.graph_writer, self.claim_writer)
             try:
                 self.research_log_writer(entry)
             except Exception:

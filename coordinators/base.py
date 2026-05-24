@@ -129,6 +129,8 @@ def build_turn_log_entry(packet: dict) -> dict[str, Any]:
         "self_affect": str(mirror.get("self_affect") or "stable"),
         "orientation_active_goal": str(orientation.get("active_goal_focus") or ""),
         "has_error": bool(packet.get("error")),
+        "message": str(packet.get("message") or "")[:2000],
+        "response": str(packet.get("response") or "")[:2000],
         "bid_count": bid_count,
         "actual_cost_usd": _safe_float(packet.get("actual_cost_usd"), 0.0),
     }

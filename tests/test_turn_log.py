@@ -55,6 +55,15 @@ def test_build_turn_log_entry_has_error_false():
     assert build_turn_log_entry({})["has_error"] is False
 
 
+def test_build_turn_log_entry_includes_message_and_response():
+    from coordinators.base import build_turn_log_entry
+
+    entry = build_turn_log_entry({"message": "hello", "response": "world"})
+
+    assert entry["message"] == "hello"
+    assert entry["response"] == "world"
+
+
 def test_build_turn_log_entry_bid_count():
     from coordinators.base import build_turn_log_entry
 

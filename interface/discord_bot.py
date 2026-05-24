@@ -115,20 +115,39 @@ def _split_reply(text: str) -> list[str]:
     return chunks
 
 
-async def _read_text_attachments(message: discord.Message) -> str:
-    """Read any .txt file attachments and return their combined content."""
+async def _read_all_text_attachments(message: discord.Message) -> str:
+    """
+    Read all non-image attachments and return their combined content as text.
+
+    For each attachment not in IMAGE_EXTENSIONS:
+    - If the file decodes as UTF-8: inject the full content under a filename header.
+    - If the file is binary (decode fails): inject a note so the bot knows
+      something was sent even if it cannot read it.
+    - Files over MAX_ATTACHMENT_BYTES are skipped with a console note.
+    """
     parts: list[str] = []
     for attachment in message.attachments:
-        if not (attachment.filename or "").lower().endswith(".txt"):
-            continue
+        suffix = Path(attachment.filename or "").suffix.lower()
+        if suffix in IMAGE_EXTENSIONS:
+            continue  # handled by _download_image_attachments
         if attachment.size and attachment.size > MAX_ATTACHMENT_BYTES:
-            print(f"Skipping oversized attachment: {attachment.filename}")
+            print(f"[discord] Skipping oversized attachment: {attachment.filename}")
+            parts.append(f"[{attachment.filename}]: (file too large to transmit)")
             continue
         try:
             data = await attachment.read()
-            parts.append(data.decode("utf-8", errors="replace"))
         except Exception as exc:
-            print(f"Failed to read attachment {attachment.filename}: {exc}")
+            print(f"[discord] Failed to download {attachment.filename}: {exc}")
+            parts.append(f"[{attachment.filename}]: (download failed)")
+            continue
+        try:
+            text = data.decode("utf-8", errors="strict")
+            parts.append(f"[{attachment.filename}]:\n{text}")
+        except UnicodeDecodeError:
+            # Binary file -- note it so the bot is aware something was sent
+            parts.append(
+                f"[{attachment.filename}]: (binary file -- content cannot be displayed)"
+            )
     return "\n\n".join(parts)
 
 
@@ -186,15 +205,15 @@ async def on_message(message: discord.Message) -> None:
 
     async with _get_process_lock():
         try:
-            # Combine message text with any .txt file attachments
+            # Combine message text with any readable non-image file attachments
             content = (message.content or "").strip()
-            attachment_text = await _read_text_attachments(message)
+            attachment_text = await _read_all_text_attachments(message)
             if attachment_text:
                 content = f"{content}\n\n{attachment_text}".strip() if content else attachment_text
 
             image_attachments = await _download_image_attachments(message)
 
-            if not content.strip():
+            if not content.strip() and not image_attachments:
                 return
 
             # Route through Awareness (blocking call - run in thread pool)

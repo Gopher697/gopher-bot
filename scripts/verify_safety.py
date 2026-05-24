@@ -58,8 +58,8 @@ def check_sc_001(driver) -> Result:
         driver,
         """
         MATCH (b:Belief)
-        WHERE NOT (b)<-[:SUPPORTS|:EVIDENCES]-(:Claim)
-          AND NOT (b)<-[:SUPPORTS|:EVIDENCES]-(:Source)
+        WHERE NOT (b)<-[:SUPPORTS|EVIDENCES]-(:Claim)
+          AND NOT (b)<-[:SUPPORTS|EVIDENCES]-(:Source)
         RETURN count(b) AS orphaned_beliefs
         """,
     )

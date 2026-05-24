@@ -1,6 +1,6 @@
 # Gopher-bot: Project Vision
 
-**Last updated:** 2026-05-21  
+**Last updated:** 2026-05-23  
 **Status:** Phase 1 complete — Phase 2 design stage
 
 ---
@@ -176,6 +176,73 @@ Rather than a full Docker sandbox initially, Gopher-bot's autonomous environment
 - A personal folder (`D:\gopher-bot\workspace\`) for its own files
 - Eventually: Docker + VNC Linux container for full isolation (deferred)
 
+### F: BrainLoop Kernel Hardening (Phase 2 Design Decisions)
+
+The BrainLoop currently treats all background coordinator bids as roughly equal priority. At low coordinator counts this is tolerable. As Phase 2 adds sensory streams, mobile capture, and avatar events, the absence of a principled priority model becomes a failure mode. Two concrete failure modes identified:
+
+**Queue flooding:** Curiosity spams low-priority bids that fill the queue, drowning Keeper alerts and mobile capture events that should preempt them.
+
+**Thread starvation:** Dream consolidation, which can run for many seconds, blocks P1-level capture events from being processed within an acceptable latency window.
+
+#### F.1 Priority Tier System
+
+Bids are classified into five tiers. Higher tiers always preempt lower tiers:
+
+| Tier | Name | Sources | Behavior |
+|---|---|---|---|
+| P0 | SAFETY | Keeper violations, Hands policy alerts | Bypasses queue entirely; direct injection; always preempts |
+| P1 | CAPTURE | Mobile capture events, direct user input | Interrupts Dream consolidation; Dream must checkpoint and yield |
+| P2 | HEALTH | Drive budget warnings, coordinator degradation alerts | Processed before insight work |
+| P3 | INSIGHT | Pattern Monitor findings, Wisdom observations, Mirror-Self updates | Normal processing priority |
+| P4 | AMBIENT | Curiosity bids, Feeling probes, low-cadence background checks | Rate-limited; max queue depth with oldest-bid eviction |
+
+#### F.2 Dream Interruptibility
+
+Dream must be refactored to run as checkpointed stages rather than a single monolithic coroutine:
+
+1. **TRIAGE pass** — scan recent episodes, score for consolidation candidates; write checkpoint
+2. **CONSOLIDATE pass** — graph mutations, cluster formation, OTS anchoring; write checkpoint
+3. **AUDIT pass** — verify chain integrity, log results
+
+Between each stage, Dream yields control and checks for pending P1+ bids. If a P1+ bid is present when Dream checks, Dream writes its current checkpoint state and suspends. At the next idle window, Dream resumes from checkpoint rather than restarting. This prevents a 30-minute deep consolidation run from blocking a mobile capture event for its full duration.
+
+#### F.3 Curiosity Queue Depth Cap
+
+Curiosity generates bids on a 180-second cadence. Without a depth cap, a long Dream run or sustained P0/P1 activity can allow dozens of stale Curiosity bids to accumulate. When the cap (suggested: 3 bids) is reached, the oldest Curiosity bid is evicted before the new one is enqueued. Stale questions are worse than no questions — they reflect the knowledge state at generation time, which may no longer represent a real gap.
+
+#### F.4 Awareness Queue Depth as Health Signal
+
+Awareness should surface queue depth metrics as coordinator health signals:
+
+- When P3/P4 backlog exceeds a threshold (e.g., 10 bids), emit a health warning visible in the coordinator dashboard
+- Drive should factor persistent P4 backlog into budget tier decisions — a flooded ambient queue indicates the system is under cognitive load, and Tier 3 calls during that state are likely wasteful
+
+This closes the feedback loop: instead of queue state being invisible, it becomes an observable that the system can respond to.
+
+#### F.5 Mobile Capture Staging Area
+
+Mobile input arrives with variable parse quality — background noise in a transcription, ambiguous OCR, partially spoken thoughts. Instantly promoting raw mobile input to the epistemic chain (Source → Claim promotion) risks polluting the graph with low-confidence assertions.
+
+Phase 2 should implement an explicit inbox queue:
+
+1. Mobile capture event arrives → parsed into provisional `PortableCapture` struct
+2. Written to inbox (dedicated graph node type or flat file queue — not yet promoted to Source)
+3. Awareness surfaces inbox items to the user at next desktop interaction for confirmation or discard
+4. On confirmation: promoted to Source node, enters normal Archivist pipeline
+5. On discard: logged as rejected, not retained in graph
+
+The proposal schema architecture already supports this pattern. What's needed is the mobile capture layer in Phase 2 that targets the inbox rather than direct graph promotion.
+
+#### F.6 Memory Substrate Evaluation Checkpoint
+
+Before Phase 2 commits deeply to Neo4j-specific features (native vector index, advanced Cypher graph algorithms, schema constraints), there is one open architectural decision worth a deliberate evaluation:
+
+**SQLite as a lighter alternative.** Advantages: no Java/JVM dependency, single portable file, stdlib support (`sqlite3`), trivially embeddable. A graph-style schema can be implemented in SQL (nodes table, edges table, properties table). Disadvantages: no native vector index (would require a companion FAISS/Chroma instance), weaker concurrent write handling, no built-in shortest-path or graph projection operators.
+
+**Decision gate:** evaluate SQLite before implementing Neo4j-specific Phase 2 features (e.g., graph projections for consolidation, native vector index queries). If the evaluation concludes SQLite cannot support the predict-observe-revise falsification query patterns without unacceptable complexity, Neo4j commitment deepens. If SQLite is sufficient for the core patterns, migration now is less disruptive than migration after Phase 2 feature build-out.
+
+This is not a recommendation to migrate — it is a recommendation to make the decision explicitly rather than by default.
+
 ---
 
 ## Key Architecture Decisions Made
@@ -219,6 +286,14 @@ Full findings in `docs/research-findings.md`. Key papers that shaped the archite
 2. Add VisionSensor (YOLO + OpenCV) feeding VisualPercept into Sensory
 3. Godot avatar — transparent overlay + WebSocket bridge to Python backend
 4. Tailscale setup + phone access to existing web interface
+
+**BrainLoop kernel hardening (Phase 2 — before deep Neo4j feature work):**
+- Implement P0–P4 priority tier system in Awareness bid queue
+- Refactor Dream into checkpointed stages (TRIAGE → CONSOLIDATE → AUDIT) with inter-stage yield and P1+ preemption
+- Add Curiosity max queue depth (3 bids) with oldest-bid eviction
+- Surface Awareness queue depth as a health signal in the coordinator dashboard
+- Build mobile capture inbox queue — provisional staging before epistemic chain promotion
+- Conduct SQLite evaluation before committing to Neo4j-specific Phase 2 features
 
 **Later:**
 - Wire `record_skill_practice` into coordinators that have measurable outcomes

@@ -45,6 +45,9 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 | ✅ Discord all-attachment support | Commit 73a6302. _read_all_text_attachments replaces txt-only handler. UTF-8 decode attempted on all non-image attachments; binary files get a note. Image-only message drop bug fixed. 824 tests. |
 | ✅ visual_percept → Reason context | Commit 0fece9a. visual_percept.description wired into Reason system prompt. 828 tests. |
 | ✅ Document ingestion to graph | Commit 0e12b68. Text attachments chunked and stored as external_content Observations. Image descriptions stored same way. Both retrievable by Memory via vector search across restarts. 842 tests. |
+| ✅ API call timeouts | Commit 174f98e. 90s Reason, 30s Sensory, 20s Archivist. Prevents bot hang when LM Studio is degraded. 852 tests. |
+| 📋 Two-lane memory retrieval | Codex prompt: codex_two_lane_retrieval.md. Recent episodic lane (last 6 source_type=observed exchanges) always surfaces alongside keyword-relevant lane. Fixes bot not seeing its own recent conversation history. |
+| 📋 Semantic chunking | Codex prompt: codex_semantic_chunking.md. Structure-aware split on markdown headers, numbered sections (§8.2), paragraph breaks. Header preserved in sub-chunks. Fixes section fragmentation in whitepaper ingestion. |
 | ⬜ VisionSensor: YOLO + OpenCV | Replace stub VisionSensor loop with real YOLO v8 (ultralytics) object detection + OpenCV motion detection. Output → VisualPercept.objects (bounding boxes). EasyOCR for text_in_scene. MediaPipe for face count + pose. Requires [vision] extras installed. |
 | ⬜ AudioSensor | Silero VAD (gate) → Whisper (transcription) → YAMNet (sound class) → Librosa (prosody). Output → AuditoryPercept. |
 | ⬜ Sensory pipeline decision | Decide: sequential (500ms tick) vs. event-driven (threshold interrupt → <100ms reflex). Event-driven chosen in principle; interrupt model for BrainLoop not yet designed. Needs a Codex task once decision is finalized. |
@@ -115,7 +118,7 @@ These are required before deep Phase 2 sensor work or the bid queue will degrade
 
 ## Test Suite Baseline
 
-**842 tests** (commit 0e12b68). Full suite runs with:
+**852 tests** (commit 174f98e). Full suite runs with:
 ```
 pytest --ignore=tests/test_graph.py -v
 ```

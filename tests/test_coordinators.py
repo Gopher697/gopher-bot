@@ -8,6 +8,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.conftest import isolated_awareness
+
 
 def test_tier_config_returns_expected_models():
     from coordinators.tier_config import DEFAULT_TIER, get_tier_config
@@ -91,7 +93,7 @@ def test_awareness_runs_pipeline_in_order_without_api_calls():
             packet[self.key] = self.value
             return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=Step("sensory", "keywords", ["gopher"]),
         memory=Step("memory", "memory_context", "known context"),
         reason=Step("reason", "reason_output", "  pipeline complete  "),
@@ -125,7 +127,7 @@ def test_awareness_skips_to_voice_when_error_is_present():
         def process(self, packet):
             raise AssertionError("pipeline should have skipped this coordinator")
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=ErrorStep(),
         memory=ShouldNotRun(),
         reason=ShouldNotRun(),
@@ -169,7 +171,7 @@ def test_awareness_drains_pending_bids_into_reason_context():
             packet["reason_output"] = "used bid context"
             return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=SensoryStep(),
         memory=MemoryStep(),
         reason=ReasonStep(),
@@ -210,7 +212,7 @@ def test_awareness_backfills_accepted_for_drained_bids():
             packet["reason_output"] = "handled bid"
             return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=PassthroughStep(),
         memory=PassthroughStep(),
         reason=ReasonStep(),
@@ -232,7 +234,7 @@ def test_awareness_gate_bids_respects_active_task_state():
     from coordinators.awareness import Awareness
     from coordinators.bid import PRIORITY_CURIOSITY, Bid
 
-    awareness = Awareness()
+    awareness = isolated_awareness()
     awareness.bid_queue.submit(
         Bid("curiosity", "unresolved question", PRIORITY_CURIOSITY, 20.0)
     )
@@ -262,7 +264,7 @@ def test_memory_process_uses_retrieved_context_without_connecting_to_graph():
 def test_awareness_assigns_tier_by_complexity_without_overriding_manual_tier():
     from coordinators.awareness import Awareness
 
-    awareness = Awareness()
+    awareness = isolated_awareness()
 
     simple = {"message": "remember this note", "input_type": "text"}
     awareness.assess_tier(simple)
@@ -942,7 +944,7 @@ def test_awareness_session_id_is_set():
     """Awareness generates a non-empty session_id on init."""
     from coordinators.awareness import Awareness
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         voice=None,
         memory=None,
         sensory=None,
@@ -956,8 +958,8 @@ def test_two_awareness_instances_have_different_session_ids():
     """Each Awareness startup produces a unique session_id."""
     from coordinators.awareness import Awareness
 
-    a1 = Awareness(voice=None, memory=None, sensory=None)
-    a2 = Awareness(voice=None, memory=None, sensory=None)
+    a1 = isolated_awareness(voice=None, memory=None, sensory=None)
+    a2 = isolated_awareness(voice=None, memory=None, sensory=None)
     assert a1.session_id != a2.session_id
 
 
@@ -1148,7 +1150,7 @@ def test_synchronous_run_packet_contains_temporal_fields():
     def time_fn():
         return fake_time[0]
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=FakeSensory(),
         memory=FakeMemory(),
         reason=FakeReason(),
@@ -1184,7 +1186,7 @@ def test_session_age_increases_over_time():
     def time_fn():
         return fake_time[0]
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=FakeSensory(),
         memory=FakeMemory(),
         reason=FakeReason(),
@@ -1232,7 +1234,7 @@ def test_time_since_last_interaction_is_none_on_first_message():
     class FakeMemory:
         def process(self, packet): return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=FakeSensory(),
         memory=FakeMemory(),
         reason=Capturing(),
@@ -1264,7 +1266,7 @@ def test_time_since_last_interaction_tracks_gap():
     class FakeMemory:
         def process(self, packet): return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=FakeSensory(),
         memory=FakeMemory(),
         reason=Capturing(),
@@ -1301,7 +1303,7 @@ def test_time_since_last_nrem_is_none_before_dream_runs():
     class FakeMemory:
         def process(self, packet): return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=FakeSensory(),
         memory=FakeMemory(),
         reason=Capturing(),
@@ -1331,7 +1333,7 @@ def test_packet_contains_process_started_at():
     class FakeMemory:
         def process(self, packet): return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=FakeSensory(),
         memory=FakeMemory(),
         reason=Capturing(),
@@ -1366,7 +1368,7 @@ def test_time_since_last_autonomous_activity_is_present():
     class FakeMemory:
         def process(self, packet): return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=FakeSensory(),
         memory=FakeMemory(),
         reason=Capturing(),

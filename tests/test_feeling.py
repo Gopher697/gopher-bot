@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
+from tests.conftest import isolated_awareness
+
 
 # ── AffectState.observe() ────────────────────────────────────────────────────
 
@@ -453,7 +455,7 @@ def test_awareness_calls_feeling_observe_when_provided():
             packet[self.key] = self.value
             return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=Step("sensory", "keywords", ["test"]),
         memory=Step("memory", "memory_context", "ctx"),
         reason=Step("reason", "reason_output", "response text"),
@@ -481,7 +483,7 @@ def test_awareness_without_feeling_still_works():
             packet[self.key] = self.value
             return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=Step("sensory", "keywords", ["test"]),
         memory=Step("memory", "memory_context", "ctx"),
         reason=Step("reason", "reason_output", "all fine"),
@@ -519,7 +521,7 @@ def test_awareness_feeling_observe_not_called_on_error_path():
             packet["reason_output"] = "fallback"
             return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=ErrorSensory(),
         voice=Voice(),
         feeling=FakeFeeling(),

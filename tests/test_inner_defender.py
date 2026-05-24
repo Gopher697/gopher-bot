@@ -18,6 +18,7 @@ import pytest
 
 from coordinators.bid import PRIORITY_DEFAULT, PRIORITY_SAFETY, Bid, BidQueue
 from coordinators.dream import AuditResult, Dream
+from tests.conftest import isolated_awareness
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +122,7 @@ def test_brain_loop_wires_nrem_done_fn():
     assert dream.nrem_done_fn is None
 
     loop = BrainLoop(coordinators={"dream": dream})
-    awareness = Awareness()
+    awareness = isolated_awareness()
     loop.bind_awareness(awareness)
 
     assert dream.nrem_done_fn is not None
@@ -135,7 +136,7 @@ def test_nrem_done_fn_updates_last_nrem_time():
 
     dream = Dream()
     loop = BrainLoop(coordinators={"dream": dream})
-    awareness = Awareness()
+    awareness = isolated_awareness()
     loop.bind_awareness(awareness)
 
     assert awareness.last_nrem_time == 0.0
@@ -155,7 +156,7 @@ def test_defender_alerts_field_present_in_packet():
         def process(self, packet):
             return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=FakeCoord(), memory=FakeCoord(),
         reason=FakeCoord(), voice=FakeCoord(),
     )
@@ -171,7 +172,7 @@ def test_safety_bid_goes_to_defender_alerts():
         def process(self, packet):
             return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=FakeCoord(), memory=FakeCoord(),
         reason=FakeCoord(), voice=FakeCoord(),
     )
@@ -196,7 +197,7 @@ def test_normal_bid_not_in_defender_alerts():
         def process(self, packet):
             return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=FakeCoord(), memory=FakeCoord(),
         reason=FakeCoord(), voice=FakeCoord(),
     )

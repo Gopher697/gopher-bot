@@ -159,7 +159,10 @@ def test_awareness_writes_turn_log_after_voice(monkeypatch):
         memory=Noop(),
         orientation=Noop(),
         keeper=Noop(),
+        mirror_user=Noop(),
         mirror_self=Noop(),
+        ethos=Noop(),
+        drive=Noop(),
         reason=Noop(),
         voice=Noop(),
     )

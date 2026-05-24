@@ -494,9 +494,12 @@ def test_awareness_runs_mirror_self_before_reason():
         memory=Noop(),
         orientation=Orientation(),
         keeper=Noop(),
+        mirror_user=Noop(),
         reason=reason,
         voice=Noop(),
         mirror_self=_mirror_self(),
+        ethos=Noop(),
+        drive=Noop(),
     )
 
     result = awareness.run("hello")

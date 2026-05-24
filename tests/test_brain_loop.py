@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
+from tests.conftest import isolated_awareness
+
 
 def test_bid_queue_submit_drain_and_clear():
     from coordinators.bid import (
@@ -239,7 +241,7 @@ def test_brain_loop_surfaces_high_priority_bid_to_voice_proactively():
             packet["final_response"] = f"Voice says: {packet['reason_output']}"
             return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         voice=FakeVoice(),
         bid_queue=BidQueue(),
         coordinator_log_acceptance_updater=lambda bid, accepted: backfilled.append(
@@ -299,7 +301,7 @@ def test_brain_loop_rate_limits_proactive_voice_outputs():
             packet["final_response"] = packet["reason_output"]
             return packet
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         voice=FakeVoice(),
         bid_queue=BidQueue(),
         coordinator_log_acceptance_updater=lambda bid, accepted: None,
@@ -347,7 +349,7 @@ def test_brain_loop_does_not_surface_low_priority_bids_proactively():
                 Bid(self.name, "Routine drive check", PRIORITY_DRIVE, current_time[0])
             )
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         bid_queue=BidQueue(),
         coordinator_log_acceptance_updater=lambda bid, accepted: None,
     )

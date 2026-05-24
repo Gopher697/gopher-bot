@@ -4,6 +4,8 @@ import json
 import tempfile
 from pathlib import Path
 
+from tests.conftest import isolated_awareness
+
 
 # ---------------------------------------------------------------------------
 # Policy engine tests
@@ -299,7 +301,7 @@ def test_awareness_calls_hands_when_action_in_packet():
 
     log = []
     hands = Hands(action_log_writer=log.append)
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=FakeSensory(),
         memory=FakeMemory(),
         reason=FakeReason(),
@@ -344,7 +346,7 @@ def test_awareness_skips_hands_when_no_action_in_packet():
 
     log = []
     hands = Hands(action_log_writer=log.append)
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=FakeSensory(),
         memory=FakeMemory(),
         reason=FakeReason(),

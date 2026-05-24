@@ -22,6 +22,7 @@ from coordinators.keeper import (
     _build_keeper_context,
     _compute_clean_streak,
 )
+from tests.conftest import isolated_awareness
 
 
 def run(coro):
@@ -192,7 +193,7 @@ def test_compute_streak_failure_is_last():
 def test_awareness_instantiates_keeper_by_default():
     from coordinators.awareness import Awareness
 
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=_NoopCoordinator(),
         memory=_NoopCoordinator(),
         reason=_NoopCoordinator(),
@@ -206,7 +207,7 @@ def test_awareness_runs_keeper_before_reason():
     from coordinators.awareness import Awareness
 
     reason = _RecordingReason()
-    awareness = Awareness(
+    awareness = isolated_awareness(
         sensory=_NoopCoordinator(),
         memory=_NoopCoordinator(),
         reason=reason,

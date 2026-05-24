@@ -7,6 +7,7 @@ from coordinators.ethos import (
     Ethos,
     _format_doctrine_context,
 )
+from tests.conftest import isolated_awareness
 
 
 class _NoopCoordinator(Coordinator):
@@ -40,7 +41,7 @@ def _doctrine(content: str, version: int = 1, scope: str = "") -> dict:
 
 
 def _make_awareness(ethos: Coordinator | None = None) -> Awareness:
-    return Awareness(
+    return isolated_awareness(
         sensory=_NoopCoordinator(),
         memory=_NoopCoordinator(),
         reason=_NoopCoordinator(),
@@ -133,7 +134,7 @@ def test_ethos_returns_packet():
 
 
 def test_awareness_has_ethos_attribute():
-    awareness = Awareness()
+    awareness = isolated_awareness()
     assert hasattr(awareness, "ethos")
 
 

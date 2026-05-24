@@ -37,10 +37,18 @@ class Reason(Coordinator):
     def process(self, packet: dict) -> dict:
         message = str(packet.get("message", "")).strip()
         memory_context = str(packet.get("memory_context", "")).strip()
+        visual_description = str(
+            (packet.get("visual_percept") or {}).get("description") or ""
+        ).strip()
         tier = packet.get("tier", DEFAULT_TIER)
 
         try:
-            response = self.generate_response(message, memory_context, tier)
+            response = self.generate_response(
+                message,
+                memory_context,
+                tier,
+                visual_description,
+            )
         except Exception as e:
             logger.exception("Reason.generate_response failed: %s", e)
             packet["error"] = "response generation failed"
@@ -55,6 +63,7 @@ class Reason(Coordinator):
         message: str,
         memory_context: str,
         tier: int = DEFAULT_TIER,
+        visual_description: str = "",
     ) -> str:
         tier_config = get_tier_config(tier)
         system_prompt = (
@@ -64,6 +73,11 @@ class Reason(Coordinator):
             "If memory context is empty, say so and respond from first principles.\n"
             "Be direct. Do not perform enthusiasm."
         )
+        if visual_description:
+            system_prompt += (
+                "\n\nVisual context (image attached by user): "
+                f"{visual_description}"
+            )
         if tier_config["base_url"]:
             response = _call_local_reasoner(
                 message,

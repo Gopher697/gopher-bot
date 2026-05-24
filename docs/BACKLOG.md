@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-24 (Task 68 committed b2b683f)  
+**Last updated:** 2026-05-24 (noop isolation 61045c4 — 810 tests, 3.97s)  
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -119,15 +119,23 @@ The following exist in the working tree but are not yet committed:
 | CLAUDE.md | New | Project-specific context + general behavioral guidelines for all Claude/Codex sessions |
 | docs/BACKLOG.md | New | This file — canonical project status tracker |
 | outputs/codex_task68_discord_image_vision.md | New | Codex prompt for Task 68 (for historical reference) |
+| outputs/codex_fix_awareness_orientation_slow_tests.md | New | Codex prompt — scoped orientation test fix |
+| outputs/codex_fix_awareness_noop_isolation.md | New | Codex prompt — full noop isolation sweep |
 | requirements.txt | Modified | Added discord.py>=2.0 |
 
 Suggested commit:
 ```
-git add AGENTS.md CLAUDE.md docs/BACKLOG.md outputs/codex_task68_discord_image_vision.md requirements.txt
-git commit -m "chore: project orientation files — AGENTS.md, CLAUDE.md, BACKLOG.md"
+git add AGENTS.md CLAUDE.md docs/BACKLOG.md requirements.txt outputs/codex_task68_discord_image_vision.md outputs/codex_fix_awareness_orientation_slow_tests.md outputs/codex_fix_awareness_noop_isolation.md
+git commit -m "chore: project orientation files — AGENTS.md, CLAUDE.md, BACKLOG.md; Codex prompt archive"
 git push origin main
 ```
 
-### Known Test Suite Issue
+### Test Suite Baseline
 
-`tests/test_awareness_orientation.py` is very slow — first test alone took ~44 seconds in Codex's environment, causing full suite runs to time out at 5 and 15 minutes. This is not a failure, but the full suite cannot be verified in a single Codex run until this is investigated. Workaround: run targeted test files rather than the full suite for now.
+**810 tests, 3.97 seconds** (commit 61045c4). Full suite runs with:
+```
+pytest --ignore=tests/test_graph.py -v
+```
+Root cause of prior timeouts: `Awareness(...)` constructions in tests were instantiating
+real `Ethos`/`Drive` coordinators which hit Neo4j connection timeouts. Fixed by full noop
+isolation across all test files + `tests/conftest.py` `isolated_awareness()` factory.

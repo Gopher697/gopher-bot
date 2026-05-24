@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import re
 import sys
 from pathlib import Path
+from pathlib import Path as _Path
 from typing import Any
 
 from anthropic import Anthropic
@@ -33,6 +35,37 @@ class Sensory(Coordinator):
 
     def process(self, packet: dict) -> dict:
         packet["input_type"] = packet.get("input_type") or "text"
+
+        # Handle image attachments from the Discord bridge (or any future input source).
+        # Each entry is {"filename": str, "data": bytes}.
+        image_attachments = packet.pop("image_attachments", None) or []
+        if image_attachments and "visual_percept" not in packet:
+            tier_config = get_tier_config(packet.get("tier", DEFAULT_TIER))
+            descriptions = []
+            for attachment in image_attachments:
+                filename = attachment.get("filename", "image")
+                data = attachment.get("data", b"")
+                if not data:
+                    continue
+                desc = _describe_image(data, filename, tier_config)
+                if desc:
+                    descriptions.append(f"[{filename}]: {desc}")
+                else:
+                    descriptions.append(f"[{filename}]: (image attached; no description available at current tier)")
+            if descriptions:
+                combined_description = "\n".join(descriptions)
+                import time as _time_mod
+                packet["visual_percept"] = {
+                    "timestamp": _time_mod.time(),
+                    "objects": [],
+                    "motion_detected": False,
+                    "motion_region": None,
+                    "scene_type": "user_attachment",
+                    "text_in_scene": [],
+                    "faces_detected": 0,
+                    "pose_summary": "",
+                    "description": combined_description,
+                }
 
         if "visual_percept" not in packet:
             latest_vp = VisionSensor.get_latest()
@@ -145,6 +178,67 @@ def _call_anthropic_classifier(message: str, system_prompt: str, tier_config: di
         system=system_prompt,
         messages=[{"role": "user", "content": message}],
     )
+
+
+def _media_type_from_filename(filename: str) -> str:
+    ext = _Path(filename).suffix.lower()
+    return {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+    }.get(ext, "image/jpeg")
+
+
+def _describe_image(image_data: bytes, filename: str, tier_config: dict) -> str:
+    """
+    Generate a prose description of an image using the tier's sensory model.
+    Returns an empty string if the tier is local (no vision) or if the call fails.
+    Vision is only available when base_url is None (Anthropic cloud).
+    """
+    if tier_config.get("base_url"):
+        # Local model - no vision capability
+        return ""
+    model = tier_config.get("sensory_model")
+    if not model:
+        return ""
+    try:
+        client = Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        media_type = _media_type_from_filename(filename)
+        encoded = base64.standard_b64encode(image_data).decode("utf-8")
+        response = client.messages.create(
+            model=model,
+            max_tokens=512,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": media_type,
+                                "data": encoded,
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": (
+                                "Describe this image concisely as a factual note. "
+                                "Cover what is shown, any visible text, and any context "
+                                "relevant to a work log or memory system. "
+                                "Two to four sentences maximum."
+                            ),
+                        },
+                    ],
+                }
+            ],
+        )
+        return _extract_text(response).strip()
+    except Exception as e:
+        logger.warning("Image description failed for %s: %s", filename, e)
+        return ""
 
 
 def _parse_classification(text: str) -> dict:

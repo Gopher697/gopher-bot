@@ -27,6 +27,7 @@ class VisualPercept:
     text_in_scene: List[TextSegment] = field(default_factory=list)
     faces_detected: int = 0
     pose_summary: str = ""
+    description: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -43,6 +44,7 @@ class VisualPercept:
             ],
             "faces_detected": self.faces_detected,
             "pose_summary": self.pose_summary,
+            "description": self.description,
         }
 
     @classmethod
@@ -71,6 +73,7 @@ class VisualPercept:
             text_in_scene=text_in_scene,
             faces_detected=int(data.get("faces_detected", 0)),
             pose_summary=str(data.get("pose_summary", "")),
+            description=str(data.get("description", "")),
         )
 
 

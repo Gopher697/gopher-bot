@@ -319,7 +319,7 @@ AUDIT_TEMPLATE = """
     </section>
   </main>
 
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>
     const auditBody = document.getElementById("audit-body");
     const emptyRow = document.getElementById("empty-row");

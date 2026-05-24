@@ -530,9 +530,23 @@ def test_chat_interface_listens_for_proactive_responses():
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "/socket.io/socket.io.js" in html
+    assert "https://cdn.socket.io/4.7.5/socket.io.min.js" in html
+    assert "/socket.io/socket.io.js" not in html
     assert 'socket.on("response"' in html
     assert "/proactive-messages" in html
+
+
+def test_audit_interface_uses_socketio_client_matching_server_protocol():
+    from interface import server
+
+    client = server.app.test_client()
+
+    response = client.get("/audit")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "https://cdn.socket.io/4.7.5/socket.io.min.js" in html
+    assert "/socket.io/socket.io.js" not in html
 
 
 def test_chat_interface_uses_configured_bot_name(monkeypatch):

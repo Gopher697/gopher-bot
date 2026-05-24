@@ -5,33 +5,33 @@ from coordinators.memory import (
     INGEST_CHUNK_SIZE,
     INGEST_MAX_CHUNKS,
     Memory,
-    _chunk_text,
+    _semantic_chunk_text,
 )
 
 
 # -- _chunk_text -------------------------------------------------------------
 
 def test_chunk_text_short_content_is_one_chunk():
-    result = _chunk_text("hello world", 1500, 20)
+    result = _semantic_chunk_text("hello world", 1500, 20)
     assert result == ["hello world"]
 
 
 def test_chunk_text_splits_long_content():
     text = "a" * 4000
-    chunks = _chunk_text(text, 1500, 20)
+    chunks = _semantic_chunk_text(text, 1500, 20)
     assert len(chunks) > 1
     assert all(len(c) <= 1500 for c in chunks)
 
 
 def test_chunk_text_respects_max_chunks():
     text = "line\n" * 10000
-    chunks = _chunk_text(text, 100, 5)
+    chunks = _semantic_chunk_text(text, 100, 5)
     assert len(chunks) <= 5
 
 
 def test_chunk_text_prefers_newline_boundaries():
     text = "first line\nsecond line\nthird line"
-    chunks = _chunk_text(text, 20, 20)
+    chunks = _semantic_chunk_text(text, 20, 20)
     # Should not split mid-word at the exact char boundary
     combined = "\n".join(chunks)
     assert "first line" in combined
@@ -39,7 +39,7 @@ def test_chunk_text_prefers_newline_boundaries():
 
 
 def test_chunk_text_empty_returns_empty():
-    assert _chunk_text("", 1500, 20) == []
+    assert _semantic_chunk_text("", 1500, 20) == []
 
 
 # -- Memory.ingest_attachments ----------------------------------------------

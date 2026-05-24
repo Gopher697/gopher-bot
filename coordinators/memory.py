@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re as _re
 import sys
 from pathlib import Path
 from typing import Any, Iterable
@@ -25,20 +26,135 @@ INGEST_CHUNK_SIZE = 1500   # characters per chunk
 INGEST_MAX_CHUNKS = 20     # max chunks per document (~30KB)
 
 
-def _chunk_text(text: str, chunk_size: int, max_chunks: int) -> list[str]:
-    """Split text into chunks of at most chunk_size characters."""
-    chunks = []
+def _char_chunk(text: str, chunk_size: int) -> list[str]:
+    """
+    Split text into chunks of at most chunk_size characters, preferring
+    to break at newline boundaries. Used as a fallback when a structural
+    section is too large to store as a single chunk.
+    """
+    chunks: list[str] = []
     start = 0
-    while start < len(text) and len(chunks) < max_chunks:
+    while start < len(text):
         end = start + chunk_size
-        # Prefer breaking at a newline near the boundary
         if end < len(text):
             newline = text.rfind("\n", start, end)
             if newline > start:
                 end = newline
-        chunks.append(text[start:end].strip())
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
         start = end
-    return [chunk for chunk in chunks if chunk]
+    return chunks
+
+
+# Patterns that mark the start of a new structural section
+_SECTION_BOUNDARY = _re.compile(
+    r"^(?:"
+    r"#{1,6}\s"           # Markdown headers: # H1 through ###### H6
+    r"|§\s*[\d.]+"        # Section symbols: §8.2, § 13
+    r"|\d+(?:\.\d+)+\s"   # Numbered sections: 8.2 Heading, 13.8.1 Sub
+    r")",
+    _re.MULTILINE,
+)
+
+
+def _semantic_chunk_text(
+    text: str,
+    chunk_size: int,
+    max_chunks: int,
+) -> list[str]:
+    """
+    Split text into semantically coherent chunks by respecting document structure.
+
+    Strategy:
+    1. Find all structural section boundaries (markdown headers, numbered sections,
+       section symbols like §8.2).
+    2. Each section from one boundary to the next becomes a chunk candidate.
+    3. If a section candidate exceeds chunk_size characters, split it further
+       using paragraph breaks (double newline), then fall back to _char_chunk().
+    4. If no structural boundaries are found, fall back to paragraph splitting,
+       then to _char_chunk().
+
+    The section header is always included at the top of each sub-chunk produced
+    by splitting an oversized section, so retrieval context is preserved.
+
+    Args:
+        text:       Input text to chunk.
+        chunk_size: Maximum characters per chunk.
+        max_chunks: Maximum number of chunks to produce.
+
+    Returns:
+        List of non-empty chunk strings, at most max_chunks long.
+    """
+    text = text.strip()
+    if not text:
+        return []
+
+    boundaries = [match.start() for match in _SECTION_BOUNDARY.finditer(text)]
+
+    if boundaries:
+        raw_sections: list[tuple[str, bool]] = []
+        for index, start in enumerate(boundaries):
+            end = boundaries[index + 1] if index + 1 < len(boundaries) else len(text)
+            section = text[start:end].strip()
+            if section:
+                raw_sections.append((section, True))
+        if boundaries[0] > 0:
+            preamble = text[:boundaries[0]].strip()
+            if preamble:
+                raw_sections.insert(0, (preamble, False))
+    else:
+        raw_sections = [(text, False)]
+
+    chunks: list[str] = []
+    for section, has_header in raw_sections:
+        if len(chunks) >= max_chunks:
+            break
+        if len(section) <= chunk_size:
+            chunks.append(section)
+        else:
+            lines = section.split("\n", 1)
+            header = lines[0].strip() if has_header and len(lines) > 1 else ""
+            body = lines[1] if header else section
+
+            paragraphs = [paragraph.strip() for paragraph in body.split("\n\n") if paragraph.strip()]
+            current: list[str] = [header] if header else []
+            current_len = len(header)
+
+            for paragraph in paragraphs:
+                if len(chunks) >= max_chunks:
+                    break
+                if current_len + len(paragraph) + 2 <= chunk_size:
+                    current.append(paragraph)
+                    current_len += len(paragraph) + 2
+                else:
+                    if current:
+                        flushed = "\n\n".join(current).strip()
+                        if flushed and flushed != header:
+                            chunks.append(flushed)
+                    if len(chunks) >= max_chunks:
+                        break
+                    if len(paragraph) <= chunk_size and (
+                        not header or len(header) + len(paragraph) + 2 <= chunk_size
+                    ):
+                        current = [header, paragraph] if header else [paragraph]
+                        current_len = len(header) + len(paragraph) + 2
+                    else:
+                        prefix = f"{header}\n\n" if header else ""
+                        sub_chunk_size = max(chunk_size - len(prefix), 1)
+                        for sub_chunk in _char_chunk(paragraph, sub_chunk_size):
+                            if len(chunks) >= max_chunks:
+                                break
+                            chunks.append((prefix + sub_chunk).strip())
+                        current = [header] if header else []
+                        current_len = len(header)
+
+            if current and len(chunks) < max_chunks:
+                flushed = "\n\n".join(current).strip()
+                if flushed and flushed != header:
+                    chunks.append(flushed)
+
+    return [chunk for chunk in chunks if chunk][:max_chunks]
 
 
 def _format_recent_episodic(items: list[dict]) -> str:
@@ -253,7 +369,7 @@ class Memory(Coordinator):
             if not content:
                 continue
             try:
-                chunks = _chunk_text(content, INGEST_CHUNK_SIZE, INGEST_MAX_CHUNKS)
+                chunks = _semantic_chunk_text(content, INGEST_CHUNK_SIZE, INGEST_MAX_CHUNKS)
                 for index, chunk in enumerate(chunks):
                     if len(chunks) > 1:
                         label = f"[{filename} chunk {index + 1}/{len(chunks)}]"

@@ -98,6 +98,17 @@ start "Bot Backend" /min cmd /c "cd /d %~dp0 && python interface/server.py & pau
 echo     Waiting for server to initialize...
 timeout /t 4 /nobreak >nul
 
+:: -- Discord bridge -------------------------------------------
+python -c "from world_models import config; exit(0 if getattr(config, 'DISCORD_BOT_TOKEN', '').strip() else 1)" >nul 2>&1
+if %errorlevel%==0 (
+    echo [2/2] Starting Discord bridge...
+    start "Discord Bridge" /min cmd /c "cd /d "%~dp0" && python interface/discord_bot.py & pause"
+    echo     Discord bridge launched.
+) else (
+    echo [2/2] Discord bridge skipped ^(DISCORD_BOT_TOKEN not set^).
+)
+echo.
+
 :: -- World Map ------------------------------------------------
 echo [2.5/2] Launching world map...
 start "" python "%~dp0interface\world_map.py"
@@ -119,6 +130,7 @@ echo ============================================================
 echo   Bot is running.
 echo   Backend: minimized window "Bot Backend"
 echo   Avatar:  floating on your desktop
+echo   Discord: running in minimized window "Discord Bridge" ^(if token configured^)
 echo   Web UI:  http://localhost:5000
 echo   Run stop-bot.bat to shut everything down.
 echo ============================================================

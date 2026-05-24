@@ -119,9 +119,12 @@ def test_memory_retrieve_uses_vector_path_when_embedding_succeeds():
 
     memory = Memory(embedder=FakeEmbedder())
     memory._retrieve_vector_context = lambda embedding, environment="global": "Vector context"
-    memory._retrieve_keyword_context = lambda terms, environment="global": "Keyword context"
+    memory._retrieve_keyword_context = (
+        lambda terms, environment="global", limit=12: "Keyword context"
+    )
+    memory._retrieve_recent_episodic = lambda environment="global", limit=6: []
 
-    assert memory.retrieve(["gopher", "memory"]) == "Vector context"
+    assert memory.retrieve(["gopher", "memory"]) == "[Relevant context]\nVector context"
     assert calls == [("embed", "gopher memory")]
 
 
@@ -134,9 +137,12 @@ def test_memory_retrieve_falls_back_to_keyword_path_when_embedder_returns_none()
 
     memory = Memory(embedder=FakeEmbedder())
     memory._retrieve_vector_context = lambda embedding, environment="global": "Vector context"
-    memory._retrieve_keyword_context = lambda terms, environment="global": "Keyword context"
+    memory._retrieve_keyword_context = (
+        lambda terms, environment="global", limit=12: "Keyword context"
+    )
+    memory._retrieve_recent_episodic = lambda environment="global", limit=6: []
 
-    assert memory.retrieve(["gopher", "memory"]) == "Keyword context"
+    assert memory.retrieve(["gopher", "memory"]) == "[Relevant context]\nKeyword context"
 
 
 def test_memory_retrieve_falls_back_to_keyword_path_when_vector_has_no_results():
@@ -148,6 +154,9 @@ def test_memory_retrieve_falls_back_to_keyword_path_when_vector_has_no_results()
 
     memory = Memory(embedder=FakeEmbedder())
     memory._retrieve_vector_context = lambda embedding, environment="global": ""
-    memory._retrieve_keyword_context = lambda terms, environment="global": "Keyword context"
+    memory._retrieve_keyword_context = (
+        lambda terms, environment="global", limit=12: "Keyword context"
+    )
+    memory._retrieve_recent_episodic = lambda environment="global", limit=6: []
 
-    assert memory.retrieve(["gopher", "memory"]) == "Keyword context"
+    assert memory.retrieve(["gopher", "memory"]) == "[Relevant context]\nKeyword context"

@@ -19,6 +19,8 @@ from world_models import config, graph, vector_index  # noqa: E402
 
 
 MAX_CONTEXT_ITEMS = 12
+RECENT_EPISODIC_ITEMS = 6   # always pull this many recent observed exchanges
+RELEVANT_CONTEXT_ITEMS = 8  # keyword/vector lane budget (was MAX_CONTEXT_ITEMS=12)
 INGEST_CHUNK_SIZE = 1500   # characters per chunk
 INGEST_MAX_CHUNKS = 20     # max chunks per document (~30KB)
 
@@ -37,6 +39,18 @@ def _chunk_text(text: str, chunk_size: int, max_chunks: int) -> list[str]:
         chunks.append(text[start:end].strip())
         start = end
     return [chunk for chunk in chunks if chunk]
+
+
+def _format_recent_episodic(items: list[dict]) -> str:
+    """Format recent observed observations into a readable context string."""
+    if not items:
+        return ""
+    lines = []
+    for item in reversed(items):  # oldest first so conversation reads chronologically
+        content = str(item.get("content") or "").strip()
+        if content:
+            lines.append(content)
+    return "\n---\n".join(lines)
 
 
 class Memory(Coordinator):
@@ -71,16 +85,34 @@ class Memory(Coordinator):
 
     def retrieve(self, keywords: Iterable[str], environment: str = "global") -> str:
         terms = _normalize_keywords(keywords)
-        if not terms:
-            return ""
 
-        embedding = self.embedder.embed(" ".join(terms))
-        if embedding is not None:
-            vector_context = self._retrieve_vector_context(embedding, environment)
-            if vector_context:
-                return vector_context
+        # Lane 1: topic-relevant content (keyword or vector)
+        relevant_text = ""
+        if terms:
+            embedding = self.embedder.embed(" ".join(terms))
+            if embedding is not None:
+                relevant_text = self._retrieve_vector_context(embedding, environment)
+            if not relevant_text:
+                relevant_text = self._retrieve_keyword_context(
+                    terms, environment, limit=RELEVANT_CONTEXT_ITEMS
+                )
 
-        return self._retrieve_keyword_context(terms, environment)
+        # Lane 2: recent episodic exchanges (always, regardless of keywords)
+        recent_items = self._retrieve_recent_episodic(environment)
+        # Deduplicate: drop recent items whose content already appears in relevant_text
+        unique_recent = [
+            item for item in recent_items
+            if not relevant_text or str(item.get("content", "")) not in relevant_text
+        ]
+        recent_text = _format_recent_episodic(unique_recent)
+
+        # Combine: recent context first (highest signal for coherence), then broader context
+        parts = []
+        if recent_text:
+            parts.append(f"[Recent exchanges]\n{recent_text}")
+        if relevant_text:
+            parts.append(f"[Relevant context]\n{relevant_text}")
+        return "\n\n".join(parts)
 
     def _retrieve_vector_context(
         self,
@@ -115,6 +147,7 @@ class Memory(Coordinator):
         self,
         terms: Iterable[str],
         environment: str = "global",
+        limit: int = MAX_CONTEXT_ITEMS,
     ) -> str:
         driver = None
         try:
@@ -138,7 +171,7 @@ class Memory(Coordinator):
                     """,
                     environment=environment,
                     terms=terms,
-                    limit=MAX_CONTEXT_ITEMS,
+                    limit=limit,
                 )
                 observation_records = session.run(
                     """
@@ -156,12 +189,47 @@ class Memory(Coordinator):
                     """,
                     environment=environment,
                     terms=terms,
-                    limit=MAX_CONTEXT_ITEMS,
+                    limit=limit,
                 )
 
                 return _format_context(entity_records, observation_records)
         except Exception:
             return ""
+        finally:
+            if driver is not None:
+                graph.close(driver)
+
+    def _retrieve_recent_episodic(
+        self,
+        environment: str = "global",
+        limit: int = RECENT_EPISODIC_ITEMS,
+    ) -> list[dict]:
+        """
+        Return the most recent observed conversation exchanges from the graph,
+        ordered newest-first. These are source_type='observed' Observation nodes
+        written by Reason after each turn.
+
+        Returns a list of observation property dicts, or [] on failure.
+        """
+        driver = None
+        try:
+            driver = graph.connect()
+            with driver.session(database=config.NEO4J_DATABASE) as session:
+                records = session.run(
+                    """
+                    MATCH (observation:Observation {environment: $environment})
+                    WHERE coalesce(observation.status, 'active') = 'active'
+                      AND coalesce(observation.source_type, 'observed') = 'observed'
+                    RETURN properties(observation) AS observation
+                    ORDER BY observation.created_at DESC
+                    LIMIT $limit
+                    """,
+                    environment=environment,
+                    limit=limit,
+                )
+                return [record["observation"] for record in records]
+        except Exception:
+            return []
         finally:
             if driver is not None:
                 graph.close(driver)

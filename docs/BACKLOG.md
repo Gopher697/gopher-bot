@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-24 (noop isolation 61045c4 — 810 tests, 3.97s)  
+**Last updated:** 2026-05-24 (document ingestion 0e12b68 — 842 tests)  
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -36,11 +36,15 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 | ✅ PySide6 World Map | QGraphicsScene live desktop map, monitor zones, window rooms, AvatarMarker with 300ms animation. WSClientThread → ws://localhost:5000/avatar-ws. Audit sidebar with turns.jsonl tail. |
 | ✅ Discord bridge | interface/discord_bot.py. Channel filter, rate limiting, .txt attachment ingestion, process lock, reply chunking. Reads DISCORD_BOT_TOKEN and DISCORD_CHANNEL from config.py. |
 | ✅ Discord image vision | Commit b2b683f. _describe_image() in Sensory via tier's sensory_model. image_attachments packet key: bridge → Sensory → VisualPercept.description. 13 new tests passing. |
+| ✅ Archivist claim extraction | Commit 14d4b7a. turn log now stores message/response (capped 2000 chars). _extract_claims() via qwen2.5-3b-instruct at TIER_LOCAL. _default_claim_writer() links Claims to Source + LearningEpisode. 815 tests passing. |
 
 ### Ready / Next
 
 | Item | Notes |
 |---|---|
+| ✅ Discord all-attachment support | Commit 73a6302. _read_all_text_attachments replaces txt-only handler. UTF-8 decode attempted on all non-image attachments; binary files get a note. Image-only message drop bug fixed. 824 tests. |
+| ✅ visual_percept → Reason context | Commit 0fece9a. visual_percept.description wired into Reason system prompt. 828 tests. |
+| ✅ Document ingestion to graph | Commit 0e12b68. Text attachments chunked and stored as external_content Observations. Image descriptions stored same way. Both retrievable by Memory via vector search across restarts. 842 tests. |
 | ⬜ VisionSensor: YOLO + OpenCV | Replace stub VisionSensor loop with real YOLO v8 (ultralytics) object detection + OpenCV motion detection. Output → VisualPercept.objects (bounding boxes). EasyOCR for text_in_scene. MediaPipe for face count + pose. Requires [vision] extras installed. |
 | ⬜ AudioSensor | Silero VAD (gate) → Whisper (transcription) → YAMNet (sound class) → Librosa (prosody). Output → AuditoryPercept. |
 | ⬜ Sensory pipeline decision | Decide: sequential (500ms tick) vs. event-driven (threshold interrupt → <100ms reflex). Event-driven chosen in principle; interrupt model for BrainLoop not yet designed. Needs a Codex task once decision is finalized. |
@@ -54,7 +58,7 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 
 | Item | Notes |
 |---|---|
-| ⬜ Archivist claim extraction | Archivist currently creates LearningEpisode + Source nodes but writes no LLM-extracted claim text. The epistemic pipeline is hollow. Must be wired before Wisdom or organic node emergence can work. |
+| ✅ Archivist claim extraction | Done — commit 14d4b7a. |
 | ⬜ Observation/Inference separation (P-001 Refinement 1) | Add source_type: observed / inferred / proposed to Observation nodes. Memory coordinator tags every write. Pattern Monitor + Reason treat inferred nodes with lower default confidence. Proposal P-001 approved by Gopher. |
 | ⬜ Confidence weights + decay (P-001 Refinement 2) | confidence float + last_confirmed_at on Observation nodes. Dream applies decay during idle. Pattern Monitor watches decaying clusters. |
 | ⬜ Organic node-type emergence | Dream CONSOLIDATE detects clusters of Beliefs without a name → flags for Wisdom. Wisdom proposes new node labels. Depends on: Archivist claim extraction wired first. |
@@ -109,33 +113,9 @@ These are required before deep Phase 2 sensor work or the bid queue will degrade
 
 ---
 
-## Uncommitted Work (Current State)
+## Test Suite Baseline
 
-The following exist in the working tree but are not yet committed:
-
-| File | Status | Description |
-|---|---|---|
-| AGENTS.md | Modified | Rewrote — removed dead Workbench references, now points to BACKLOG.md + CLAUDE.md + DEVELOPMENT_CHARTER.md |
-| CLAUDE.md | New | Project-specific context + general behavioral guidelines for all Claude/Codex sessions |
-| docs/BACKLOG.md | New | This file — canonical project status tracker |
-| outputs/codex_task68_discord_image_vision.md | New | Codex prompt for Task 68 (for historical reference) |
-| outputs/codex_fix_awareness_orientation_slow_tests.md | New | Codex prompt — scoped orientation test fix |
-| outputs/codex_fix_awareness_noop_isolation.md | New | Codex prompt — full noop isolation sweep |
-| requirements.txt | Modified | Added discord.py>=2.0 |
-
-Suggested commit:
-```
-git add AGENTS.md CLAUDE.md docs/BACKLOG.md requirements.txt outputs/codex_task68_discord_image_vision.md outputs/codex_fix_awareness_orientation_slow_tests.md outputs/codex_fix_awareness_noop_isolation.md
-git commit -m "chore: project orientation files — AGENTS.md, CLAUDE.md, BACKLOG.md; Codex prompt archive"
-git push origin main
-```
-
-### Test Suite Baseline
-
-**810 tests, 3.97 seconds** (commit 61045c4). Full suite runs with:
+**842 tests** (commit 0e12b68). Full suite runs with:
 ```
 pytest --ignore=tests/test_graph.py -v
 ```
-Root cause of prior timeouts: `Awareness(...)` constructions in tests were instantiating
-real `Ethos`/`Drive` coordinators which hit Neo4j connection timeouts. Fixed by full noop
-isolation across all test files + `tests/conftest.py` `isolated_awareness()` factory.

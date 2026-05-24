@@ -1,6 +1,6 @@
 # Gopher-bot: Project Vision
 
-**Last updated:** 2026-05-23  
+**Last updated:** 2026-05-23
 **Status:** Phase 1 complete — Phase 2 design stage
 
 ---

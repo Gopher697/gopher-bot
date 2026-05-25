@@ -29,6 +29,13 @@ avatar/main.gd.uid
 avatar/*.exe
 avatar/export/
 
+# Model weights (auto-downloaded, never commit)
+*.pt
+*.pth
+*.onnx
+*.bin
+models/
+
 # Runtime logs
 logs/dream/
 logs/archivist/

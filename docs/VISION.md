@@ -1,6 +1,6 @@
 # Gopher-bot: Project Vision
 
-**Last updated:** 2026-05-23
+**Last updated:** 2026-05-25
 **Status:** Phase 1 complete — Phase 2 design stage
 
 ---
@@ -245,6 +245,43 @@ This is not a recommendation to migrate — it is a recommendation to make the d
 
 ---
 
+## Phase 3: Governed MCP Unification
+
+The long-term architectural direction is to reverse the current relationship between Gopher-bot and its environment interface: rather than the bot calling out to a separate MCP server, the MCP server is built *around* Gopher-bot's architecture — Gopher-bot IS the MCP server.
+
+### The Core Idea
+
+Currently, Hands manages computer-use actions internally under the whitelist and authority tier system, and external agents have separate, ungoverned access to the computer. The target state:
+
+- Gopher-bot exposes itself as an installable MCP server
+- All computer-use tools (screen capture, mouse/keyboard, window management, file I/O) are served through Gopher-bot's governed interface
+- External agents (builder tools, other LLMs) do not get raw access — they submit requests through Gopher-bot's governance layer (Hands whitelist, authority tiers, Keeper trust gate), which decides what is permitted and executes on their behalf
+- The PySide6 world map stops being a visualisation of a simulation and becomes a literal map of the territory Gopher-bot owns and controls
+
+### Why This Matters
+
+This closes the loop on the neurosymbolic architecture:
+
+- The **world model** (Neo4j graph) maps the environment
+- The **coordinator pipeline** interprets, plans, and governs
+- The **MCP server** is Gopher-bot's physical presence — its spine and sensorimotor interface to the world it inhabits
+
+External agents become requesters operating within Gopher-bot's jurisdiction, not independent actors with their own access paths. The governance layer that currently governs Gopher-bot's own actions becomes the governance layer for the entire local environment.
+
+### Installability
+
+Gopher-bot should be distributable as a self-contained MCP server — cloneable, configured via `config.py`, and launchable so that any MCP-compatible client can connect to it. What the client gets is not raw tool access but governed, auditable, identity-persistent access to an environment actively maintained by Gopher-bot.
+
+### Dependencies
+
+This is a Phase 3 direction. It depends on:
+
+- Phase 2 Hands expansion — the computer-use toolset must be complete before it can be governed externally
+- Phase 2 world model stabilisation — the environment map must be reliable before external agents navigate it
+- MCP server protocol implementation wrapping the coordinator pipeline
+
+---
+
 ## Key Architecture Decisions Made
 
 | Decision | Choice | Reason |
@@ -301,3 +338,4 @@ Full findings in `docs/research-findings.md`. Key papers that shaped the archite
 - LLM-driven Claim extraction in Archivist (currently creates graph nodes but no claim text)
 - Docker/VNC autonomous workspace
 - Flutter/React Native mobile app with focus handoff
+- **MCP unification** — expose Gopher-bot as an installable, self-contained MCP server; all computer-use tools governed through the coordinator pipeline; external agents request access rather than bypass it; completes the world-model simulation of the computer as Gopher-bot's owned environment

@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-24 (document ingestion 0e12b68 — 842 tests)  
+**Last updated:** 2026-05-25 (real VisionSensor 61f78ec — 908 tests)  
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -48,7 +48,7 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 | ✅ API call timeouts | Commit 174f98e. 90s Reason, 30s Sensory, 20s Archivist. Prevents bot hang when LM Studio is degraded. 852 tests. |
 | 📋 Two-lane memory retrieval | Codex prompt: codex_two_lane_retrieval.md. Recent episodic lane (last 6 source_type=observed exchanges) always surfaces alongside keyword-relevant lane. Fixes bot not seeing its own recent conversation history. |
 | 📋 Semantic chunking | Codex prompt: codex_semantic_chunking.md. Structure-aware split on markdown headers, numbered sections (§8.2), paragraph breaks. Header preserved in sub-chunks. Fixes section fragmentation in whitepaper ingestion. |
-| ⬜ VisionSensor: YOLO + OpenCV | Replace stub VisionSensor loop with real YOLO v8 (ultralytics) object detection + OpenCV motion detection. Output → VisualPercept.objects (bounding boxes). EasyOCR for text_in_scene. MediaPipe for face count + pose. Requires [vision] extras installed. |
+| ✅ VisionSensor: YOLO + OpenCV + EasyOCR | Commit 61f78ec. YOLO v8 nano objects, OpenCV motion, EasyOCR text → full VisualPercept. Memory.store_visual_observation() with source_type="perceived". Hands click_label + get_visible_elements. Reason gets element label list. MediaPipe (face/pose) deferred. |
 | ⬜ AudioSensor | Silero VAD (gate) → Whisper (transcription) → YAMNet (sound class) → Librosa (prosody). Output → AuditoryPercept. |
 | ⬜ Sensory pipeline decision | Decide: sequential (500ms tick) vs. event-driven (threshold interrupt → <100ms reflex). Event-driven chosen in principle; interrupt model for BrainLoop not yet designed. Needs a Codex task once decision is finalized. |
 | ⬜ Godot avatar full implementation | Scaffold exists and connects to /avatar-ws. Full animation states: meditating (graph query), typing (code), pacing/napping (idle), startle (sensory anomaly). Humanized execution: avatar walks to app icon before action fires. |
@@ -118,7 +118,7 @@ These are required before deep Phase 2 sensor work or the bid queue will degrade
 
 ## Test Suite Baseline
 
-**852 tests** (commit 174f98e). Full suite runs with:
+**908 tests** (commit 61f78ec). Full suite runs with:
 ```
 pytest --ignore=tests/test_graph.py -v
 ```

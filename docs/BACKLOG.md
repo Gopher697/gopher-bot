@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-25 (AVAILABLE_MODELS intelligent selection — 968 tests)
+**Last updated:** 2026-05-25 (embedding model override — 974 tests)
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -128,7 +128,7 @@ These are required before deep Phase 2 sensor work or the bid queue will degrade
 
 ## Test Suite Baseline
 
-**968 tests** (AVAILABLE_MODELS intelligent selection baseline). Full suite runs with:
+**974 tests** (embedding model override baseline). Full suite runs with:
 ```
 pytest --ignore=tests/test_graph.py -v
 ```

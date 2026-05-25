@@ -74,3 +74,15 @@ STT_MODEL: str | None = None
 TTS_MODEL: str | None = None
 # Default voice: "fable"  — OpenAI options: alloy, echo, fable, onyx, nova, shimmer
 TTS_VOICE: str | None = None
+
+# ---------------------------------------------------------------------------
+# Embedding model (LM Studio local call for vector memory)
+# ---------------------------------------------------------------------------
+# Default: "text-embedding-nomic-embed-text-v1.5@q8_0"
+#
+# WARNING: This determines the vector dimensions stored in Neo4j.
+# Set this ONCE at initial setup, before storing any data.
+# Changing it after vectors are stored will silently break memory retrieval.
+# If you change it, you must re-index: delete all Observation nodes and
+# re-run the migration to rebuild the vector index with the new dimensions.
+EMBEDDING_MODEL: str | None = None

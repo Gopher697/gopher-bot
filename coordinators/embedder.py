@@ -11,6 +11,26 @@ EMBEDDING_MODEL = "text-embedding-nomic-embed-text-v1.5@q8_0"
 PostJson = Callable[[str, dict[str, Any]], Any]
 
 
+def _get_embedding_model() -> str:
+    """
+    Return the embedding model name to use.
+    Reads EMBEDDING_MODEL from world_models.config if set; falls back to the
+    module-level EMBEDDING_MODEL constant.
+
+    WARNING: The embedding model determines Neo4j vector dimensions.
+    Changing this after vectors are already stored will break retrieval.
+    Only set this at initial setup, before any data is stored.
+    """
+    try:
+        import importlib
+
+        config = importlib.import_module("world_models.config")
+        value = getattr(config, "EMBEDDING_MODEL", None)
+        return value if isinstance(value, str) and value.strip() else EMBEDDING_MODEL
+    except Exception:
+        return EMBEDDING_MODEL
+
+
 class Embedder:
     def __init__(self, post_json: PostJson | None = None):
         self._post_json = post_json or _post_json
@@ -22,7 +42,7 @@ class Embedder:
             response = self._post_json(
                 _embeddings_url(),
                 {
-                    "model": EMBEDDING_MODEL,
+                    "model": _get_embedding_model(),
                     "input": input_data,
                 },
             )

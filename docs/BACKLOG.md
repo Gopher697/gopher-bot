@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-25 (Archivist/STT/TTS model overrides — 950 tests)
+**Last updated:** 2026-05-25 (AVAILABLE_MODELS intelligent selection — 968 tests)
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -73,6 +73,14 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 
 ---
 
+## Phase 2 — Model Intelligence
+
+| Item | Notes |
+|---|---|
+| ⬜ Model evaluation & advisor | Background coordinator: runs test prompts against AVAILABLE_MODELS on slow cadence, records latency + basic quality signal per role, surfaces recommendations via bid system. Requires hardware probe at startup (VRAM/RAM) for local model viability. Depends on: AVAILABLE_MODELS (this task). |
+
+---
+
 ## Phase 2 — BrainLoop Kernel Hardening
 
 These are required before deep Phase 2 sensor work or the bid queue will degrade under load.
@@ -120,7 +128,7 @@ These are required before deep Phase 2 sensor work or the bid queue will degrade
 
 ## Test Suite Baseline
 
-**950 tests** (Archivist/STT/TTS model overrides baseline). Full suite runs with:
+**968 tests** (AVAILABLE_MODELS intelligent selection baseline). Full suite runs with:
 ```
 pytest --ignore=tests/test_graph.py -v
 ```

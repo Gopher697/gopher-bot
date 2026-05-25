@@ -58,17 +58,32 @@ def _default_research_log_writer(entry: dict) -> None:
 def _get_archivist_model() -> str:
     """
     Return the model name for claim extraction.
-    Reads ARCHIVIST_MODEL from world_models.config if set; falls back to the
-    module-level ARCHIVIST_MODEL constant.
+
+    Priority:
+    1. ARCHIVIST_MODEL config field override
+    2. AVAILABLE_MODELS (local-fast or local capability)
+    3. Module-level ARCHIVIST_MODEL constant
     """
     try:
         import importlib
 
         config = importlib.import_module("world_models.config")
         value = getattr(config, "ARCHIVIST_MODEL", None)
-        return value if isinstance(value, str) and value.strip() else ARCHIVIST_MODEL
+        if isinstance(value, str) and value.strip():
+            return value.strip()
     except Exception:
-        return ARCHIVIST_MODEL
+        pass
+
+    try:
+        from coordinators.tier_config import get_archivist_model_from_available
+
+        selected = get_archivist_model_from_available()
+        if selected:
+            return selected
+    except Exception:
+        pass
+
+    return ARCHIVIST_MODEL
 
 
 def _extract_claims(message: str, response: str) -> list[dict]:

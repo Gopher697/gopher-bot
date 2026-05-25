@@ -28,6 +28,32 @@ TIER_NAMES: dict[int, str] = {
     TIER_ENHANCED:      "enhanced",
 }
 
+# ---------------------------------------------------------------------------
+# Capability vocabulary for AVAILABLE_MODELS
+# ---------------------------------------------------------------------------
+
+CAPABILITIES = frozenset({"capable", "standard", "fast", "local", "local-fast"})
+
+# Maps (tier, role) -> ordered list of preferred capabilities (first match wins).
+# role is "reason" or "sensory".
+ROLE_CAPABILITY_PREFERENCE: dict[tuple[int, str], list[str]] = {
+    (TIER_LOCAL, "reason"): ["local", "local-fast"],
+    (TIER_LOCAL, "sensory"): ["local-fast", "local"],
+    (TIER_STANDARD, "reason"): ["standard", "capable"],
+    (TIER_STANDARD, "sensory"): ["fast", "standard"],
+    (TIER_ENHANCED, "reason"): ["capable", "standard"],
+    (TIER_ENHANCED, "sensory"): ["fast", "standard"],
+    # Archivist uses "archivist" role key.
+    (TIER_LOCAL, "archivist"): ["local-fast", "local"],
+}
+
+# Provider associated with each tier, used to filter AVAILABLE_MODELS candidates.
+TIER_PROVIDER: dict[int, str] = {
+    TIER_LOCAL: "lm_studio",
+    TIER_STANDARD: "anthropic",
+    TIER_ENHANCED: "anthropic",
+}
+
 # Estimated USD cost per LLM call at each tier (used by Drive for budget tracking).
 TIER_COST_ESTIMATES: dict[int, float] = {
     TIER_DETERMINISTIC: 0.0,
@@ -112,6 +138,53 @@ TIERS: dict[int, TierConfig] = {
 # Public helpers
 # ---------------------------------------------------------------------------
 
+def _select_from_available(
+    tier: int,
+    role: str,
+) -> str | None:
+    """
+    Select a model from AVAILABLE_MODELS for the given tier and role.
+
+    Reads AVAILABLE_MODELS from world_models.config. Returns the first model
+    matching the preferred capability order for (tier, role), filtered to the
+    expected provider for that tier. Returns None if AVAILABLE_MODELS is empty,
+    unset, or no match is found.
+    """
+    try:
+        config = importlib.import_module("world_models.config")
+        available = getattr(config, "AVAILABLE_MODELS", None)
+        if not available or not isinstance(available, list):
+            return None
+    except Exception:
+        return None
+
+    expected_provider = TIER_PROVIDER.get(tier)
+    preferences = ROLE_CAPABILITY_PREFERENCE.get((tier, role), [])
+
+    by_capability: dict[str, str] = {}
+    for entry in available:
+        if not isinstance(entry, dict):
+            continue
+        raw_name = entry.get("name", "")
+        raw_provider = entry.get("provider", "")
+        raw_capability = entry.get("capability", "")
+        name = raw_name.strip() if isinstance(raw_name, str) else ""
+        provider = raw_provider.strip() if isinstance(raw_provider, str) else ""
+        capability = raw_capability.strip() if isinstance(raw_capability, str) else ""
+        if not name or capability not in CAPABILITIES:
+            continue
+        if expected_provider and provider != expected_provider:
+            continue
+        if capability not in by_capability:
+            by_capability[capability] = name
+
+    for capability in preferences:
+        if capability in by_capability:
+            return by_capability[capability]
+
+    return None
+
+
 def _get_config_override(attr: str, default: str | None) -> str | None:
     """
     Safely read an optional model override from world_models.config.
@@ -130,9 +203,10 @@ def _get_config_override(attr: str, default: str | None) -> str | None:
 def get_tier_config(tier: int) -> dict:
     """Return the TierConfig for the given tier as a plain dict.
 
-    Model assignments can be overridden per-tier via optional fields in
-    world_models/config.py. Any field set to None or absent falls back to the
-    hardcoded default.
+    Model selection priority (highest to lowest):
+    1. Per-field config overrides (TIER_LOCAL_REASON_MODEL etc.)
+    2. AVAILABLE_MODELS list - picks best match for role + tier
+    3. Hardcoded tier defaults
     """
     try:
         tier_number = int(tier)
@@ -149,10 +223,26 @@ def get_tier_config(tier: int) -> dict:
 
     if tier_number in override_map:
         reason_key, sensory_key = override_map[tier_number]
+
+        reason_from_available = _select_from_available(tier_number, "reason")
+        sensory_from_available = _select_from_available(tier_number, "sensory")
+        if reason_from_available:
+            cfg["reason_model"] = reason_from_available
+        if sensory_from_available:
+            cfg["sensory_model"] = sensory_from_available
+
         cfg["reason_model"] = _get_config_override(reason_key, cfg["reason_model"])
         cfg["sensory_model"] = _get_config_override(sensory_key, cfg["sensory_model"])
 
     return cfg
+
+
+def get_archivist_model_from_available() -> str | None:
+    """
+    Select an Archivist model from AVAILABLE_MODELS.
+    Returns None if AVAILABLE_MODELS is unset or no local-fast/local model found.
+    """
+    return _select_from_available(TIER_LOCAL, "archivist")
 
 
 def get_tier_name(tier: int) -> str:

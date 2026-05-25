@@ -15,6 +15,29 @@ OPENAI_API_KEY = "your-openai-key-here"
 LM_STUDIO_API_KEY = "your-lm-studio-key-here"  # optional — only needed if using LM Studio
 
 # ---------------------------------------------------------------------------
+# AVAILABLE_MODELS — declare what models you have (Option B)
+#
+# The tier system will automatically select the best model for each role
+# from this list based on the capability annotation. If a per-field override
+# (e.g. TIER_LOCAL_REASON_MODEL) is also set, the per-field override wins.
+#
+# Required fields per entry:
+#   name       — exact model identifier string used in API calls
+#   provider   — one of: "anthropic", "openai", "deepseek", "lm_studio"
+#   capability — one of: "capable", "standard", "fast", "local", "local-fast"
+#
+# Leave as an empty list [] to rely entirely on per-field overrides or defaults.
+# ---------------------------------------------------------------------------
+AVAILABLE_MODELS: list[dict] = [
+    # Examples — uncomment and edit to match your setup:
+    # {"name": "claude-opus-4-6",          "provider": "anthropic",  "capability": "capable"},
+    # {"name": "claude-sonnet-4-6",         "provider": "anthropic",  "capability": "standard"},
+    # {"name": "claude-haiku-4-5-20251001", "provider": "anthropic",  "capability": "fast"},
+    # {"name": "qwen3.5",                   "provider": "lm_studio",  "capability": "local"},
+    # {"name": "qwen2.5-3b-instruct",       "provider": "lm_studio",  "capability": "local-fast"},
+]
+
+# ---------------------------------------------------------------------------
 # Optional model overrides
 # Set any of these to a model name string to override the tier default.
 # Leave as None to use the built-in default.

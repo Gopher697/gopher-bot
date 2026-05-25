@@ -6,6 +6,42 @@ It is committed to the repo so it survives context resets and session ends.
 
 ---
 
+## Session: 2026-05-25 — Full Sensory Intake + GitHub Hardening
+
+**Resumed from:** Phase 1 complete, Phase 2 in progress. Last commit: embedding model override (974 tests).
+
+### GitHub hardening completed
+- Dependabot alerts, malware alerts, Secret Protection, and Push Protection all enabled.
+- Community Standards gaps filled: Code of Conduct (Contributor Covenant via GitHub UI), issue templates (`bug_report.md`, `feature_request.md`), PR template with checklist.
+- Repository published as v0.1.0 pre-release.
+- Topics and description updated.
+- VISION.md updated with Phase 3: Governed MCP Unification — gopher-bot as an installable MCP server where external agents request tools through the governance layer.
+
+### Live bot test — issues found and fixed
+
+**Image hallucination (root cause traced and fixed):**
+The bot was hallucinating responses to images (e.g. describing a palm tree pixel art as a "Slack message screenshot"). Root cause: `_describe_image()` in Sensory returns `""` for local tiers (base_url set), producing the placeholder `(image attached; no description available at current tier)`. This placeholder was passed as plain text to Reason; qwen3.5 never received image bytes. Fix: Sensory now base64-encodes image bytes for local tiers and passes them as `raw_images_for_reason`; Reason builds OpenAI-compatible `image_url` multimodal content blocks. qwen3.5 (loaded with its vision projector) now actually sees the image. Cloud Anthropic description path unchanged.
+
+**Orientation clock missing:**
+Bot said "I don't have access to a real-time clock" despite `current_time` being injected into the packet on every turn by Awareness. `_operational_context()` in Orientation read process uptime (`session_age_seconds`) but not `current_time`. Fix: two lines added — prepend `Current time: <iso>` as the first item.
+
+**Audio not transcribed:**
+Discord voice messages were noted as binary files the bot couldn't process. Fix: Discord bridge now detects audio extensions, downloads bytes, and passes them as `audio_attachments`. Sensory transcribes via OpenAI Whisper API into `AuditoryPercept.transcript`, which existing Sensory logic promotes to `packet["message"]`. `.ogg` (Discord voice) remapped to `.webm` filename for Whisper API compatibility (both use Opus codec).
+
+**Video not processed:**
+Video attachments were unhandled. Fix: Discord bridge detects video extensions, passes bytes as `video_attachments`. Sensory calls ffmpeg via subprocess to extract keyframes (1/5s, max 4) and audio track; frames described by VLM, audio transcribed by Whisper. Graceful degradation printed and noted in visual_percept if ffmpeg not installed.
+
+**Document formats not parsed:**
+PDF, DOCX, XLSX, PPTX, RTF attachments were falling through to "(binary file -- content cannot be displayed)". Fix: `_extract_document_text()` added to Discord bridge, trying pdfplumber / python-docx / openpyxl / python-pptx / RTF tag stripping in sequence. All parsers degrade gracefully if library not installed.
+
+### Architectural insight: context size
+10K+ token context on first message traced to the Archivist processing old turn log files at startup and storing large observations. The vector retrieval mechanism itself is correct (capped at 12+6 items). Issue is the Archivist's startup behavior re-ingesting already-processed logs — tracked as a future fix.
+
+### Test baseline
+1012 tests passing. Suite: `pytest --basetemp .tmp/pytest-tmp -q`
+
+---
+
 ## Session: 2026-05-21 (earlier today)
 
 **Resumed from:** Task chain T1-T52 complete.

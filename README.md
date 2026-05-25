@@ -22,7 +22,7 @@ Key properties:
 
 ## What it is not
 
-- Not a finished product. Phase 1 (coordinator runtime and governance substrate) is complete. Phase 2 (embodiment, perception, memory refinement) is actively in progress.
+- Not a finished product. Phase 1 (coordinator runtime and governance substrate) is complete. Phase 2 (embodiment, perception, memory refinement, full sensory intake) is actively in progress.
 - Not a plug-and-play assistant. Setup requires Python, Neo4j, and at least one LLM provider (cloud API key or a local LM Studio instance).
 - Not peer-reviewed research. This is a working prototype with a companion paper documenting design decisions and open questions.
 - Not safe to run unsupervised. The system is under active development and should be treated as experimental.
@@ -67,13 +67,19 @@ See [`COORDINATOR_REGISTRY.md`](COORDINATOR_REGISTRY.md) for the full coordinato
 - **Semantic chunking** — structure-aware document splitting on markdown headers, numbered sections, paragraph breaks
 - **Document ingestion to graph** — text and image attachments chunked and stored as retrievable external-content observations
 - **AVAILABLE_MODELS** — declare available models with capability annotations; tier system selects best fit automatically
+- **Configurable embedding model** — `EMBEDDING_MODEL` in `config.py` overrides the hardcoded default; re-index warning on change
+- **Local VLM image passthrough** — Discord image attachments base64-encoded and sent as multimodal `image_url` blocks directly to the local vision-language model; cloud Anthropic vision path unchanged
+- **Orientation clock** — current UTC timestamp surfaced in every Reason call so the bot can answer time-aware questions
+- **Audio routing** — Discord voice messages and audio file attachments transcribed via OpenAI Whisper API and promoted to the foreground pipeline as `AuditoryPercept.transcript`
+- **Video routing** — video attachments processed via ffmpeg: keyframes described by the VLM, audio track transcribed via Whisper; graceful degradation if ffmpeg absent
+- **Document parsing** — PDF, DOCX, XLSX/XLS, PPTX, and RTF attachments parsed to extractable text before ingestion; binary formats that cannot be parsed receive a clear "format not supported" note
 
 ### Test baseline
 
-968 tests passing. Full suite:
+1012 tests passing. Full suite:
 
 ```powershell
-pytest --ignore=tests/test_graph.py -q
+pytest --basetemp .tmp/pytest-tmp -q
 ```
 
 ---
@@ -174,7 +180,7 @@ logs/               build and action audit logs
 proposals/          governance proposals (pending and resolved)
 scripts/            healthcheck, migration runner, export utilities
 sensors/            VisionSensor and AudioSensor daemons
-tests/              test suite (968 tests)
+tests/              test suite (1012 tests)
 utils/              shared utilities (audit, registry, config validation)
 world_models/       Neo4j graph, vector index, schema, model registry
 

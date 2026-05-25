@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-25 (embedding model override — 974 tests)
+**Last updated:** 2026-05-25 (full sensory intake session — 1012 tests)
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -50,6 +50,11 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 | ✅ Semantic chunking | Commit d7b1584. Structure-aware split on markdown headers, numbered sections (§8.2), paragraph breaks. Header preserved in sub-chunks. Fixes section fragmentation in whitepaper ingestion. |
 | ✅ VisionSensor: YOLO + OpenCV + EasyOCR | Commit 61f78ec. YOLO v8 nano objects, OpenCV motion, EasyOCR text → full VisualPercept. Memory.store_visual_observation() with source_type="perceived". Hands click_label + get_visible_elements. Reason gets element label list. MediaPipe (face/pose) deferred. |
 | ✅ VLM semantic screen description | Commit 5ffac75. Optional LM Studio vision-language enrichment for stored visual observations: mechanical VisionSensor description remains live/fast; memory storage appends `Scene: ...` VLM prose only when VISION_VLM_MODEL is configured and available. 922 tests. |
+| ✅ Configurable embedding model | Commit aebb114. `EMBEDDING_MODEL` in config.py overrides hardcoded default. Re-index warning comment. 6 new tests. 974 tests. |
+| ✅ Local VLM image passthrough | Sensory base64-encodes Discord image attachments for local tiers and passes as `raw_images_for_reason`; Reason builds OpenAI-compatible `image_url` multimodal blocks. Cloud Anthropic description path unchanged. 989 tests. |
+| ✅ Orientation clock | `_operational_context()` now prepends `Current time: <iso>` so the bot can answer time-aware questions. 991 tests. |
+| ✅ Audio and video routing | Commit 2886532. Discord audio attachments (`.ogg`, `.mp3`, etc.) transcribed via OpenAI Whisper API into `AuditoryPercept.transcript` and promoted to `packet["message"]`. Video attachments processed via ffmpeg: keyframes described by VLM, audio transcribed. Graceful degradation if ffmpeg absent. 1000 tests. |
+| ✅ Document parsing | Commit 40b1e87. PDF (pdfplumber), DOCX (python-docx), XLSX/XLS (openpyxl), PPTX (python-pptx), RTF (tag stripping). All parsers degrade gracefully if library absent. Unsupported binary formats receive clear "format not supported" note. 1012 tests. |
 | ⬜ OmniParser UI element detection | Replace YOLO (COCO real-world classes) with OmniParser for GUI-aware element detection: buttons, icons, interactive regions. Complements EasyOCR (text) and VLM (semantic). Fills the click-target gap for non-text UI elements. |
 | ⬜ AudioSensor | Silero VAD (gate) → Whisper (transcription) → YAMNet (sound class) → Librosa (prosody). Output → AuditoryPercept. |
 | ⬜ Sensory pipeline decision | Decide: sequential (500ms tick) vs. event-driven (threshold interrupt → <100ms reflex). Event-driven chosen in principle; interrupt model for BrainLoop not yet designed. Needs a Codex task once decision is finalized. |
@@ -128,7 +133,7 @@ These are required before deep Phase 2 sensor work or the bid queue will degrade
 
 ## Test Suite Baseline
 
-**974 tests** (embedding model override baseline). Full suite runs with:
+**1012 tests** (full sensory intake baseline). Full suite runs with:
 ```
-pytest --ignore=tests/test_graph.py -v
+pytest --basetemp .tmp/pytest-tmp -q
 ```

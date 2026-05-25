@@ -17,12 +17,13 @@ Key properties:
 - **Persistent identity** — the system maintains a world-model graph (Neo4j) and vector index that survive restarts. It accumulates observations, beliefs, goals, and episodic memory over time.
 - **Governed behavior** — every coordinator operates within an authority tier. Direct writes to high-level constructs (Principles, Doctrines) require a proposal mechanism. All graph writes are audit-logged.
 - **Replaceable inference** — the LLM is an inference organ, not the identity. The model can be swapped; the accumulated world model and governance structure remain.
+- **Model-agnostic** — declare your available models in `config.py` with a capability annotation and the tier system selects the best fit automatically. Supports Anthropic, OpenAI, DeepSeek, and local models via LM Studio.
 - **Auditable by design** — the Hands coordinator enforces an action whitelist/greylist/blacklist. Graph writes produce JSONL audit logs. The governance layer is human-readable and committed to the repo.
 
 ## What it is not
 
-- Not a finished product. Phase 1 (coordinator runtime and governance substrate) is complete. Phase 2 (full world-model loop, avatar, mobile capture) is planned.
-- Not a plug-and-play assistant. Setup requires Python, Neo4j, and API keys for at least one LLM provider.
+- Not a finished product. Phase 1 (coordinator runtime and governance substrate) is complete. Phase 2 (embodiment, perception, memory refinement) is actively in progress.
+- Not a plug-and-play assistant. Setup requires Python, Neo4j, and at least one LLM provider (cloud API key or a local LM Studio instance).
 - Not peer-reviewed research. This is a working prototype with a companion paper documenting design decisions and open questions.
 - Not safe to run unsupervised. The system is under active development and should be treated as experimental.
 
@@ -52,15 +53,28 @@ See [`COORDINATOR_REGISTRY.md`](COORDINATOR_REGISTRY.md) for the full coordinato
 
 **Phase 1 — Complete.** See [`docs/PHASE1_CLOSURE.md`](docs/PHASE1_CLOSURE.md) for the formal closure record.
 
-- 441+ tests passing
-- Coordinator runtime fully implemented
-- Governance infrastructure in place (charter, commitments, registry, proposal mechanism)
-- World-model graph schema versioned and migration-tracked
-- Graph write audit logging active
-- Model registry and provider fallback routing
-- Safety contract in place (`SAFETY_CONTRACT.md`): versioned runtime invariants with runtime checker and healthcheck integration
+**Phase 2 — In progress.** See [`docs/BACKLOG.md`](docs/BACKLOG.md) for current status.
 
-**Phase 2 — Planned.** See [`docs/VISION.md`](docs/VISION.md) for the roadmap. Key targets: full predictive world-model loop, avatar, mobile capture bridge, governed self-distillation.
+### Shipped in Phase 2
+
+- **Discord bridge** — channel-filtered message ingestion, image vision, attachment handling, rate limiting
+- **VisionSensor** — YOLO v8 object detection, OpenCV motion detection, EasyOCR on-screen text; stores visual observations as memory
+- **VLM semantic description** — optional local vision-language model enriches stored memory observations with scene understanding prose
+- **PySide6 world map** — live desktop visualisation of monitor zones, window rooms, and avatar position
+- **Hands computer-use expansion** — pywinauto/pyautogui screen interaction; `click_label` and `get_visible_elements` wired to VisionSensor
+- **Archivist claim extraction** — background coordinator extracts durable factual claims from conversation turns via local LLM
+- **Two-lane memory retrieval** — recent episodic lane always surfaces alongside keyword-relevant semantic lane
+- **Semantic chunking** — structure-aware document splitting on markdown headers, numbered sections, paragraph breaks
+- **Document ingestion to graph** — text and image attachments chunked and stored as retrievable external-content observations
+- **AVAILABLE_MODELS** — declare available models with capability annotations; tier system selects best fit automatically
+
+### Test baseline
+
+968 tests passing. Full suite:
+
+```powershell
+pytest --ignore=tests/test_graph.py -q
+```
 
 ---
 
@@ -70,7 +84,9 @@ See [`COORDINATOR_REGISTRY.md`](COORDINATOR_REGISTRY.md) for the full coordinato
 
 - Python 3.11+
 - [Neo4j Desktop](https://neo4j.com/download/) or a local Neo4j instance on `localhost:7687`
-- API key for at least one supported LLM provider (Anthropic, OpenAI, or a local LM Studio instance)
+- At least one of:
+  - API key for a cloud LLM provider (Anthropic, OpenAI, or DeepSeek)
+  - [LM Studio](https://lmstudio.ai/) running locally on `http://localhost:1234` with a chat model and an embedding model loaded
 
 ### Installation
 
@@ -78,6 +94,12 @@ See [`COORDINATOR_REGISTRY.md`](COORDINATOR_REGISTRY.md) for the full coordinato
 git clone https://github.com/Gopher697/gopher-bot.git
 cd gopher-bot
 python -m pip install -r requirements.txt
+```
+
+For the full vision stack (YOLO, OpenCV, EasyOCR):
+
+```powershell
+python -m pip install -e ".[vision]"
 ```
 
 For development:
@@ -94,7 +116,29 @@ Copy the example config and fill in your values:
 copy world_models\config.example.py world_models\config.py
 ```
 
-Edit `world_models/config.py` with your Neo4j credentials and API key(s). Also set `BOT_NAME` to whatever you want your instance called — this name propagates into the system prompt, world model, and interface. **This file is gitignored and will never be committed.**
+Edit `world_models/config.py` with:
+
+- `BOT_NAME` — what you want your instance called (propagates into system prompt, world model, and interface)
+- Neo4j credentials
+- API key(s) for your chosen providers
+- `AVAILABLE_MODELS` — declare the models you have with capability annotations; the tier system picks the best fit for each role automatically
+- `EMBEDDING_MODEL` — set once at initial setup to match the embedding model you have loaded in LM Studio; **do not change after data is stored** (changing dimensions breaks vector retrieval)
+
+**`config.py` is gitignored and will never be committed.**
+
+#### Example AVAILABLE_MODELS entry
+
+```python
+AVAILABLE_MODELS = [
+    {"name": "claude-opus-4-6",          "provider": "anthropic",  "capability": "capable"},
+    {"name": "claude-sonnet-4-6",         "provider": "anthropic",  "capability": "standard"},
+    {"name": "claude-haiku-4-5-20251001", "provider": "anthropic",  "capability": "fast"},
+    {"name": "qwen3.5",                   "provider": "lm_studio",  "capability": "local"},
+    {"name": "qwen2.5-3b-instruct",       "provider": "lm_studio",  "capability": "local-fast"},
+]
+```
+
+Capability values: `"capable"` (enhanced reasoning), `"standard"` (solid reasoning), `"fast"` (cloud sensory/cheap), `"local"` (local general), `"local-fast"` (local small/cheap).
 
 ### Database
 
@@ -120,27 +164,17 @@ This starts Neo4j (if not already running), the Python backend on `http://localh
 
 ---
 
-## Tests
-
-```powershell
-python -m pytest --basetemp .tmp/pytest-tmp --ignore=tests/test_graph.py -q
-```
-
-`test_graph.py` requires a live Neo4j instance and is excluded from the default run. `test_vision_sensor.py` has a known pre-existing circular import — tracked in [`docs/PHASE1_CLOSURE.md`](docs/PHASE1_CLOSURE.md).
-
----
-
 ## Repository structure
 
 ```
 coordinators/       coordinator implementations (foreground + background)
-docs/               architecture docs, VISION, Phase 1 closure, whitepaper
-interface/          Flask/SocketIO web interface and endpoints
+docs/               architecture docs, VISION, BACKLOG, Phase 1 closure, whitepaper
+interface/          Flask/SocketIO web interface, Discord bridge, STT/TTS
 logs/               build and action audit logs
 proposals/          governance proposals (pending and resolved)
 scripts/            healthcheck, migration runner, export utilities
-sensors/            vision and audio sensor daemons
-tests/              test suite
+sensors/            VisionSensor and AudioSensor daemons
+tests/              test suite (968 tests)
 utils/              shared utilities (audit, registry, config validation)
 world_models/       Neo4j graph, vector index, schema, model registry
 

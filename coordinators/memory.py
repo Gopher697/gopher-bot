@@ -428,6 +428,32 @@ class Memory(Coordinator):
             if driver is not None:
                 graph.close(driver)
 
+    def store_visual_observation(
+        self,
+        percept: "VisualPercept",
+        environment: str = "global",
+    ) -> bool:
+        """
+        Store a VisionSensor percept snapshot as a graph Observation.
+
+        Uses source_type="perceived" to distinguish desktop snapshots from
+        conversation exchanges ("observed") and document chunks
+        ("external_content"). The percept description is used as Observation
+        content and must be non-empty.
+        """
+        content = str(getattr(percept, "description", "") or "").strip()
+        if not content:
+            return False
+        try:
+            self.store(
+                content,
+                environment=environment,
+                source_type="perceived",
+            )
+            return True
+        except Exception:
+            return False
+
     def forget(
         self,
         content: str,

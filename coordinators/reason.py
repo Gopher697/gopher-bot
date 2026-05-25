@@ -39,9 +39,26 @@ class Reason(Coordinator):
     def process(self, packet: dict) -> dict:
         message = str(packet.get("message", "")).strip()
         memory_context = str(packet.get("memory_context", "")).strip()
-        visual_description = str(
-            (packet.get("visual_percept") or {}).get("description") or ""
-        ).strip()
+        _vp = packet.get("visual_percept") or {}
+        visual_description = str(_vp.get("description") or "").strip()
+
+        # For live desktop percepts, append a compact element index so Reason
+        # can refer to on-screen labels when composing Hands actions.
+        if _vp.get("scene_type") == "desktop" and visual_description:
+            _text_items = _vp.get("text_in_scene") or []
+            _obj_items = _vp.get("objects") or []
+            _text_labels = [
+                t.get("text", "") for t in _text_items[:12]
+                if isinstance(t, dict) and t.get("text")
+            ]
+            _obj_labels = [
+                o.get("label", "") for o in _obj_items[:6]
+                if isinstance(o, dict) and o.get("label") and o.get("label") not in _text_labels
+            ]
+            all_labels = _text_labels + _obj_labels
+            if all_labels:
+                label_list = ", ".join(f'"{lbl}"' for lbl in all_labels[:18])
+                visual_description += f"\nVisible elements: {label_list}"
         tier = packet.get("tier", DEFAULT_TIER)
 
         try:

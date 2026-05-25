@@ -61,6 +61,8 @@ GREYLIST_ACTIONS: frozenset[str] = frozenset(
         "key_press",
         "mouse_move",       # moved from whitelist — focus/move before type_text risks wrong-window input
         "focus_window",     # moved from whitelist — focus before greylist action must itself be approved
+        "get_visible_elements",
+        "click_label",
     }
 )
 

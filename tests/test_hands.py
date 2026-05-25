@@ -59,6 +59,22 @@ def test_classify_unknown_action_defaults_to_greylist():
     assert decision.policy_class == "greylist"
 
 
+def test_classify_click_label_is_greylist():
+    from coordinators.hands_policy import GREYLIST_ACTIONS, classify_action
+
+    decision = classify_action("click_label", {"label": "Submit"})
+    assert "click_label" in GREYLIST_ACTIONS
+    assert decision.policy_class == "greylist"
+
+
+def test_classify_get_visible_elements_is_greylist():
+    from coordinators.hands_policy import GREYLIST_ACTIONS, classify_action
+
+    decision = classify_action("get_visible_elements", {})
+    assert "get_visible_elements" in GREYLIST_ACTIONS
+    assert decision.policy_class == "greylist"
+
+
 # ---------------------------------------------------------------------------
 # Hands.process — policy interception
 # ---------------------------------------------------------------------------

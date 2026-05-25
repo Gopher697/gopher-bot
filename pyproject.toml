@@ -34,7 +34,8 @@ vision = [
   "pywinauto",
   "opencv-python",
   "torch",
-  "ultralytics"
+  "ultralytics",
+  "easyocr"
 ]
 
 [tool.pytest.ini_options]

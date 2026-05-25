@@ -29,6 +29,13 @@ from coordinators.bid import PRIORITY_HANDS, BidQueue
 from coordinators.hands_policy import PolicyDecision, classify_action
 from utils.audit_log import AuditLog
 
+try:
+    import pyautogui
+except ImportError:
+    pyautogui = None
+
+from sensors.vision_sensor import VisionSensor
+
 
 HANDS_ACTION_LOG_PATH = PROJECT_ROOT / "logs" / "actions" / "hands_actions.jsonl"
 HANDS_AUDIT_LOG_PATH = PROJECT_ROOT / "logs" / "audit" / "hands_audit.jsonl"
@@ -293,6 +300,74 @@ def _handle_screenshot(args: dict[str, Any]) -> str:
         return b64
 
 
+def _handle_get_visible_elements(args: dict[str, Any]) -> str:
+    """
+    Return visible UI labels from the latest VisualPercept as JSON.
+    Includes EasyOCR text segments and YOLO-detected object labels.
+    """
+    percept = VisionSensor.get_latest()
+    if not percept:
+        return json.dumps({"text_labels": [], "object_labels": []})
+
+    text_labels = [
+        {"text": seg.text, "bbox": seg.position}
+        for seg in percept.text_in_scene
+    ]
+    object_labels = [
+        {
+            "label": obj.label,
+            "confidence": round(obj.confidence, 3),
+            "bbox": obj.bbox,
+        }
+        for obj in percept.objects
+    ]
+    return json.dumps({"text_labels": text_labels, "object_labels": object_labels})
+
+
+def _handle_click_label(args: dict[str, Any]) -> str:
+    """
+    Click the first visible element whose label contains the requested string.
+    EasyOCR text matches are preferred over YOLO object-label matches.
+    """
+    label = str(args.get("label", "")).strip().lower()
+    if not label:
+        return "Error: no label provided for click_label"
+
+    percept = VisionSensor.get_latest()
+    if not percept:
+        return "Error: no visual percept available — VisionSensor may not be running"
+
+    best_bbox: list[float] | None = None
+    matched_label = ""
+    for seg in percept.text_in_scene:
+        if label in seg.text.lower() and len(seg.position) == 4:
+            best_bbox = seg.position
+            matched_label = seg.text
+            break
+
+    if best_bbox is None:
+        for obj in percept.objects:
+            if label in obj.label.lower() and len(obj.bbox) == 4:
+                best_bbox = obj.bbox
+                matched_label = obj.label
+                break
+
+    if best_bbox is None:
+        return (
+            f'No element matching "{label}" found in current visual percept. '
+            "Use get_visible_elements to see what is currently on screen."
+        )
+
+    if pyautogui is None:
+        return "Error: pyautogui not installed; click_label cannot execute"
+
+    x = int((best_bbox[0] + best_bbox[2]) / 2)
+    y = int((best_bbox[1] + best_bbox[3]) / 2)
+    pyautogui.FAILSAFE = False
+    pyautogui.click(x, y)
+    return f'Clicked "{matched_label}" at ({x}, {y})'
+
+
 def _handle_mouse_move(args: dict[str, Any]) -> str:
     import pyautogui
     pyautogui.FAILSAFE = False
@@ -419,6 +494,8 @@ _WHITELIST_HANDLERS: dict[str, Callable[[dict[str, Any]], Any]] = {
     "search_web": _handle_search_web,
     "append_note": _handle_append_note,
     "screenshot": _handle_screenshot,
+    "get_visible_elements": _handle_get_visible_elements,
+    "click_label": _handle_click_label,
     "mouse_move": _handle_mouse_move,
     "left_click": _handle_left_click,
     "right_click": _handle_right_click,

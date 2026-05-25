@@ -800,6 +800,7 @@ register_reflex_handler(_emit_persona_alert)
 if __name__ == "__main__":
     run_startup_script()
     start_brain_loop()
+    VisionSensor.configure(memory=bot.awareness.memory)
     VisionSensor.start()
     AvatarWatcher(_emit_avatar_asset).start()
     try:

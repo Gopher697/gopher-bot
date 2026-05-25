@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-25 (full sensory intake session — 1012 tests)
+**Last updated:** 2026-05-25 (on-demand screen capture — 1021 tests)
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -55,6 +55,7 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 | ✅ Orientation clock | `_operational_context()` now prepends `Current time: <iso>` so the bot can answer time-aware questions. 991 tests. |
 | ✅ Audio and video routing | Commit 2886532. Discord audio attachments (`.ogg`, `.mp3`, etc.) transcribed via OpenAI Whisper API into `AuditoryPercept.transcript` and promoted to `packet["message"]`. Video attachments processed via ffmpeg: keyframes described by VLM, audio transcribed. Graceful degradation if ffmpeg absent. 1000 tests. |
 | ✅ Document parsing | Commit 40b1e87. PDF (pdfplumber), DOCX (python-docx), XLSX/XLS (openpyxl), PPTX (python-pptx), RTF (tag stripping). All parsers degrade gracefully if library absent. Unsupported binary formats receive clear "format not supported" note. 1012 tests. |
+| ✅ On-demand screen capture + sensor self-awareness | Commit e98bf2a. Sensory detects screen-intent phrases and captures fresh screenshot via mss; routes through existing VLM pipeline (local multimodal or cloud description). Orientation `_operational_context()` now reports active sensors so bot's self-model is accurate. 1021 tests. |
 | ⬜ OmniParser UI element detection | Replace YOLO (COCO real-world classes) with OmniParser for GUI-aware element detection: buttons, icons, interactive regions. Complements EasyOCR (text) and VLM (semantic). Fills the click-target gap for non-text UI elements. |
 | ⬜ AudioSensor | Silero VAD (gate) → Whisper (transcription) → YAMNet (sound class) → Librosa (prosody). Output → AuditoryPercept. |
 | ⬜ Sensory pipeline decision | Decide: sequential (500ms tick) vs. event-driven (threshold interrupt → <100ms reflex). Event-driven chosen in principle; interrupt model for BrainLoop not yet designed. Needs a Codex task once decision is finalized. |
@@ -133,7 +134,7 @@ These are required before deep Phase 2 sensor work or the bid queue will degrade
 
 ## Test Suite Baseline
 
-**1012 tests** (full sensory intake baseline). Full suite runs with:
+**1021 tests** (on-demand screen capture baseline). Full suite runs with:
 ```
 pytest --basetemp .tmp/pytest-tmp -q
 ```

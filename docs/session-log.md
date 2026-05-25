@@ -37,8 +37,17 @@ PDF, DOCX, XLSX, PPTX, RTF attachments were falling through to "(binary file -- 
 ### Architectural insight: context size
 10K+ token context on first message traced to the Archivist processing old turn log files at startup and storing large observations. The vector retrieval mechanism itself is correct (capped at 12+6 items). Issue is the Archivist's startup behavior re-ingesting already-processed logs — tracked as a future fix.
 
+### On-demand screen capture + sensor self-awareness (same session, continued)
+Bot responded "I don't have access to your screen" despite mss and VisionSensor being installed. Two fixes:
+- Sensory: `_SCREEN_INTENT_RE` detects phrases like "look at my screen" / "what do you see" and calls `_capture_screen()` (mss) to grab a fresh screenshot, routing it through the existing VLM pipeline (local multimodal or cloud Anthropic description path).
+- Orientation: `_operational_context()` now reports active sensors (`screen-capture`, `screen-memory`) so the bot's self-model accurately reflects deployed capabilities instead of defaulting to base-model assumptions.
+- Commit e98bf2a. 1021 tests. Also added `tests/__init__.py` to prevent third-party `tests` package import collision during full-suite collection.
+
+### Timezone correction observed in live testing
+Bot correctly reports UTC time but defaulted to EST (UTC-5) instead of EDT (UTC-4) when converting for a West Virginia user. User corrected it. Bot acknowledged DST and hedged correctly: "Whether I actually retain this depends on whether the correction makes it into the memory graph." Persistence to be verified at next session start.
+
 ### Test baseline
-1012 tests passing. Suite: `pytest --basetemp .tmp/pytest-tmp -q`
+1021 tests passing. Suite: `pytest --basetemp .tmp/pytest-tmp -q`
 
 ---
 

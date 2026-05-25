@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib as _importlib
 import sys
 import time
 from pathlib import Path
@@ -13,6 +14,15 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from world_models import config, graph  # noqa: E402
+
+
+def _sensor_available(module_name: str) -> bool:
+    """Return True if module_name can be imported (cached by importlib)."""
+    try:
+        _importlib.import_module(module_name)
+        return True
+    except ImportError:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +261,20 @@ def _operational_context(packet: dict, now_ts: float) -> str:
     if autonomous is not None:
         auto_m = int(autonomous / 60)
         parts.append(f"last autonomous: {auto_m}m ago")
+
+    # Active sensor capabilities - informs the bot's self-model.
+    sensor_labels: list[str] = []
+    if _sensor_available("mss"):
+        sensor_labels.append("screen-capture")
+    try:
+        from sensors.vision_sensor import VisionSensor as _VS
+
+        if _VS.get_latest() is not None:
+            sensor_labels.append("screen-memory")
+    except Exception:
+        pass
+    if sensor_labels:
+        parts.append(f"Sensors active: {', '.join(sensor_labels)}")
 
     return " | ".join(parts) if parts else "Operational context unavailable."
 

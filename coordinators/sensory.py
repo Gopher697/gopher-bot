@@ -21,6 +21,17 @@ logger = logging.getLogger(__name__)
 
 SENSORY_TIMEOUT_SECONDS = 30
 
+# Phrases that indicate the user wants the bot to look at the current screen.
+_SCREEN_INTENT_RE = re.compile(
+    r"(what.{0,15}(see|on.{0,10}screen|on.{0,10}monitor|on.{0,10}display|on.{0,10}desktop)"
+    r"|look\s+at.{0,15}(screen|monitor|display|desktop)"
+    r"|can\s+you\s+see"
+    r"|see\s+my\s+screen"
+    r"|your\s+screen"
+    r"|my\s+screen)",
+    re.IGNORECASE,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -142,9 +153,51 @@ class Sensory(Coordinator):
                 )
 
         if "visual_percept" not in packet:
-            latest_vp = VisionSensor.get_latest()
-            if latest_vp:
-                packet["visual_percept"] = latest_vp.to_dict()
+            message_text = str(packet.get("message", ""))
+            if _SCREEN_INTENT_RE.search(message_text):
+                # User explicitly asked to see the screen - capture fresh.
+                png_bytes = _capture_screen()
+                if png_bytes:
+                    tier_config = get_tier_config(packet.get("tier", DEFAULT_TIER))
+                    import time as _time_mod
+
+                    if tier_config.get("base_url"):
+                        encoded = base64.standard_b64encode(png_bytes).decode("utf-8")
+                        packet["raw_images_for_reason"] = [{
+                            "filename": "screen.png",
+                            "media_type": "image/png",
+                            "data_b64": encoded,
+                        }]
+                        packet["visual_percept"] = {
+                            "timestamp": _time_mod.time(),
+                            "objects": [],
+                            "motion_detected": False,
+                            "motion_region": None,
+                            "scene_type": "on_demand_capture",
+                            "text_in_scene": [],
+                            "faces_detected": 0,
+                            "pose_summary": "",
+                            "description": "",
+                        }
+                    else:
+                        desc = _describe_image(png_bytes, "screen.png", tier_config)
+                        packet["visual_percept"] = {
+                            "timestamp": _time_mod.time(),
+                            "objects": [],
+                            "motion_detected": False,
+                            "motion_region": None,
+                            "scene_type": "on_demand_capture",
+                            "text_in_scene": [],
+                            "faces_detected": 0,
+                            "pose_summary": "",
+                            "description": (
+                                desc or "(screen captured; description unavailable)"
+                            ),
+                        }
+            else:
+                latest_vp = VisionSensor.get_latest()
+                if latest_vp:
+                    packet["visual_percept"] = latest_vp.to_dict()
 
         # Parse percept schemas if present
         if "visual_percept" in packet and isinstance(packet["visual_percept"], dict):
@@ -259,6 +312,27 @@ def _call_anthropic_classifier(message: str, system_prompt: str, tier_config: di
         system=system_prompt,
         messages=[{"role": "user", "content": message}],
     )
+
+
+def _capture_screen() -> bytes | None:
+    """
+    Capture all monitors as a single PNG using mss.
+
+    Returns raw PNG bytes, or None if mss is not installed or capture fails.
+    """
+    try:
+        import mss as _mss
+        import mss.tools as _mss_tools
+
+        with _mss.mss() as sct:
+            img = sct.grab(sct.monitors[0])
+            return _mss_tools.to_png(img.rgb, img.size)
+    except ImportError:
+        logger.debug("mss not installed; on-demand screen capture unavailable")
+        return None
+    except Exception as exc:
+        logger.warning("Screen capture failed: %s", exc)
+        return None
 
 
 def _media_type_from_filename(filename: str) -> str:

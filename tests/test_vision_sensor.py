@@ -16,7 +16,9 @@ def test_vision_sensor_get_latest():
     # Mock win32gui to simulate a window
     with patch("sensors.vision_sensor.win32gui.GetForegroundWindow") as mock_get_hwnd, \
          patch("sensors.vision_sensor.win32gui.GetWindowText") as mock_get_text, \
-         patch("sensors.vision_sensor._mss") as mock_mss:
+         patch("sensors.vision_sensor._mss") as mock_mss, \
+         patch("sensors.vision_sensor._YOLO", None), \
+         patch("sensors.vision_sensor._easyocr", None):
          
         mock_get_hwnd.return_value = 12345
         mock_get_text.return_value = "Test Window"

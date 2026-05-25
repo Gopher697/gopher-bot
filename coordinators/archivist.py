@@ -9,6 +9,7 @@ from coordinators.base import Coordinator
 
 
 ARCHIVIST_TIMEOUT_SECONDS = 20
+ARCHIVIST_MODEL = "qwen2.5-3b-instruct"
 ARCHIVIST_CADENCE_SECONDS = 300
 ARCHIVIST_PRIORITY = 5
 ARCHIVIST_BATCH_SIZE = 10
@@ -54,9 +55,25 @@ def _default_research_log_writer(entry: dict) -> None:
         handle.write(json.dumps(entry, sort_keys=True) + "\n")
 
 
+def _get_archivist_model() -> str:
+    """
+    Return the model name for claim extraction.
+    Reads ARCHIVIST_MODEL from world_models.config if set; falls back to the
+    module-level ARCHIVIST_MODEL constant.
+    """
+    try:
+        import importlib
+
+        config = importlib.import_module("world_models.config")
+        value = getattr(config, "ARCHIVIST_MODEL", None)
+        return value if isinstance(value, str) and value.strip() else ARCHIVIST_MODEL
+    except Exception:
+        return ARCHIVIST_MODEL
+
+
 def _extract_claims(message: str, response: str) -> list[dict]:
     """
-    Call the local LLM (qwen2.5-3b-instruct via LM Studio) to extract
+    Call the local LLM (via LM Studio) to extract
     1-3 durable factual claims from a conversation turn.
 
     Returns a list of dicts: [{"text": str, "confidence": float}, ...]
@@ -86,7 +103,7 @@ def _extract_claims(message: str, response: str) -> list[dict]:
             timeout=ARCHIVIST_TIMEOUT_SECONDS,
         )
         completion = client.chat.completions.create(
-            model="qwen2.5-3b-instruct",
+            model=_get_archivist_model(),
             messages=[{"role": "user", "content": prompt}],
             max_tokens=256,
             temperature=0.2,

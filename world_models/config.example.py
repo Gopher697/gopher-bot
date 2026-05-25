@@ -31,3 +31,23 @@ TIER_STANDARD_SENSORY_MODEL: str | None = None
 # TIER_ENHANCED defaults: reason="claude-opus-4-6", sensory="claude-haiku-4-5-20251001"
 TIER_ENHANCED_REASON_MODEL: str | None = None
 TIER_ENHANCED_SENSORY_MODEL: str | None = None
+
+# ---------------------------------------------------------------------------
+# Archivist model (LM Studio local call for claim extraction)
+# ---------------------------------------------------------------------------
+# Default: "qwen2.5-3b-instruct"
+ARCHIVIST_MODEL: str | None = None
+
+# ---------------------------------------------------------------------------
+# Speech-to-Text (OpenAI Whisper API)
+# ---------------------------------------------------------------------------
+# Default: "whisper-1"
+STT_MODEL: str | None = None
+
+# ---------------------------------------------------------------------------
+# Text-to-Speech (OpenAI TTS API)
+# ---------------------------------------------------------------------------
+# Default model: "tts-1"
+TTS_MODEL: str | None = None
+# Default voice: "fable"  — OpenAI options: alloy, echo, fable, onyx, nova, shimmer
+TTS_VOICE: str | None = None

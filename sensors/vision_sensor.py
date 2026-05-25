@@ -5,6 +5,7 @@ import threading
 import time
 
 import win32gui
+from openai import OpenAI
 
 from coordinators.percepts import TextSegment, VisualObject, VisualPercept
 
@@ -47,6 +48,14 @@ YOLO_CONFIDENCE = 0.40
 MAX_OBJECTS = 10
 MAX_TEXT_ITEMS = 20
 OCR_CONFIDENCE = 0.50
+
+# -- VLM semantic description (optional) --------------------------------------
+# Set VISION_VLM_MODEL to the name of a vision-capable model loaded in LM Studio
+# (e.g. "qwen2-vl-7b-instruct") to enable semantic scene descriptions in stored
+# memory observations. Leave empty to disable: zero behavior change when unset.
+VISION_VLM_MODEL: str = ""
+VISION_VLM_BASE_URL: str = "http://localhost:1234/v1"
+VISION_VLM_TIMEOUT: int = 30
 
 # -- Module-level state --------------------------------------------------------
 
@@ -195,10 +204,11 @@ class VisionSensor:
         self.thread = threading.Thread(target=self._loop, daemon=True)
         self.thread.start()
         logger.info(
-            "VisionSensor started (YOLO=%s, OpenCV=%s, EasyOCR=%s)",
+            "VisionSensor started (YOLO=%s, OpenCV=%s, EasyOCR=%s, VLM=%s)",
             _YOLO is not None,
             _cv2 is not None,
             _easyocr is not None,
+            bool(VISION_VLM_MODEL),
         )
 
     def _stop(self) -> None:
@@ -243,6 +253,75 @@ class VisionSensor:
         except Exception as exc:
             logger.debug("Screenshot grab failed: %s", exc)
             return None
+
+    def _grab_png_bytes(self) -> bytes | None:
+        """
+        Return the primary monitor screenshot as raw PNG bytes, or None on failure.
+
+        This separate capture path is used only for VLM calls and does not
+        require numpy.
+        """
+        if self._sct is None:
+            return None
+        try:
+            import mss.tools
+
+            monitor = self._sct.monitors[1]
+            sct_img = self._sct.grab(monitor)
+            return mss.tools.to_png(sct_img.rgb, sct_img.size)
+        except Exception as exc:
+            logger.debug("PNG capture failed: %s", exc)
+            return None
+
+    def _describe_with_vlm(self, png_bytes: bytes) -> str:
+        """
+        Send a desktop screenshot to the configured local VLM.
+
+        Returns a 2-3 sentence semantic screen description, or an empty string
+        if the model is not configured, the PNG is empty, or the API call fails.
+        """
+        if not VISION_VLM_MODEL or not png_bytes:
+            return ""
+        try:
+            import base64
+
+            encoded = base64.standard_b64encode(png_bytes).decode("utf-8")
+            client = OpenAI(
+                base_url=VISION_VLM_BASE_URL,
+                api_key="lm-studio",
+                timeout=VISION_VLM_TIMEOUT,
+            )
+            response = client.chat.completions.create(
+                model=VISION_VLM_MODEL,
+                max_tokens=256,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{encoded}"
+                                },
+                            },
+                            {
+                                "type": "text",
+                                "text": (
+                                    "Describe what is on this computer screen in 2-3 sentences. "
+                                    "Cover: what application or content is active, what the user "
+                                    "appears to be doing, and any important visible state such as "
+                                    "game status, document content, notifications, or media playing. "
+                                    "Be specific and factual."
+                                ),
+                            },
+                        ],
+                    }
+                ],
+            )
+            return (response.choices[0].message.content or "").strip()
+        except Exception as exc:
+            logger.debug("VLM description failed: %s", exc)
+            return ""
 
     def _detect_objects(self, frame) -> list[VisualObject]:
         """Run YOLO on frame; return top MAX_OBJECTS detections by confidence."""
@@ -350,8 +429,10 @@ class VisionSensor:
         title: str,
     ) -> None:
         """
-        Store the percept if significant change is detected.
-        Change state updates only after successful storage.
+        Store the percept as a Memory observation if significant change is detected.
+
+        When VISION_VLM_MODEL is set and succeeds, only the stored copy is
+        enriched with semantic scene prose. The live percept remains mechanical.
         """
         if self._memory is None:
             return
@@ -359,8 +440,21 @@ class VisionSensor:
             title, percept.objects, percept.text_in_scene, percept.motion_detected
         ):
             return
+
+        stored_percept = percept
+        if VISION_VLM_MODEL:
+            png_bytes = self._grab_png_bytes()
+            vlm_desc = self._describe_with_vlm(png_bytes)
+            if vlm_desc:
+                from dataclasses import replace as _dc_replace
+
+                stored_percept = _dc_replace(
+                    percept,
+                    description=f"{percept.description} | Scene: {vlm_desc}",
+                )
+
         try:
-            stored = self._memory.store_visual_observation(percept)
+            stored = self._memory.store_visual_observation(stored_percept)
             if stored:
                 self._last_stored_ts = percept.timestamp
                 self._stored_window_title = title

@@ -134,6 +134,130 @@ def _is_video_attachment(suffix: str, size: int | None = None) -> bool:
     return True
 
 
+def _extract_document_text(data: bytes, filename: str) -> str | None:
+    """
+    Attempt to extract readable text from a binary document.
+
+    Tries format-specific parsers based on file extension. Returns the extracted
+    text string (possibly empty) on success, or None if the format is unsupported
+    or the required library is not installed.
+
+    Supported formats:
+        .pdf            - pdfplumber
+        .docx           - python-docx
+        .xlsx / .xls    - openpyxl
+        .pptx           - python-pptx
+        .csv            - decoded as UTF-8
+        .rtf            - basic tag stripping (no extra dependency)
+    """
+    suffix = Path(filename).suffix.lower()
+
+    # --- PDF ---
+    if suffix == ".pdf":
+        try:
+            import pdfplumber
+            from io import BytesIO as _BytesIO
+
+            text_parts: list[str] = []
+            with pdfplumber.open(_BytesIO(data)) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text() or ""
+                    if page_text.strip():
+                        text_parts.append(page_text.strip())
+            return "\n\n".join(text_parts) if text_parts else ""
+        except ImportError:
+            print("[discord] pdfplumber not installed; cannot parse PDF")
+            return None
+        except Exception as exc:
+            print(f"[discord] PDF parse failed for {filename}: {exc}")
+            return None
+
+    # --- Word (.docx) ---
+    if suffix == ".docx":
+        try:
+            import docx
+            from io import BytesIO as _BytesIO
+
+            doc = docx.Document(_BytesIO(data))
+            paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+            return "\n".join(paragraphs)
+        except ImportError:
+            print("[discord] python-docx not installed; cannot parse .docx")
+            return None
+        except Exception as exc:
+            print(f"[discord] DOCX parse failed for {filename}: {exc}")
+            return None
+
+    # --- Excel (.xlsx / .xls) ---
+    if suffix in {".xlsx", ".xls"}:
+        try:
+            import openpyxl
+            from io import BytesIO as _BytesIO
+
+            wb = openpyxl.load_workbook(_BytesIO(data), read_only=True, data_only=True)
+            rows: list[str] = []
+            for sheet in wb.worksheets:
+                rows.append(f"[Sheet: {sheet.title}]")
+                for row in sheet.iter_rows(values_only=True):
+                    cells = [str(cell) if cell is not None else "" for cell in row]
+                    if any(c.strip() for c in cells):
+                        rows.append("\t".join(cells))
+            return "\n".join(rows)
+        except ImportError:
+            print("[discord] openpyxl not installed; cannot parse .xlsx")
+            return None
+        except Exception as exc:
+            print(f"[discord] Excel parse failed for {filename}: {exc}")
+            return None
+
+    # --- PowerPoint (.pptx) ---
+    if suffix == ".pptx":
+        try:
+            from pptx import Presentation
+            from io import BytesIO as _BytesIO
+
+            prs = Presentation(_BytesIO(data))
+            slides: list[str] = []
+            for i, slide in enumerate(prs.slides, start=1):
+                texts = []
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text.strip():
+                        texts.append(shape.text.strip())
+                if texts:
+                    slides.append(f"[Slide {i}]\n" + "\n".join(texts))
+            return "\n\n".join(slides)
+        except ImportError:
+            print("[discord] python-pptx not installed; cannot parse .pptx")
+            return None
+        except Exception as exc:
+            print(f"[discord] PPTX parse failed for {filename}: {exc}")
+            return None
+
+    # --- CSV fallback for non-UTF-8 retry path ---
+    if suffix == ".csv":
+        try:
+            return data.decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            return None
+
+    # --- RTF (basic tag strip, no extra dependency) ---
+    if suffix == ".rtf":
+        try:
+            import re as _re
+
+            text = data.decode("latin-1", errors="replace")
+            text = _re.sub(r"\\[a-z]+[-\d]*\s?", " ", text)
+            text = _re.sub(r"[{}\\]", "", text)
+            text = " ".join(text.split())
+            return text
+        except Exception as exc:
+            print(f"[discord] RTF strip failed for {filename}: {exc}")
+            return None
+
+    # Unsupported binary format
+    return None
+
+
 async def _read_all_text_attachments(
     message: discord.Message,
 ) -> tuple[str, list[dict]]:
@@ -170,10 +294,23 @@ async def _read_all_text_attachments(
             parts.append(f"[{attachment.filename}]:\n{text}")
             structured.append({"filename": attachment.filename, "content": text})
         except UnicodeDecodeError:
-            # Binary file -- note it so the bot is aware something was sent
-            parts.append(
-                f"[{attachment.filename}]: (binary file -- content cannot be displayed)"
-            )
+            extracted = _extract_document_text(data, attachment.filename or "")
+            if extracted is not None:
+                if extracted.strip():
+                    parts.append(f"[{attachment.filename}]:\n{extracted}")
+                    structured.append(
+                        {"filename": attachment.filename, "content": extracted}
+                    )
+                else:
+                    parts.append(
+                        f"[{attachment.filename}]: "
+                        "(document contained no extractable text)"
+                    )
+            else:
+                parts.append(
+                    f"[{attachment.filename}]: "
+                    "(binary file -- format not supported for text extraction)"
+                )
     return "\n\n".join(parts), structured
 
 

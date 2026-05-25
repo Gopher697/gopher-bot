@@ -17,3 +17,9 @@ discord.py>=2.0
 
 # Dev / testing
 pytest>=8.0
+
+# Document parsing
+pdfplumber>=0.10
+python-docx>=1.0
+openpyxl>=3.1
+python-pptx>=0.6

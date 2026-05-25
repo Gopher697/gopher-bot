@@ -306,6 +306,25 @@ class TestContextHelpers:
         result = _operational_context(packet, _now())
         assert "never" in result.lower() or "NREM" in result
 
+    def test_operational_context_includes_current_time(self):
+        packet = {
+            "current_time": "2026-05-25T22:22:00+00:00",
+            "session_age_seconds": 3600,
+            "time_since_last_nrem": None,
+            "time_since_last_autonomous_activity": 120,
+        }
+        result = _operational_context(packet, _now())
+        assert "Current time: 2026-05-25T22:22:00+00:00" in result
+
+    def test_operational_context_omits_current_time_when_absent(self):
+        packet = {
+            "session_age_seconds": 3600,
+            "time_since_last_nrem": None,
+            "time_since_last_autonomous_activity": 120,
+        }
+        result = _operational_context(packet, _now())
+        assert "Current time:" not in result
+
     def test_operational_context_returns_string(self):
         result = _operational_context({}, _now())
         assert isinstance(result, str)

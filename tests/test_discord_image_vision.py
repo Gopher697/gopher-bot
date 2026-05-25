@@ -111,8 +111,7 @@ def test_sensory_image_attachments_key_removed_from_packet():
 
 def test_sensory_skips_vision_at_local_tier():
     """
-    At TIER_LOCAL, _describe_image returns "" and the fallback note is used.
-    A visual_percept is still created but description notes no description available.
+    At TIER_LOCAL, image bytes pass through to Reason and no placeholder is stored.
     """
     sensory = Sensory()
     packet = {
@@ -129,7 +128,8 @@ def test_sensory_skips_vision_at_local_tier():
     assert "visual_percept" in result
     vp = result["visual_percept"]
     assert vp["scene_type"] == "user_attachment"
-    assert "no description available" in vp["description"]
+    assert vp["description"] == ""
+    assert result["raw_images_for_reason"]
 
 
 def test_sensory_no_image_attachments_falls_through_normally():

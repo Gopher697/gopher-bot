@@ -40,6 +40,7 @@ class Reason(Coordinator):
         message = str(packet.get("message", "")).strip()
         memory_context = str(packet.get("memory_context", "")).strip()
         _vp = packet.get("visual_percept") or {}
+        raw_images: list[dict] = packet.pop("raw_images_for_reason", None) or []
         visual_description = str(_vp.get("description") or "").strip()
 
         # For live desktop percepts, append a compact element index so Reason
@@ -67,6 +68,7 @@ class Reason(Coordinator):
                 memory_context,
                 tier,
                 visual_description,
+                raw_images=raw_images,
             )
         except Exception as e:
             logger.exception("Reason.generate_response failed: %s", e)
@@ -83,6 +85,7 @@ class Reason(Coordinator):
         memory_context: str,
         tier: int = DEFAULT_TIER,
         visual_description: str = "",
+        raw_images: list[dict] | None = None,
     ) -> str:
         tier_config = get_tier_config(tier)
         system_prompt = (
@@ -92,7 +95,9 @@ class Reason(Coordinator):
             "If memory context is empty, say so and respond from first principles.\n"
             "Be direct. Do not perform enthusiasm."
         )
-        if visual_description:
+        # Only add text-based visual context when not passing raw image bytes.
+        # When raw_images is present, the VLM sees the image directly.
+        if visual_description and not raw_images:
             system_prompt += (
                 "\n\nVisual context (image attached by user): "
                 f"{visual_description}"
@@ -103,6 +108,7 @@ class Reason(Coordinator):
                 system_prompt,
                 tier_config,
                 lm_studio_api_key=self.lm_studio_api_key,
+                raw_images=raw_images or [],
             )
         else:
             response = _call_anthropic_reasoner(message, system_prompt, tier_config)
@@ -137,6 +143,7 @@ def _call_local_reasoner(
     system_prompt: str,
     tier_config: dict,
     lm_studio_api_key: str | None = None,
+    raw_images: list[dict] | None = None,
 ) -> Any:
     api_key = (
         lm_studio_api_key
@@ -148,12 +155,26 @@ def _call_local_reasoner(
         api_key=api_key,
         timeout=REASON_TIMEOUT_SECONDS,
     )
+    if raw_images:
+        user_content: list[dict] | str = []
+        for img in raw_images:
+            user_content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:{img['media_type']};base64,{img['data_b64']}"
+                },
+            })
+        if message:
+            user_content.append({"type": "text", "text": message})
+    else:
+        user_content = message
+
     return client.chat.completions.create(
         model=tier_config["reason_model"],
         max_tokens=1024,
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": message},
+            {"role": "user", "content": user_content},
         ],
     )
 

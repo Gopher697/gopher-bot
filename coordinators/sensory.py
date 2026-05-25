@@ -43,31 +43,65 @@ class Sensory(Coordinator):
         image_attachments = packet.pop("image_attachments", None) or []
         if image_attachments and "visual_percept" not in packet:
             tier_config = get_tier_config(packet.get("tier", DEFAULT_TIER))
-            descriptions = []
-            for attachment in image_attachments:
-                filename = attachment.get("filename", "image")
-                data = attachment.get("data", b"")
-                if not data:
-                    continue
-                desc = _describe_image(data, filename, tier_config)
-                if desc:
-                    descriptions.append(f"[{filename}]: {desc}")
-                else:
-                    descriptions.append(f"[{filename}]: (image attached; no description available at current tier)")
-            if descriptions:
-                combined_description = "\n".join(descriptions)
-                import time as _time_mod
-                packet["visual_percept"] = {
-                    "timestamp": _time_mod.time(),
-                    "objects": [],
-                    "motion_detected": False,
-                    "motion_region": None,
-                    "scene_type": "user_attachment",
-                    "text_in_scene": [],
-                    "faces_detected": 0,
-                    "pose_summary": "",
-                    "description": combined_description,
-                }
+            if tier_config.get("base_url"):
+                # Local VLM tier: pass raw bytes to Reason; skip pre-description.
+                # The VLM will receive the actual image data as multimodal content.
+                raw_images: list[dict] = []
+                for attachment in image_attachments:
+                    filename = attachment.get("filename", "image")
+                    data = attachment.get("data", b"")
+                    if not data:
+                        continue
+                    media_type = _media_type_from_filename(filename)
+                    encoded = base64.standard_b64encode(data).decode("utf-8")
+                    raw_images.append({
+                        "filename": filename,
+                        "media_type": media_type,
+                        "data_b64": encoded,
+                    })
+                if raw_images:
+                    packet["raw_images_for_reason"] = raw_images
+                    import time as _time_mod
+                    packet["visual_percept"] = {
+                        "timestamp": _time_mod.time(),
+                        "objects": [],
+                        "motion_detected": False,
+                        "motion_region": None,
+                        "scene_type": "user_attachment",
+                        "text_in_scene": [],
+                        "faces_detected": 0,
+                        "pose_summary": "",
+                        "description": "",
+                    }
+            else:
+                # Cloud tier: generate a text description via the Anthropic vision API.
+                descriptions: list[str] = []
+                for attachment in image_attachments:
+                    filename = attachment.get("filename", "image")
+                    data = attachment.get("data", b"")
+                    if not data:
+                        continue
+                    desc = _describe_image(data, filename, tier_config)
+                    if desc:
+                        descriptions.append(f"[{filename}]: {desc}")
+                    else:
+                        descriptions.append(
+                            f"[{filename}]: (image attached; no description available)"
+                        )
+                if descriptions:
+                    combined_description = "\n".join(descriptions)
+                    import time as _time_mod
+                    packet["visual_percept"] = {
+                        "timestamp": _time_mod.time(),
+                        "objects": [],
+                        "motion_detected": False,
+                        "motion_region": None,
+                        "scene_type": "user_attachment",
+                        "text_in_scene": [],
+                        "faces_detected": 0,
+                        "pose_summary": "",
+                        "description": combined_description,
+                    }
 
         if "visual_percept" not in packet:
             latest_vp = VisionSensor.get_latest()

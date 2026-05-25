@@ -230,6 +230,10 @@ def _operational_context(packet: dict, now_ts: float) -> str:
     """
     parts: list[str] = []
 
+    current_time = packet.get("current_time")
+    if current_time:
+        parts.append(f"Current time: {current_time}")
+
     session_age = packet.get("session_age_seconds")
     if session_age is not None:
         h = int(session_age) // 3600

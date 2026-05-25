@@ -29,7 +29,7 @@ def test_reason_passes_visual_description_to_generate_response():
     }
     called_with = {}
 
-    def fake_generate(message, memory_context, tier, visual_description=""):
+    def fake_generate(message, memory_context, tier, visual_description="", raw_images=None):
         called_with["visual_description"] = visual_description
         return "I see a wet floor sign."
 
@@ -44,7 +44,7 @@ def test_reason_visual_description_empty_when_no_percept():
     packet = {"message": "hello", "memory_context": "", "tier": 1}
     called_with = {}
 
-    def fake_generate(message, memory_context, tier, visual_description=""):
+    def fake_generate(message, memory_context, tier, visual_description="", raw_images=None):
         called_with["visual_description"] = visual_description
         return "hi"
 
@@ -58,7 +58,7 @@ def test_generate_response_includes_visual_description_in_system_prompt():
     reason = Reason()
     captured = {}
 
-    def fake_local(message, system_prompt, tier_config, lm_studio_api_key=None):
+    def fake_local(message, system_prompt, tier_config, lm_studio_api_key=None, raw_images=None):
         captured["system_prompt"] = system_prompt
         mock = type("R", (), {"choices": [
             type("C", (), {"message": type("M", (), {"content": "ok"})()})()
@@ -83,7 +83,7 @@ def test_generate_response_no_visual_section_when_empty():
     reason = Reason()
     captured = {}
 
-    def fake_local(message, system_prompt, tier_config, lm_studio_api_key=None):
+    def fake_local(message, system_prompt, tier_config, lm_studio_api_key=None, raw_images=None):
         captured["system_prompt"] = system_prompt
         mock = type("R", (), {"choices": [
             type("C", (), {"message": type("M", (), {"content": "ok"})()})()

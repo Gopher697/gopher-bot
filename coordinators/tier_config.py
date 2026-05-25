@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 from dataclasses import asdict, dataclass, field
 
 
@@ -111,13 +112,47 @@ TIERS: dict[int, TierConfig] = {
 # Public helpers
 # ---------------------------------------------------------------------------
 
+def _get_config_override(attr: str, default: str | None) -> str | None:
+    """
+    Safely read an optional model override from world_models.config.
+
+    Returns *default* if config cannot be imported, the attribute is missing,
+    or the attribute is None/blank.
+    """
+    try:
+        config = importlib.import_module("world_models.config")
+        value = getattr(config, attr, None)
+        return value if isinstance(value, str) and value.strip() else default
+    except Exception:
+        return default
+
+
 def get_tier_config(tier: int) -> dict:
-    """Return the TierConfig for the given tier as a plain dict."""
+    """Return the TierConfig for the given tier as a plain dict.
+
+    Model assignments can be overridden per-tier via optional fields in
+    world_models/config.py. Any field set to None or absent falls back to the
+    hardcoded default.
+    """
     try:
         tier_number = int(tier)
     except (TypeError, ValueError):
         tier_number = DEFAULT_TIER
-    return asdict(TIERS.get(tier_number, TIERS[DEFAULT_TIER]))
+
+    cfg = asdict(TIERS.get(tier_number, TIERS[DEFAULT_TIER]))
+
+    override_map: dict[int, tuple[str, str]] = {
+        TIER_LOCAL: ("TIER_LOCAL_REASON_MODEL", "TIER_LOCAL_SENSORY_MODEL"),
+        TIER_STANDARD: ("TIER_STANDARD_REASON_MODEL", "TIER_STANDARD_SENSORY_MODEL"),
+        TIER_ENHANCED: ("TIER_ENHANCED_REASON_MODEL", "TIER_ENHANCED_SENSORY_MODEL"),
+    }
+
+    if tier_number in override_map:
+        reason_key, sensory_key = override_map[tier_number]
+        cfg["reason_model"] = _get_config_override(reason_key, cfg["reason_model"])
+        cfg["sensory_model"] = _get_config_override(sensory_key, cfg["sensory_model"])
+
+    return cfg
 
 
 def get_tier_name(tier: int) -> str:

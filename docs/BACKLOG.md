@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-25 (VLM screen descriptions 5ffac75 — 922 tests)  
+**Last updated:** 2026-05-25 (model overrides — 936 tests)  
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -120,7 +120,7 @@ These are required before deep Phase 2 sensor work or the bid queue will degrade
 
 ## Test Suite Baseline
 
-**922 tests** (commit 5ffac75). Full suite runs with:
+**936 tests** (model overrides baseline). Full suite runs with:
 ```
 pytest --ignore=tests/test_graph.py -v
 ```

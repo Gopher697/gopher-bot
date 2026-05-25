@@ -64,6 +64,9 @@ MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
 RATE_LIMIT_MAX_MESSAGES = 30
 RATE_LIMIT_WINDOW_SECONDS = 60
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif", ".bmp"}
+AUDIO_EXTENSIONS = {".ogg", ".mp3", ".wav", ".m4a", ".flac", ".webm", ".opus"}
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".avi", ".mkv", ".wmv"}
+WEBM_AUDIO_MAX_BYTES = 10 * 1024 * 1024
 
 
 # ── Internal state ─────────────────────────────────────────────────────────
@@ -115,6 +118,22 @@ def _split_reply(text: str) -> list[str]:
     return chunks
 
 
+def _is_audio_attachment(suffix: str, size: int | None = None) -> bool:
+    if suffix not in AUDIO_EXTENSIONS:
+        return False
+    if suffix == ".webm" and size and size > WEBM_AUDIO_MAX_BYTES:
+        return False
+    return True
+
+
+def _is_video_attachment(suffix: str, size: int | None = None) -> bool:
+    if suffix not in VIDEO_EXTENSIONS:
+        return False
+    if _is_audio_attachment(suffix, size):
+        return False
+    return True
+
+
 async def _read_all_text_attachments(
     message: discord.Message,
 ) -> tuple[str, list[dict]]:
@@ -130,7 +149,11 @@ async def _read_all_text_attachments(
     structured: list[dict] = []
     for attachment in message.attachments:
         suffix = Path(attachment.filename or "").suffix.lower()
-        if suffix in IMAGE_EXTENSIONS:
+        if (
+            suffix in IMAGE_EXTENSIONS
+            or _is_audio_attachment(suffix, attachment.size)
+            or _is_video_attachment(suffix, attachment.size)
+        ):
             continue
         if attachment.size and attachment.size > MAX_ATTACHMENT_BYTES:
             print(f"[discord] Skipping oversized attachment: {attachment.filename}")
@@ -167,6 +190,48 @@ async def _download_image_attachments(message: discord.Message) -> list[dict]:
             continue
         if attachment.size and attachment.size > MAX_ATTACHMENT_BYTES:
             print(f"[discord] Skipping oversized image: {attachment.filename}")
+            continue
+        try:
+            data = await attachment.read()
+            result.append({"filename": attachment.filename, "data": data})
+        except Exception as exc:
+            print(f"[discord] Failed to download {attachment.filename}: {exc}")
+    return result
+
+
+async def _download_audio_attachments(message: discord.Message) -> list[dict]:
+    """
+    Download audio attachments and return them as
+    {"filename": str, "data": bytes} dicts for the Sensory coordinator.
+    """
+    result = []
+    for attachment in message.attachments:
+        suffix = Path(attachment.filename or "").suffix.lower()
+        if not _is_audio_attachment(suffix, attachment.size):
+            continue
+        if attachment.size and attachment.size > MAX_ATTACHMENT_BYTES:
+            print(f"[discord] Skipping oversized audio: {attachment.filename}")
+            continue
+        try:
+            data = await attachment.read()
+            result.append({"filename": attachment.filename, "data": data})
+        except Exception as exc:
+            print(f"[discord] Failed to download {attachment.filename}: {exc}")
+    return result
+
+
+async def _download_video_attachments(message: discord.Message) -> list[dict]:
+    """
+    Download video attachments and return them as
+    {"filename": str, "data": bytes} dicts for the Sensory coordinator.
+    """
+    result = []
+    for attachment in message.attachments:
+        suffix = Path(attachment.filename or "").suffix.lower()
+        if not _is_video_attachment(suffix, attachment.size):
+            continue
+        if attachment.size and attachment.size > MAX_ATTACHMENT_BYTES:
+            print(f"[discord] Skipping oversized video: {attachment.filename}")
             continue
         try:
             data = await attachment.read()
@@ -215,8 +280,15 @@ async def on_message(message: discord.Message) -> None:
                 content = f"{content}\n\n{attachment_text}".strip() if content else attachment_text
 
             image_attachments = await _download_image_attachments(message)
+            audio_attachments = await _download_audio_attachments(message)
+            video_attachments = await _download_video_attachments(message)
 
-            if not content.strip() and not image_attachments:
+            if (
+                not content.strip()
+                and not image_attachments
+                and not audio_attachments
+                and not video_attachments
+            ):
                 return
 
             # Route through Awareness (blocking call - run in thread pool)
@@ -225,6 +297,8 @@ async def on_message(message: discord.Message) -> None:
                     bot.awareness.synchronous_run,
                     content,
                     image_attachments=image_attachments,
+                    audio_attachments=audio_attachments,
+                    video_attachments=video_attachments,
                     text_attachments=text_attachments,
                 )
 

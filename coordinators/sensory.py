@@ -103,6 +103,44 @@ class Sensory(Coordinator):
                         "description": combined_description,
                     }
 
+        audio_attachments = packet.pop("audio_attachments", None) or []
+        if audio_attachments and "auditory_percept" not in packet:
+            for attachment in audio_attachments:
+                filename = attachment.get("filename", "audio.ogg")
+                data = attachment.get("data", b"")
+                if not data:
+                    continue
+                try:
+                    from interface.stt import transcribe as _transcribe
+
+                    transcript = _transcribe(data, filename=filename)
+                except Exception as exc:
+                    logger.warning("Audio transcription failed for %s: %s", filename, exc)
+                    transcript = ""
+                import time as _time_mod
+                packet["auditory_percept"] = {
+                    "timestamp": _time_mod.time(),
+                    "voice_present": bool(transcript),
+                    "transcript": transcript,
+                    "sound_class": "speech" if transcript else "unknown",
+                    "speaker_id": "unknown",
+                    "tone_signal": "",
+                }
+                break
+
+        video_attachments = packet.pop("video_attachments", None) or []
+        if video_attachments and "visual_percept" not in packet:
+            attachment = video_attachments[0]
+            filename = attachment.get("filename", "video.mp4")
+            data = attachment.get("data", b"")
+            if data:
+                _process_video(
+                    packet,
+                    data,
+                    filename,
+                    get_tier_config(packet.get("tier", DEFAULT_TIER)),
+                )
+
         if "visual_percept" not in packet:
             latest_vp = VisionSensor.get_latest()
             if latest_vp:
@@ -316,3 +354,129 @@ def _loads_json_object(text: str) -> dict:
             return {}
 
     return payload if isinstance(payload, dict) else {}
+
+
+def _process_video(packet: dict, video_data: bytes, filename: str, tier_config: dict) -> None:
+    """
+    Extract frames and audio from a video attachment using ffmpeg.
+    Sets packet["visual_percept"] from frame descriptions and/or
+    packet["auditory_percept"] from the audio transcript.
+
+    Gracefully does nothing if ffmpeg is not installed.
+    """
+    import os
+    import subprocess
+    import tempfile
+    import time as _time_mod
+
+    try:
+        subprocess.run(
+            ["ffmpeg", "-version"],
+            capture_output=True,
+            check=True,
+            timeout=5,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        logger.warning("ffmpeg not found; video attachment from %s not processed", filename)
+        packet["visual_percept"] = {
+            "timestamp": _time_mod.time(),
+            "objects": [],
+            "motion_detected": False,
+            "motion_region": None,
+            "scene_type": "user_attachment",
+            "text_in_scene": [],
+            "faces_detected": 0,
+            "pose_summary": "",
+            "description": f"[{filename}]: (video attached; ffmpeg required for processing)",
+        }
+        return
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        video_path = os.path.join(tmpdir, _Path(filename).name)
+        with open(video_path, "wb") as handle:
+            handle.write(video_data)
+
+        frames_pattern = os.path.join(tmpdir, "frame%02d.jpg")
+        try:
+            subprocess.run(
+                [
+                    "ffmpeg", "-i", video_path,
+                    "-vf", "fps=1/5,scale=480:-1",
+                    "-frames:v", "4",
+                    "-q:v", "3",
+                    frames_pattern,
+                ],
+                capture_output=True,
+                timeout=60,
+            )
+        except subprocess.TimeoutExpired:
+            logger.warning("ffmpeg frame extraction timed out for %s", filename)
+
+        frame_files = sorted(
+            item for item in os.listdir(tmpdir)
+            if item.startswith("frame") and item.endswith(".jpg")
+        )
+
+        frame_descriptions: list[str] = []
+        for frame_file in frame_files:
+            frame_path = os.path.join(tmpdir, frame_file)
+            try:
+                with open(frame_path, "rb") as handle:
+                    frame_data = handle.read()
+                desc = _describe_image(frame_data, frame_file, tier_config)
+                if desc:
+                    frame_descriptions.append(desc)
+            except Exception as exc:
+                logger.warning("Frame description failed for %s: %s", frame_file, exc)
+
+        audio_path = os.path.join(tmpdir, "audio.wav")
+        audio_transcript = ""
+        try:
+            subprocess.run(
+                [
+                    "ffmpeg", "-i", video_path,
+                    "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+                    audio_path,
+                ],
+                capture_output=True,
+                timeout=60,
+            )
+            if os.path.exists(audio_path):
+                with open(audio_path, "rb") as handle:
+                    audio_data = handle.read()
+                from interface.stt import transcribe as _transcribe
+
+                audio_transcript = _transcribe(audio_data, filename="audio.wav")
+        except Exception as exc:
+            logger.warning(
+                "Video audio extraction/transcription failed for %s: %s",
+                filename,
+                exc,
+            )
+
+    combined_visual = "\n".join(
+        f"[Frame {index + 1}]: {desc}"
+        for index, desc in enumerate(frame_descriptions)
+    ) or f"[{filename}]: (video frames could not be described)"
+
+    packet["visual_percept"] = {
+        "timestamp": _time_mod.time(),
+        "objects": [],
+        "motion_detected": False,
+        "motion_region": None,
+        "scene_type": "user_attachment",
+        "text_in_scene": [],
+        "faces_detected": 0,
+        "pose_summary": "",
+        "description": combined_visual,
+    }
+
+    if audio_transcript and "auditory_percept" not in packet:
+        packet["auditory_percept"] = {
+            "timestamp": _time_mod.time(),
+            "voice_present": True,
+            "transcript": audio_transcript,
+            "sound_class": "speech",
+            "speaker_id": "unknown",
+            "tone_signal": "",
+        }

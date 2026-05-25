@@ -28,11 +28,20 @@ def _get_stt_model() -> str:
         return STT_MODEL
 
 
-def transcribe(audio_bytes: bytes) -> str:
+def transcribe(audio_bytes: bytes, filename: str = "audio.webm") -> str:
     from openai import OpenAI
+    from pathlib import Path as _Path
+
+    suffix = _Path(filename).suffix.lower()
+    if suffix == ".ogg":
+        api_filename = _Path(filename).stem + ".webm"
+    elif suffix in {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm"}:
+        api_filename = filename
+    else:
+        api_filename = _Path(filename).stem + ".webm"
 
     audio_file = BytesIO(audio_bytes)
-    audio_file.name = "audio.webm"
+    audio_file.name = api_filename
 
     client = OpenAI(api_key=config.OPENAI_API_KEY)
     transcript = client.audio.transcriptions.create(

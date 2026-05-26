@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-25 (Activity model complete — commit fa86dbc, 1052 tests)
+**Last updated:** 2026-05-26 (Cognition fixes committed 361da83; P-001 decay in-progress; Voyager-inspired items added)
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -62,6 +62,8 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 | ⬜ Godot avatar full implementation | Scaffold exists and connects to /avatar-ws. Full animation states: meditating (graph query), typing (code), pacing/napping (idle), startle (sensory anomaly). Humanized execution: avatar walks to app icon before action fires. |
 | ⬜ PySide6 / Godot persona event schema | /persona event should be designed for dual consumers: Godot avatar AND PySide6 world map. Not just simple state strings — needs to carry attention focus, coordinator state, neuromodulator levels. |
 | ⬜ Tailscale setup | Private mesh tunnel. Flask already binds 0.0.0.0. No code change needed for basic phone access to web interface. Operational task, not a Codex task. |
+| ⬜ Hands self-verification loop | After any multi-step computer-use sequence: take screenshot, ask Reason "did this accomplish the goal?", feed errors back and retry. Voyager critic loop adapted for desktop automation. Foundation for reliable autonomous Hands operation. OmniParser locate_on_screen already available. |
+| ⬜ Task decomposition for Hands | Before executing a multi-step Hands sequence, decompose into checkpointed sub-goals with individual success criteria. Failure at step N retries from N, not from 1. Pairs with self-verification loop. Voyager sub-goal pattern. |
 
 ---
 
@@ -79,12 +81,13 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 | Item | Notes |
 |---|---|
 | ✅ Archivist claim extraction | Done — commit 14d4b7a. |
-| ⬜ Observation/Inference separation (P-001 Refinement 1) | Add source_type: observed / inferred / proposed to Observation nodes. Memory coordinator tags every write. Pattern Monitor + Reason treat inferred nodes with lower default confidence. Proposal P-001 approved by Gopher. |
-| ⬜ Confidence weights + decay (P-001 Refinement 2) | confidence float + last_confirmed_at on Observation nodes. Dream applies decay during idle. Pattern Monitor watches decaying clusters. |
+| ✅ Observation/Inference separation (P-001 Refinement 1) | Commit 361da83. Reason source authority hierarchy (ORIENTATION wins), absolute reminder time parsing ("at 8:50 am" etc.), Discord proactive loop polls /proactive-messages endpoint, "perceived" in VALID_SOURCE_TYPES, _format_observation tags non-observed source types. 11 new tests. 1071 passing. |
+| ✅ Confidence weights + decay (P-001 Refinement 2) | Commit 78b2dbb. last_confirmed_at on Observation nodes (equal to created_at at creation); decay_stale_observations() in graph.py lowers confidence 5%/NREM for nodes >14 days unconfirmed, floored at 0.05; Dream NREM wires decay, failure isolated. 5 new tests. 1076 passing. |
 | ⬜ Organic node-type emergence | Dream CONSOLIDATE detects clusters of Beliefs without a name → flags for Wisdom. Wisdom proposes new node labels. Depends on: Archivist claim extraction wired first. |
 | 🔒 Wisdom coordinator (temporal-epistemic) | Wisdom is distinct from Memory — it compares current Doctrines to prior Claims, identifies recurring correction patterns, names novel Belief clusters. Depends on: Archivist claim extraction. Weekly cadence or Dream AUDIT trigger. |
 | ⬜ Drive instance sharing | BrainLoop and Awareness currently run separate Drive instances. Should share one to prevent budget tracking drift. |
 | ⬜ SkillNode practice recording | Auto-wired by Activity model Part B for game/learning activities. Manual wiring for other coordinators deferred. |
+| ⬜ SkillNode procedure storage | Extend SkillNode from label-only to storing executable procedure content. When bot succeeds at a verified multi-step Hands task, encode the procedure with a docstring. Retrieval via vector search. Reuse without re-reasoning from scratch. Voyager skill library pattern for desktop automation. Depends on: Hands self-verification loop (needs verified success signal). |
 
 ---
 
@@ -105,6 +108,7 @@ These are required before deep Phase 2 sensor work or the bid queue will degrade
 | ⬜ P0–P4 bid priority tier system | P0=SAFETY (bypass queue), P1=CAPTURE (mobile/user input, preempts Dream), P2=HEALTH (Drive warnings), P3=INSIGHT (Pattern Monitor, Wisdom, Mirror-Self), P4=AMBIENT (Curiosity, Feeling probes, rate-limited, oldest-bid eviction). |
 | ⬜ Dream checkpointing (interruptible) | Refactor Dream into TRIAGE → CONSOLIDATE → AUDIT as checkpointed stages. Yield + check for P1+ bids between stages. Resume from checkpoint rather than restart. Prevents long consolidation runs blocking mobile capture. |
 | ⬜ Curiosity queue depth cap | Max 3 Curiosity bids in queue. Oldest evicted when cap reached. Stale questions are worse than no questions. |
+| ⬜ Directed curriculum (Curiosity upgrade) | Replace undirected Curiosity bids with a curriculum agent that inspects SkillNode gaps and proposes targeted practice goals. "Attempted chess 5 times but mastery untracked — propose self-assessment" rather than random topic exploration. Voyager automatic curriculum pattern. Depends on: SkillNode procedure storage, P0–P4 bid tier system. |
 | ⬜ Queue depth as health signal | Awareness surfaces P3/P4 backlog depth to coordinator dashboard. Drive factors persistent P4 backlog into tier decisions. |
 | ⬜ Mobile capture inbox queue | Mobile input → provisional PortableCapture struct → inbox (not yet promoted to Source). Awareness surfaces inbox items at next desktop interaction for confirm/discard. On confirm: promoted to Source → Archivist pipeline. |
 
@@ -143,7 +147,7 @@ These are required before deep Phase 2 sensor work or the bid queue will degrade
 
 ## Test Suite Baseline
 
-**1031 tests** (OmniParser + drag primitives baseline). Full suite runs with:
+**1076 tests** (P-001 decay complete baseline — commits 361da83 + 78b2dbb). Full suite runs with:
 ```
 pytest --basetemp .tmp/pytest-tmp -q
 ```

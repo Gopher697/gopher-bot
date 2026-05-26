@@ -107,6 +107,113 @@ minutes." The Activity model is the executive function layer that fixes this.
 
 ---
 
+## Session: 2026-05-26 — Cognition Fixes + P-001 Decay
+
+**Resumed from:** Activity model complete (commits f475cc8, fa86dbc, f11ecec). 1052 tests.
+
+### Live stress test failures identified
+
+First full Discord live test during a Shepherd University facilities shift. Three failure classes:
+
+1. **Time confusion**: Bot said "based on your confirmation" when asked what time it is.
+   Root cause: Reason's system prompt has no source authority hierarchy. A stale Neo4j
+   observation from an earlier session ("User said: [time]") was retrieved as relevant
+   context and given equal weight to the live Orientation clock reading. Orientation data
+   won contextually but Reason hedged it against episodic memory. Fix: add explicit
+   authority language to Reason's system prompt — ORIENTATION block is authoritative.
+
+2. **Reminders never fired**: Set reminder for "at 8:50 am" and "at 9 am" — neither fired.
+   Two root causes:
+   a. `_parse_reminder_trigger()` only handles "in X minutes" — "at HH:MM" / "at H am"
+      returns `trigger_at=None`, so the Activity is created but never fires.
+   b. Discord bridge has no background loop — even if bids are submitted, `discord_bot.py`
+      never calls `check_scheduled_activities()` or drains the bid queue. The proactive
+      path only works via the web UI (server.py + SocketIO). Discord was dark.
+
+3. **Visual observations silently dropped**: `Memory.store_visual_observation()` calls
+   `store(source_type="perceived")` but `"perceived"` was not in `VALID_SOURCE_TYPES`.
+   `graph.add_observation()` raises `ValueError` caught silently. VisionSensor observations
+   never reach Neo4j.
+
+### Architectural insight: epistemic source pollution
+
+The specific time confusion is a symptom of a broader problem: the bot has no notion of
+source authority. All retrieved observations land in the context window with equal weight
+regardless of age, origin, or confidence. An old "user said" observation from yesterday
+competes with today's system clock. P-001 (source_type tagging + confidence decay) is the
+architectural fix.
+
+### Codex tasks written
+
+- `outputs/codex_cognition_fixes.md` — **Run this first:**
+  - reason.py: source authority hierarchy in system prompt (ORIENTATION wins over memory)
+  - awareness.py: `_parse_reminder_trigger` extended for "at HH:MM am/pm", "at H am/pm"
+    formats; uses USER_TIMEZONE; rolls to next day if time has passed
+  - discord_bot.py: `_proactive_loop()` asyncio background task; calls
+    `check_scheduled_activities()` every 10s in thread pool; drains bids, voices them to
+    Discord channel; rate-limited 60s; started via `asyncio.create_task()` in `on_ready()`
+  - graph.py: `"perceived"` added to `VALID_SOURCE_TYPES`
+  - memory.py: `_format_observation()` tags non-observed source_types (inferred,
+    external_content, perceived) so Reason can weight them
+  - 10 new tests → target 1062 total
+
+- `outputs/codex_p001_confidence_decay.md` — **Run second:**
+  - graph.py: `last_confirmed_at` added to `_observation_properties()` (set at creation);
+    `decay_stale_observations(driver, environment, days_threshold=14, decay_factor=0.95,
+    min_confidence=0.05)` — lowers confidence by 5% per NREM cycle for observations not
+    confirmed in 14+ days; floored at 0.05; audited
+  - dream.py: `_run_nrem()` calls decay after `record_system_event()`, before
+    `graph.close()` — runs every NREM cycle (~6hr cadence); failure is non-fatal
+  - 5 new tests → target 1067 total
+
+### Key design notes
+
+- `last_confirmed_at` is set equal to `created_at` at node creation (one timestamp
+  captured, assigned to both fields). Future work: bump `last_confirmed_at` when an
+  observation surfaces in retrieval. Decay math is correct for creation-time-only tracking.
+- "perceived" (VisionSensor desktop snapshots) was always intended to be a valid
+  source_type; it was just missing from the constant. All other visual observation
+  infrastructure was correct.
+
+### Architecture correction: Discord proactive loop
+
+The original Codex prompt had `discord_bot.py` call `gate_bids()` and
+`check_scheduled_activities()` directly — this would have raced with BrainLoop, which
+already drains the same bid queue via `server.py`. Caught in Codex planning mode and
+corrected before implementation. Final design: `_proactive_loop()` polls
+`http://localhost:5000/proactive-messages?since=<last_id>` via `urllib.request` in
+`asyncio.to_thread`. BrainLoop generates; Discord forwards. No bid queue access.
+
+### Commits landed
+
+- **361da83** — `fix: cognition - source authority, absolute reminders, Discord proactive loop`
+  11 new tests. Actual baseline: 1071 (higher than projected 1063 — baseline had grown
+  since prompt was written).
+
+- **78b2dbb** — `feat: P-001 Refinement 2 - confidence decay infrastructure`
+  5 new tests. 1076 passing.
+
+### Voyager-inspired architecture (MineDojo/Voyager)
+
+Reviewed Voyager (open-ended embodied LLM agent in Minecraft). Three patterns applicable
+to gopher-bot, added to backlog:
+
+1. **SkillNode procedure storage** — Voyager stores skills as executable code with
+   docstrings, retrieved by vector search. For gopher-bot: encode successful verified
+   Hands procedures as retrievable skills. Reuse without re-reasoning. Depends on
+   self-verification loop for the verified-success signal.
+
+2. **Hands self-verification loop + task decomposition** — Voyager's critic: attempt →
+   observe → "did I succeed?" → retry with error feedback. Decompose multi-step goals into
+   checkpointed sub-goals so failure at step N retries from N. Foundation for reliable
+   autonomous desktop operation.
+
+3. **Directed curriculum** — replace undirected Curiosity bids with a curriculum agent
+   that inspects SkillNode gaps and proposes targeted practice. Voyager's automatic
+   curriculum adapted for skill-gap-driven learning rather than open-world exploration.
+
+---
+
 ## Session: 2026-05-21 (earlier today)
 
 **Resumed from:** Task chain T1-T52 complete.

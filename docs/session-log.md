@@ -55,10 +55,13 @@ Key findings:
 - **VLM coordinate guessing rejected**: considered using VLM to return pixel coordinates for element location — rejected as mechanically unreliable (VLMs aren't designed for precise spatial localization).
 - **Design decision**: general solution is OmniParser (Microsoft's GUI-trained model) for element detection → returns structured bboxes, no prompt engineering. Plus a `drag_to` primitive in Hands. Same infrastructure supports games, file managers, sliders — not chess-specific.
 - **pywinauto for native apps**: accessibility tree gives exact coordinates without any vision for standard Windows apps. OmniParser is for rendered/visual UIs (games, browsers).
-- Prompt written: `outputs/codex_omniparser_drag.md`.
+- Prompt written: `outputs/codex_omniparser_drag.md`. Implemented commit f698d1e. 1031 tests.
+
+### Architectural note: declarative vs. procedural knowledge
+Chess session exposed a deeper gap: all knowledge in Neo4j is declarative (chunks retrieved on demand). The bot treats chess rules, factorio mechanics, and conversation history identically — retrieved text, reasoned over. A fluid cognitive system needs procedural knowledge: rules compiled into how the bot thinks, not looked up. Near-term path: Wisdom coordinator (synthesizes Claims into Doctrines) + P0-P4 bid priority (relevant knowledge surfaces without explicit retrieval). Far-term: fine-tuning on accumulated knowledge. Move validation errors in chess (declaring legal moves illegal and vice versa) are a symptom of LLM reasoning over geometry instead of computing it — future work.
 
 ### Test baseline
-1021 tests passing. Suite: `pytest --basetemp .tmp/pytest-tmp -q`
+1031 tests passing. Suite: `pytest --basetemp .tmp/pytest-tmp -q`
 
 ---
 

@@ -236,7 +236,7 @@ class Dream(Coordinator):
         audit_result = self._audit()
         self._maybe_anchor_ots(audit_result)
 
-        # Record the NREM event in the graph.
+        # Record the NREM event and apply confidence decay in the graph.
         if driver is not None:
             try:
                 graph = import_module("world_models.graph")
@@ -251,6 +251,12 @@ class Dream(Coordinator):
                         f"injection_hits={len(audit_result.injection_hits)}"
                     ),
                 )
+                # Decay observations not confirmed in 14+ days (5% per NREM pass).
+                # Failure is non-fatal -- decay is best-effort maintenance.
+                try:
+                    graph.decay_stale_observations(driver, self.environment)
+                except Exception:
+                    pass
                 graph.close(driver)
             except Exception:
                 pass

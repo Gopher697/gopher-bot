@@ -376,13 +376,15 @@ def _observation_properties(
             f"source_type must be one of {sorted(VALID_SOURCE_TYPES)!r}, "
             f"got {source_type!r}"
         )
+    created_at = _now_iso()
     return {
         "content": content,
         "environment": environment,
         "coordinator": coordinator,
         "confidence": float(confidence),
         "source_type": source_type,
-        "created_at": _now_iso(),
+        "created_at": created_at,
+        "last_confirmed_at": created_at,
         "status": "active",
         "training_candidate": None,
     }
@@ -774,6 +776,67 @@ def delete_observation(
 
     with _session(driver) as session:
         return session.execute_write(write)
+
+
+def decay_stale_observations(
+    driver,
+    environment: str,
+    days_threshold: float = 14.0,
+    decay_factor: float = 0.95,
+    min_confidence: float = 0.05,
+) -> int:
+    """
+    Lower confidence of Observation nodes not confirmed recently.
+
+    Active Observations whose ``last_confirmed_at`` is older than
+    ``days_threshold`` days have confidence multiplied by ``decay_factor``.
+    Confidence is floored at ``min_confidence`` so decay alone never reaches
+    zero.
+    """
+    from datetime import datetime, timezone, timedelta
+
+    cutoff = (
+        datetime.now(timezone.utc) - timedelta(days=days_threshold)
+    ).isoformat()
+
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (obs:Observation {environment: $environment})
+            WHERE coalesce(obs.status, 'active') = 'active'
+              AND obs.last_confirmed_at IS NOT NULL
+              AND obs.last_confirmed_at < $cutoff
+              AND coalesce(obs.confidence, 1.0) > $min_confidence
+            WITH obs,
+                 CASE
+                   WHEN coalesce(obs.confidence, 1.0) * $decay_factor < $min_confidence
+                   THEN $min_confidence
+                   ELSE coalesce(obs.confidence, 1.0) * $decay_factor
+                 END AS new_conf
+            SET obs.confidence = new_conf
+            RETURN count(obs) AS decayed
+            """,
+            environment=environment,
+            cutoff=cutoff,
+            decay_factor=float(decay_factor),
+            min_confidence=float(min_confidence),
+        )
+        record = result.single()
+        return int(record["decayed"]) if record else 0
+
+    with _session(driver) as session:
+        count = session.execute_write(write)
+        _audit_after_graph_write(
+            "decay_stale_observations",
+            "Observation",
+            {
+                "environment": environment,
+                "days_threshold": days_threshold,
+                "decay_factor": decay_factor,
+                "decayed_count": count,
+            },
+        )
+        return count
 
 
 def get_recent_observations(

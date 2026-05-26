@@ -41,6 +41,7 @@ WHITELIST_ACTIONS: frozenset[str] = frozenset(
         "search_web",       # placeholder — real impl in future
         "append_note",      # append-only to designated notes path
         "screenshot",
+        "locate_on_screen",
         "get_window_list",
         "swap_avatar_sprite",   # installs an asset into current/ and broadcasts to Godot
     }
@@ -63,6 +64,8 @@ GREYLIST_ACTIONS: frozenset[str] = frozenset(
         "focus_window",     # moved from whitelist — focus before greylist action must itself be approved
         "get_visible_elements",
         "click_label",
+        "drag_to",
+        "drag_element",
     }
 )
 

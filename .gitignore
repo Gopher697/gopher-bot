@@ -35,6 +35,7 @@ avatar/export/
 *.onnx
 *.bin
 models/
+**/.cache/huggingface/
 
 # Runtime logs
 logs/dream/

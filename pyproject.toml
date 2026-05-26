@@ -37,6 +37,10 @@ vision = [
   "ultralytics",
   "easyocr"
 ]
+omniparser = [
+  "transformers>=4.40",
+  "accelerate>=0.27",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

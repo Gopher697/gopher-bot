@@ -300,6 +300,48 @@ def _handle_screenshot(args: dict[str, Any]) -> str:
         return b64
 
 
+def _capture_screen_png(monitor_index: int = 0) -> bytes:
+    import mss
+    import mss.tools
+
+    with mss.mss() as sct:
+        monitors = sct.monitors
+        if monitor_index < 0 or monitor_index >= len(monitors):
+            monitor_index = 0
+        sct_img = sct.grab(monitors[monitor_index])
+        return mss.tools.to_png(sct_img.rgb, sct_img.size)
+
+
+def _handle_locate_on_screen(args: dict[str, Any]) -> str:
+    description = str(args.get("description", "")).strip()
+    if not description:
+        return json.dumps({"found": False, "error": "description required"})
+
+    try:
+        monitor = int(args.get("monitor", 0))
+        png_bytes = _capture_screen_png(monitor)
+    except Exception as exc:
+        return json.dumps({"found": False, "error": f"screen capture failed: {exc}"})
+
+    from sensors import omni_parser
+
+    result = omni_parser.locate_element(png_bytes, description)
+    if result:
+        return json.dumps(
+            {
+                "found": True,
+                "label": result.get("label", ""),
+                "bbox": result.get("bbox", []),
+                "center": result.get("center", []),
+            }
+        )
+
+    error = omni_parser.last_error()
+    if error:
+        return json.dumps({"found": False, "error": "OmniParser unavailable"})
+    return json.dumps({"found": False, "description": description})
+
+
 def _handle_get_visible_elements(args: dict[str, Any]) -> str:
     """
     Return visible UI labels from the latest VisualPercept as JSON.
@@ -461,6 +503,63 @@ def _handle_click_bbox(args: dict[str, Any]) -> str:
     return "Invalid bbox"
 
 
+def _handle_drag_to(args: dict[str, Any]) -> str:
+    if pyautogui is None:
+        return "Error: pyautogui not installed; drag_to cannot execute"
+    try:
+        x1 = int(args.get("x1"))
+        y1 = int(args.get("y1"))
+        x2 = int(args.get("x2"))
+        y2 = int(args.get("y2"))
+    except (TypeError, ValueError):
+        return "Error: drag_to requires integer x1, y1, x2, y2"
+    duration = float(args.get("duration", 0.4))
+    pyautogui.FAILSAFE = False
+    pyautogui.moveTo(x1, y1, duration=0.1)
+    pyautogui.dragTo(x2, y2, duration=duration, button="left")
+    return f"Dragged ({x1},{y1}) -> ({x2},{y2}) over {duration}s"
+
+
+def _handle_drag_element(args: dict[str, Any]) -> str:
+    source = str(args.get("source", "")).strip()
+    target = str(args.get("target", "")).strip()
+    if not source:
+        return "Error: no source provided for drag_element"
+    if not target:
+        return "Error: no target provided for drag_element"
+
+    try:
+        monitor = int(args.get("monitor", 0))
+        png_bytes = _capture_screen_png(monitor)
+    except Exception as exc:
+        return f"Error: screen capture failed: {exc}"
+
+    from sensors.omni_parser import locate_element
+
+    source_result = locate_element(png_bytes, source)
+    if not source_result:
+        return f'Error: source element "{source}" not found'
+
+    target_result = locate_element(png_bytes, target)
+    if not target_result:
+        return f'Error: target element "{target}" not found'
+
+    source_center = source_result.get("center") or []
+    target_center = target_result.get("center") or []
+    if len(source_center) != 2 or len(target_center) != 2:
+        return "Error: located element missing center coordinates"
+
+    return _handle_drag_to(
+        {
+            "x1": source_center[0],
+            "y1": source_center[1],
+            "x2": target_center[0],
+            "y2": target_center[1],
+            "duration": args.get("duration", 0.4),
+        }
+    )
+
+
 def _handle_swap_avatar_sprite(args: dict[str, Any]) -> str:
     """
     Install an asset file into avatar/assets/current/ and queue it for
@@ -494,6 +593,7 @@ _WHITELIST_HANDLERS: dict[str, Callable[[dict[str, Any]], Any]] = {
     "search_web": _handle_search_web,
     "append_note": _handle_append_note,
     "screenshot": _handle_screenshot,
+    "locate_on_screen": _handle_locate_on_screen,
     "get_visible_elements": _handle_get_visible_elements,
     "click_label": _handle_click_label,
     "mouse_move": _handle_mouse_move,
@@ -506,6 +606,8 @@ _WHITELIST_HANDLERS: dict[str, Callable[[dict[str, Any]], Any]] = {
     "focus_window": _handle_focus_window,
     "click_element": _handle_click_element,
     "click_bbox": _handle_click_bbox,
+    "drag_to": _handle_drag_to,
+    "drag_element": _handle_drag_element,
     "swap_avatar_sprite": _handle_swap_avatar_sprite,
 }
 

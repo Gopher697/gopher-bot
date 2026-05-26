@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-25 (on-demand screen capture — 1021 tests)
+**Last updated:** 2026-05-25 (OmniParser + drag primitives prompt written)
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -56,7 +56,7 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 | ✅ Audio and video routing | Commit 2886532. Discord audio attachments (`.ogg`, `.mp3`, etc.) transcribed via OpenAI Whisper API into `AuditoryPercept.transcript` and promoted to `packet["message"]`. Video attachments processed via ffmpeg: keyframes described by VLM, audio transcribed. Graceful degradation if ffmpeg absent. 1000 tests. |
 | ✅ Document parsing | Commit 40b1e87. PDF (pdfplumber), DOCX (python-docx), XLSX/XLS (openpyxl), PPTX (python-pptx), RTF (tag stripping). All parsers degrade gracefully if library absent. Unsupported binary formats receive clear "format not supported" note. 1012 tests. |
 | ✅ On-demand screen capture + sensor self-awareness | Commit e98bf2a. Sensory detects screen-intent phrases and captures fresh screenshot via mss; routes through existing VLM pipeline (local multimodal or cloud description). Orientation `_operational_context()` now reports active sensors so bot's self-model is accurate. 1021 tests. |
-| ⬜ OmniParser UI element detection | Replace YOLO (COCO real-world classes) with OmniParser for GUI-aware element detection: buttons, icons, interactive regions. Complements EasyOCR (text) and VLM (semantic). Fills the click-target gap for non-text UI elements. |
+| 📋 OmniParser + drag primitives | `outputs/codex_omniparser_drag.md`. sensors/omni_parser.py wraps OmniParser-v2.0 (Microsoft, GUI-trained). Hands gets locate_on_screen (whitelist), drag_to + drag_element (greylist). General foundation for chess, games, file drag, sliders — anything requiring drag input or on-demand element location. pywinauto covers native Windows apps via accessibility tree; OmniParser covers rendered/visual UIs (games, browsers). |
 | ⬜ AudioSensor | Silero VAD (gate) → Whisper (transcription) → YAMNet (sound class) → Librosa (prosody). Output → AuditoryPercept. |
 | ⬜ Sensory pipeline decision | Decide: sequential (500ms tick) vs. event-driven (threshold interrupt → <100ms reflex). Event-driven chosen in principle; interrupt model for BrainLoop not yet designed. Needs a Codex task once decision is finalized. |
 | ⬜ Godot avatar full implementation | Scaffold exists and connects to /avatar-ws. Full animation states: meditating (graph query), typing (code), pacing/napping (idle), startle (sensory anomaly). Humanized execution: avatar walks to app icon before action fires. |

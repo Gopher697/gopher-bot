@@ -46,6 +46,17 @@ Bot responded "I don't have access to your screen" despite mss and VisionSensor 
 ### Timezone correction observed in live testing
 Bot correctly reports UTC time but defaulted to EST (UTC-5) instead of EDT (UTC-4) when converting for a West Virginia user. User corrected it. Bot acknowledged DST and hedged correctly: "Whether I actually retain this depends on whether the correction makes it into the memory graph." Persistence to be verified at next session start.
 
+### Chess session — live capability test
+Fed the bot a rewritten chess rules document (chess_rules_for_gopher_bot.md — structured for the semantic chunker's ## header splitting). Bot absorbed and summarized correctly; demonstrated knowledge of openings, tactics, FEN, and game management.
+
+Key findings:
+- **Mouse drag not wired**: bot said "I'll click and drag" but nothing executed. Hands has click but no drag primitive. Falsely roleplayed moves until corrected.
+- **Board state drift**: bot lost track of position across a long context. Providing FEN strings per turn resolved this as a user-side workaround.
+- **VLM coordinate guessing rejected**: considered using VLM to return pixel coordinates for element location — rejected as mechanically unreliable (VLMs aren't designed for precise spatial localization).
+- **Design decision**: general solution is OmniParser (Microsoft's GUI-trained model) for element detection → returns structured bboxes, no prompt engineering. Plus a `drag_to` primitive in Hands. Same infrastructure supports games, file managers, sliders — not chess-specific.
+- **pywinauto for native apps**: accessibility tree gives exact coordinates without any vision for standard Windows apps. OmniParser is for rendered/visual UIs (games, browsers).
+- Prompt written: `outputs/codex_omniparser_drag.md`.
+
 ### Test baseline
 1021 tests passing. Suite: `pytest --basetemp .tmp/pytest-tmp -q`
 

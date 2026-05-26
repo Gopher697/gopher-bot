@@ -182,6 +182,17 @@ VALID_SKILL_DOMAINS = {
     "tool_use",           # Hands action success rate
 }
 
+VALID_ACTIVITY_TYPES = {
+    "game",
+    "task",
+    "reminder",
+    "autonomous",
+    "monitoring",
+    "conversation",
+}
+
+VALID_ACTIVITY_STATUSES = {"active", "dormant", "completed"}
+
 REL_TYPE_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
 
@@ -2769,6 +2780,193 @@ def get_skills_for_coordinator(
             return session.execute_read(read)
     except Exception:
         return []
+
+
+def create_activity(
+    driver,
+    *,
+    activity_id: str,
+    environment: str,
+    type: str,
+    name: str,
+    status: str = "active",
+    created_at: float,
+    updated_at: float,
+    goals: str = "[]",
+    skill_domains: str = "[]",
+    state: str = "{}",
+    trigger_at: float | None = None,
+    completed_at: float | None = None,
+    parent_id: str | None = None,
+) -> None:
+    """
+    Create an Activity node in Neo4j.
+
+    Caller is responsible for generating activity_id and validating type/status.
+    """
+    props = {
+        "activity_id": activity_id,
+        "environment": environment,
+        "type": type,
+        "name": name,
+        "status": status,
+        "created_at": created_at,
+        "updated_at": updated_at,
+        "goals": goals,
+        "skill_domains": skill_domains,
+        "state": state,
+        "trigger_at": trigger_at,
+        "completed_at": completed_at,
+        "parent_id": parent_id,
+    }
+
+    def write(tx):
+        tx.run("CREATE (a:Activity $props)", props=props)
+
+    with _session(driver) as session:
+        session.execute_write(write)
+        _audit_after_graph_write("create_activity", "Activity", props)
+
+
+def get_activity(
+    driver,
+    activity_id: str,
+    environment: str,
+) -> dict | None:
+    """
+    Return the Activity node as a plain dict, or None if not found.
+    """
+    def read(tx):
+        result = tx.run(
+            """
+            MATCH (a:Activity {activity_id: $activity_id, environment: $environment})
+            RETURN a
+            """,
+            activity_id=activity_id,
+            environment=environment,
+        )
+        record = result.single()
+        return dict(record["a"]) if record else None
+
+    with _session(driver) as session:
+        return session.execute_read(read)
+
+
+def update_activity_status(
+    driver,
+    activity_id: str,
+    environment: str,
+    status: str,
+    updated_at: float,
+    completed_at: float | None = None,
+) -> bool:
+    """
+    Update status and optionally completed_at on an Activity node.
+
+    Returns True if the node was found and updated.
+    """
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (a:Activity {activity_id: $activity_id, environment: $environment})
+            SET a.status = $status,
+                a.updated_at = $updated_at,
+                a.completed_at = $completed_at
+            RETURN count(a) AS matched
+            """,
+            activity_id=activity_id,
+            environment=environment,
+            status=status,
+            updated_at=updated_at,
+            completed_at=completed_at,
+        )
+        record = result.single()
+        return bool(record and record["matched"] > 0)
+
+    with _session(driver) as session:
+        matched = session.execute_write(write)
+        if matched:
+            _audit_after_graph_write(
+                "update_activity_status",
+                "Activity",
+                {"activity_id": activity_id, "status": status},
+            )
+        return matched
+
+
+def update_activity_state(
+    driver,
+    activity_id: str,
+    environment: str,
+    state_patch: dict,
+    updated_at: float,
+) -> bool:
+    """
+    Merge state_patch into the Activity's JSON state dict (shallow merge).
+
+    Returns True if the node was found and updated.
+    """
+    import json as _json
+
+    def write(tx):
+        result = tx.run(
+            """
+            MATCH (a:Activity {activity_id: $id, environment: $env})
+            RETURN a.state AS state
+            """,
+            id=activity_id,
+            env=environment,
+        )
+        record = result.single()
+        if not record:
+            return False
+        try:
+            current = _json.loads(record["state"] or "{}")
+        except (TypeError, ValueError):
+            current = {}
+        current.update(state_patch)
+        new_state = _json.dumps(current)
+        tx.run(
+            """
+            MATCH (a:Activity {activity_id: $id, environment: $env})
+            SET a.state = $state, a.updated_at = $updated_at
+            """,
+            id=activity_id,
+            env=environment,
+            state=new_state,
+            updated_at=updated_at,
+        )
+        return True
+
+    with _session(driver) as session:
+        return session.execute_write(write)
+
+
+def get_due_reminders(
+    driver,
+    environment: str,
+    now_ts: float,
+) -> list[dict]:
+    """
+    Return active reminder Activity nodes with trigger_at <= now_ts.
+
+    Results are sorted by trigger_at ascending.
+    """
+    def read(tx):
+        result = tx.run(
+            """
+            MATCH (a:Activity {type: "reminder", status: "active", environment: $env})
+            WHERE a.trigger_at IS NOT NULL AND a.trigger_at <= $now
+            RETURN a
+            ORDER BY a.trigger_at ASC
+            """,
+            env=environment,
+            now=now_ts,
+        )
+        return [dict(r["a"]) for r in result]
+
+    with _session(driver) as session:
+        return session.execute_read(read)
 
 
 def get_top_skills(

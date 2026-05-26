@@ -33,6 +33,7 @@ BACKGROUND_INTERVALS = {
     "archivist": ARCHIVIST_CADENCE_SECONDS,
     "wisdom": WISDOM_CADENCE_SECONDS,
     "drive": 86400.0,
+    "reminder_check": 10.0,
 }
 DREAM_IDLE_SECONDS = 300.0
 PROACTIVE_VOICE_RATE_LIMIT_SECONDS = 60.0
@@ -171,6 +172,19 @@ class BrainLoop:
             await self._tick_coordinator(name, coordinator)
             self.last_ticks[name] = now
             await self._surface_proactive_voice()
+
+        # --- Reminder Activity check ----------------------------------------
+        # Runs on its own short interval independent of background coordinators.
+        if self.awareness is not None and self.bid_queue is not None:
+            now = self.time_fn()
+            last_reminder_check = self.last_ticks.get("reminder_check", 0.0)
+            reminder_interval = self.intervals.get("reminder_check", 10.0)
+            if now - last_reminder_check >= reminder_interval:
+                try:
+                    self.awareness.check_scheduled_activities(self.bid_queue)
+                except Exception:
+                    pass
+                self.last_ticks["reminder_check"] = now
 
     def _sync_last_active_from_awareness(self) -> None:
         if self.awareness is None:

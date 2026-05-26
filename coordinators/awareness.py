@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json as _json
+import re as _re
 import uuid as _uuid
 import time
 from collections.abc import Callable
@@ -23,9 +25,79 @@ from coordinators.mirror_user import MirrorUser
 from coordinators.mirror_self import MirrorSelf
 from coordinators.ethos import Ethos
 from utils.time_utils import now_iso, unix_to_iso
+from world_models import graph as _graph
 
 if TYPE_CHECKING:
     from coordinators.hands import Hands
+
+
+# ---------------------------------------------------------------------------
+# Activity detection patterns
+# ---------------------------------------------------------------------------
+
+_FEN_RANK = r"[prnbqkPRNBQK1-8]{1,8}"
+_fen_pattern = _re.compile(rf"{_FEN_RANK}(?:/{_FEN_RANK}){{7}}")
+
+_reminder_pattern = _re.compile(
+    r"\b("
+    r"remind me"
+    r"|set (?:a )?(?:reminder|timer|alarm)"
+    r"|in \d+ (?:second|minute|hour|day)s?"
+    r"|at \d{1,2}:\d{2}"
+    r"|tomorrow(?: at)?"
+    r"|tonight"
+    r")\b",
+    _re.IGNORECASE,
+)
+
+_task_pattern = _re.compile(
+    r"\b("
+    r"(?:can you |please )?(?:open|launch|click|drag|type|navigate|go to)"
+    r"|on my (?:computer|desktop|screen)"
+    r"|do (?:this |that )?(?:for me )?on my"
+    r")\b",
+    _re.IGNORECASE,
+)
+
+_ACTIVITY_GRAPH_RETRY_SECONDS = 60.0
+_activity_graph_disabled_until = 0.0
+
+
+def _parse_reminder_trigger(message: str, now: float) -> float | None:
+    """
+    Parse "in X minutes/hours/days" from message and return a Unix timestamp.
+
+    Returns None if no parseable duration is found.
+    """
+    m = _re.search(
+        r"\bin (\d+)\s*(second|minute|hour|day)s?\b",
+        message,
+        _re.IGNORECASE,
+    )
+    if not m:
+        return None
+    amount = int(m.group(1))
+    unit = m.group(2).lower()
+    multipliers = {"second": 1, "minute": 60, "hour": 3600, "day": 86400}
+    return now + amount * multipliers.get(unit, 60)
+
+
+def _activity_name(activity_type: str, context_key: str, now: float) -> str:
+    """Generate a human-readable activity name from type, context, and timestamp."""
+    import datetime as _dt
+
+    ts = _dt.datetime.fromtimestamp(now, tz=_dt.timezone.utc).strftime("%Y-%m-%d")
+    label = context_key[:30] if context_key else activity_type
+    return f"{activity_type} - {label} - {ts}"
+
+
+def _activity_graph_enabled(now: float) -> bool:
+    return now >= _activity_graph_disabled_until
+
+
+def _mark_activity_graph_failure(now: float) -> None:
+    global _activity_graph_disabled_until
+    _activity_graph_disabled_until = now + _ACTIVITY_GRAPH_RETRY_SECONDS
 
 
 class Awareness:
@@ -60,6 +132,8 @@ class Awareness:
         self.mirror_self = mirror_self or MirrorSelf()
         self.ethos = ethos or Ethos()
         self.drive = drive or Drive()
+        self._activity_registry: dict[tuple[str, str], str] = {}
+        self._activity_order: list[tuple[str, str]] = []
         self._time_fn = time_fn
         self.session_id: str = _uuid.uuid4().hex
         self.session_start: float = self._time_fn()
@@ -128,6 +202,17 @@ class Awareness:
                 packet = self.voice.process(packet)
                 _write_turn_log(packet)
                 return packet
+
+            # --- Activity detection -----------------------------------------
+            # Runs before Memory so Task B can use the detected activity to
+            # guide retrieval without changing this task's retrieval behavior.
+            try:
+                current_activity = self._detect_activity(packet)
+                if current_activity:
+                    packet["current_activity"] = current_activity
+            except Exception:
+                pass
+            # -----------------------------------------------------------------
 
             packet = self.memory.process(packet)
             if "error" in packet:
@@ -307,6 +392,195 @@ class Awareness:
                 self.coordinator_log_acceptance_updater(bid, True)
             except Exception:
                 continue
+
+    def _detect_activity(self, packet: dict) -> dict | None:
+        """
+        Scan the packet for activity signals and return a current_activity dict.
+
+        Graph persistence is best-effort. If Neo4j is unavailable, the in-memory
+        registry still tracks the activity for the current process.
+        """
+        message = str(packet.get("message") or "")
+        visual_desc = ""
+        vp = packet.get("visual_percept")
+        if isinstance(vp, dict):
+            visual_desc = str(vp.get("description") or "").lower()
+
+        if _fen_pattern.search(message):
+            activity_type = "game"
+            context_key = "chess"
+            skill_domains = ["chess"]
+            fen_match = _fen_pattern.search(message)
+            state: dict = {"fen": fen_match.group(0) if fen_match else ""}
+        elif "chess board" in visual_desc or (
+            "chess" in visual_desc and "board" in visual_desc
+        ):
+            activity_type = "game"
+            context_key = "chess"
+            skill_domains = ["chess"]
+            state = {}
+        elif _reminder_pattern.search(message):
+            activity_type = "reminder"
+            trigger_at = _parse_reminder_trigger(message, self._time_fn())
+            context_key = f"reminder_{int(trigger_at or self._time_fn())}"
+            skill_domains = []
+            state = {"message": message, "trigger_at": trigger_at}
+        elif _task_pattern.search(message):
+            activity_type = "task"
+            context_key = message[:60].strip()
+            skill_domains = ["computer_use"]
+            state = {"goal": message[:200]}
+        else:
+            activity_type = "conversation"
+            context_key = str(packet.get("session_id") or "default")
+            skill_domains = []
+            state = {}
+
+        key = (activity_type, context_key)
+        now = self._time_fn()
+
+        if key in self._activity_registry:
+            activity_id = self._activity_registry[key]
+            self._touch_activity_key(key)
+            if _activity_graph_enabled(now):
+                try:
+                    driver = _graph.connect()
+                    try:
+                        _graph.update_activity_status(
+                            driver, activity_id, "global", "active", now
+                        )
+                    finally:
+                        _graph.close(driver)
+                except Exception:
+                    _mark_activity_graph_failure(now)
+            return {
+                "type": activity_type,
+                "context_key": context_key,
+                "activity_id": activity_id,
+                "skill_domains": skill_domains,
+                "state": state,
+            }
+
+        activity_id = _uuid.uuid4().hex
+        name = _activity_name(activity_type, context_key, now)
+
+        if _activity_graph_enabled(now):
+            try:
+                driver = _graph.connect()
+                try:
+                    _graph.create_activity(
+                        driver,
+                        activity_id=activity_id,
+                        environment="global",
+                        type=activity_type,
+                        name=name,
+                        status="active",
+                        created_at=now,
+                        updated_at=now,
+                        skill_domains=_json.dumps(skill_domains),
+                        state=_json.dumps(state),
+                        trigger_at=(
+                            state.get("trigger_at")
+                            if activity_type == "reminder"
+                            else None
+                        ),
+                    )
+                finally:
+                    _graph.close(driver)
+            except Exception:
+                _mark_activity_graph_failure(now)
+
+        self._activity_registry[key] = activity_id
+        self._touch_activity_key(key)
+
+        return {
+            "type": activity_type,
+            "context_key": context_key,
+            "activity_id": activity_id,
+            "skill_domains": skill_domains,
+            "state": state,
+        }
+
+    def _touch_activity_key(self, key: tuple[str, str]) -> None:
+        try:
+            self._activity_order.remove(key)
+        except ValueError:
+            pass
+        self._activity_order.insert(0, key)
+
+    def check_scheduled_activities(self, bid_queue: Any) -> None:
+        """
+        Query Neo4j for due reminder Activities and submit a bid for each.
+
+        Fired reminders are marked completed. Failures are non-fatal because
+        scheduled checks run in the background loop.
+        """
+        from coordinators.bid import Bid, PRIORITY_MIRROR
+
+        now = self._time_fn()
+        if not _activity_graph_enabled(now):
+            return
+        try:
+            driver = _graph.connect()
+            try:
+                due = _graph.get_due_reminders(driver, "global", now)
+            finally:
+                _graph.close(driver)
+        except Exception:
+            _mark_activity_graph_failure(now)
+            return
+
+        for activity in due:
+            activity_id = str(activity.get("activity_id") or "")
+            try:
+                raw_state = activity.get("state") or "{}"
+                state = _json.loads(raw_state) if isinstance(raw_state, str) else {}
+            except (TypeError, ValueError):
+                state = {}
+            reminder_message = str(
+                state.get("message") or activity.get("name") or "Reminder"
+            )
+
+            bid = Bid(
+                coordinator_name="awareness_reminder",
+                content=f"Reminder: {reminder_message}",
+                priority=PRIORITY_MIRROR,
+                timestamp=now,
+            )
+            try:
+                bid_queue.submit(bid)
+            except Exception:
+                continue
+
+            try:
+                driver = _graph.connect()
+                try:
+                    _graph.update_activity_status(
+                        driver,
+                        activity_id,
+                        "global",
+                        "completed",
+                        now,
+                        completed_at=now,
+                    )
+                finally:
+                    _graph.close(driver)
+            except Exception:
+                pass
+
+            self._forget_activity_id(activity_id)
+
+    def _forget_activity_id(self, activity_id: str) -> None:
+        keys = [
+            key for key, value in self._activity_registry.items()
+            if value == activity_id
+        ]
+        for key in keys:
+            self._activity_registry.pop(key, None)
+            try:
+                self._activity_order.remove(key)
+            except ValueError:
+                pass
 
 
 def _extract_feeling_text(packet: dict) -> str:

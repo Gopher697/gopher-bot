@@ -60,6 +60,45 @@ Key findings:
 ### Architectural note: declarative vs. procedural knowledge
 Chess session exposed a deeper gap: all knowledge in Neo4j is declarative (chunks retrieved on demand). The bot treats chess rules, factorio mechanics, and conversation history identically — retrieved text, reasoned over. A fluid cognitive system needs procedural knowledge: rules compiled into how the bot thinks, not looked up. Near-term path: Wisdom coordinator (synthesizes Claims into Doctrines) + P0-P4 bid priority (relevant knowledge surfaces without explicit retrieval). Far-term: fine-tuning on accumulated knowledge. Move validation errors in chess (declaring legal moves illegal and vice versa) are a symptom of LLM reasoning over geometry instead of computing it — future work.
 
+### Activity model design complete
+
+The chess session and reminder failure exposed a systemic gap: the bot has no model of
+what it is doing at any given moment. It reacts to each input in isolation with no
+concept of "I am currently playing chess" or "I set a reminder and it should fire in 10
+minutes." The Activity model is the executive function layer that fixes this.
+
+**Key design decisions:**
+- No "abandoned" status — activities become `dormant` and age by recency in episodic
+  memory. They are resumable weeks or months later. This is intentional ADHD compensation.
+  System holds context so user doesn't have to carry it mentally.
+- Activity registry in Awareness: `dict[(type, context_key) → activity_id]`. Supports
+  arbitrary parallel instances. Foreground = most recently active.
+- Detection runs before Memory retrieval so activity context can influence what surfaces.
+- Reminder firing: `BrainLoop.background_tick()` checks due reminders every 10s and
+  submits P3 bids to Voice. No incoming message required.
+- Applies to ALL domains — work tasks, research, monitoring, games, reminders, everything.
+  Chess surfaced the need but is not the primary use case.
+
+**Artifacts created:**
+- `docs/activity_model_design.md` — full architectural spec
+- `outputs/codex_activity_model_A.md` — schema + recognition (graph.py CRUD, Awareness
+  detection logic, BrainLoop reminder check, 9 tests, target: 1040 total)
+- `outputs/codex_activity_model_B.md` — coordinator wiring (Orientation context injection,
+  Hands state patch, Reason auto-record_skill_practice, Memory keyword boost, 9 tests,
+  target: 1049 total)
+
+**Also written this session:**
+- `outputs/codex_timezone_fix.md` — USER_TIMEZONE config + local time in Orientation via
+  zoneinfo. After commit: add `USER_TIMEZONE: str = "America/New_York"` to config.py.
+
+**Codex run status:**
+- `outputs/codex_timezone_fix.md` — ✅ DONE. Commit f11ecec. 6 new tests in
+  test_orientation_timezone.py. 1029 passing (timezone ran before Part A).
+  Manual step: add `USER_TIMEZONE: str = "America/New_York"` to local config.py.
+- `outputs/codex_activity_model_A.md` — ✅ DONE. Commit f475cc8. 13 tests, 1042 passing.
+  Codex added graph-failure in-memory cache (correct; not in prompt but right call).
+- `outputs/codex_activity_model_B.md` — pending. Ready to run.
+
 ### Test baseline
 1031 tests passing. Suite: `pytest --basetemp .tmp/pytest-tmp -q`
 

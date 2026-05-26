@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-25 (OmniParser + drag primitives — 1031 tests)
+**Last updated:** 2026-05-25 (Activity model Part A + timezone fix — 1042 tests)
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -65,6 +65,15 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 
 ---
 
+## Phase 2 — Activity Model (Executive Function)
+
+| Item | Notes |
+|---|---|
+| ✅ Activity model Part A — schema + recognition | Commit f475cc8. Activity node CRUD in graph.py, _detect_activity (FEN/reminder/task/conversation), check_scheduled_activities, BrainLoop 10s tick. 13 tests. 1042 passing (excl. live Neo4j suite). |
+| 📋 Activity model Part B — coordinator wiring | Codex prompt: `outputs/codex_activity_model_B.md`. Orientation injects activity context, Hands patches activity state after actions, Reason auto-records skill practice for game/learning activities, Memory boosts keywords from skill domains. Depends on: Part A. 9 tests. |
+
+---
+
 ## Phase 2 — Memory & Cognition
 
 | Item | Notes |
@@ -75,7 +84,7 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 | ⬜ Organic node-type emergence | Dream CONSOLIDATE detects clusters of Beliefs without a name → flags for Wisdom. Wisdom proposes new node labels. Depends on: Archivist claim extraction wired first. |
 | 🔒 Wisdom coordinator (temporal-epistemic) | Wisdom is distinct from Memory — it compares current Doctrines to prior Claims, identifies recurring correction patterns, names novel Belief clusters. Depends on: Archivist claim extraction. Weekly cadence or Dream AUDIT trigger. |
 | ⬜ Drive instance sharing | BrainLoop and Awareness currently run separate Drive instances. Should share one to prevent budget tracking drift. |
-| ⬜ SkillNode practice recording | record_skill_practice() exists but isn't wired into coordinators that have measurable outcomes. Wire into Reason (at minimum) post-Phase 2 stabilization. |
+| ⬜ SkillNode practice recording | Auto-wired by Activity model Part B for game/learning activities. Manual wiring for other coordinators deferred. |
 
 ---
 

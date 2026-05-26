@@ -97,10 +97,13 @@ minutes." The Activity model is the executive function layer that fixes this.
   Manual step: add `USER_TIMEZONE: str = "America/New_York"` to local config.py.
 - `outputs/codex_activity_model_A.md` — ✅ DONE. Commit f475cc8. 13 tests, 1042 passing.
   Codex added graph-failure in-memory cache (correct; not in prompt but right call).
-- `outputs/codex_activity_model_B.md` — pending. Ready to run.
+- `outputs/codex_activity_model_B.md` — ✅ DONE. Commit fa86dbc. 10 tests, 1052 passing.
+  Codex correctly extended VALID_SKILL_DOMAINS (chess, computer_use) when it found the
+  validation would silently reject Activity-emitted domains. Used search_web (not
+  screenshot) in Hands test to avoid mss hardware dependency — good call.
 
 ### Test baseline
-1031 tests passing. Suite: `pytest --basetemp .tmp/pytest-tmp -q`
+1052 tests passing (excl. live Neo4j suite). Suite: `pytest --ignore=tests/test_graph.py --basetemp .tmp/pytest-tmp -q`
 
 ---
 

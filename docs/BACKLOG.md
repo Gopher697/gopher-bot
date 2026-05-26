@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-25 (Activity model Part A + timezone fix — 1042 tests)
+**Last updated:** 2026-05-25 (Activity model complete — commit fa86dbc, 1052 tests)
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -70,7 +70,7 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 | Item | Notes |
 |---|---|
 | ✅ Activity model Part A — schema + recognition | Commit f475cc8. Activity node CRUD in graph.py, _detect_activity (FEN/reminder/task/conversation), check_scheduled_activities, BrainLoop 10s tick. 13 tests. 1042 passing (excl. live Neo4j suite). |
-| 📋 Activity model Part B — coordinator wiring | Codex prompt: `outputs/codex_activity_model_B.md`. Orientation injects activity context, Hands patches activity state after actions, Reason auto-records skill practice for game/learning activities, Memory boosts keywords from skill domains. Depends on: Part A. 9 tests. |
+| ✅ Activity model Part B — coordinator wiring | Commit fa86dbc. Orientation injects Activity block, Hands patches last_action, Reason auto-records skill practice (game/learning), Memory boosts keywords from skill domains. Also extended VALID_SKILL_DOMAINS in graph.py (chess, computer_use). 10 tests. 1052 passing. |
 
 ---
 

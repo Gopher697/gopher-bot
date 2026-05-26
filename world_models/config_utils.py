@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# Optional config field: USER_TIMEZONE (IANA timezone name) defaults to "UTC".
+# Orientation imports it defensively so older config.py files keep working.
+
 
 def get_bot_name() -> str:
     try:

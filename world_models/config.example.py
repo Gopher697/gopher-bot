@@ -86,3 +86,12 @@ TTS_VOICE: str | None = None
 # If you change it, you must re-index: delete all Observation nodes and
 # re-run the migration to rebuild the vector index with the new dimensions.
 EMBEDDING_MODEL: str | None = None
+
+# ---------------------------------------------------------------------------
+# User timezone (IANA timezone name)
+# Used by Orientation to display local time alongside UTC.
+# Examples: "America/New_York", "America/Chicago", "America/Los_Angeles",
+#           "Europe/London", "Asia/Tokyo"
+# Default: "UTC" (no conversion)
+# ---------------------------------------------------------------------------
+USER_TIMEZONE: str = "UTC"

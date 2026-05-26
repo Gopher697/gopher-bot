@@ -5,6 +5,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from coordinators.base import Coordinator
 
@@ -14,6 +15,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from world_models import config, graph  # noqa: E402
+
+try:
+    from world_models.config import USER_TIMEZONE as _USER_TIMEZONE
+except ImportError:
+    _USER_TIMEZONE = "UTC"
 
 
 def _sensor_available(module_name: str) -> bool:
@@ -242,7 +248,19 @@ def _operational_context(packet: dict, now_ts: float) -> str:
 
     current_time = packet.get("current_time")
     if current_time:
-        parts.append(f"Current time: {current_time}")
+        parts.append(f"Current time (UTC): {current_time}")
+        try:
+            import datetime as _dt
+
+            tz = ZoneInfo(str(_USER_TIMEZONE).strip() or "UTC")
+            utc_dt = _dt.datetime.fromisoformat(str(current_time).replace("Z", "+00:00"))
+            if utc_dt.tzinfo is None:
+                utc_dt = utc_dt.replace(tzinfo=_dt.timezone.utc)
+            local_dt = utc_dt.astimezone(tz)
+            local_str = local_dt.strftime("%a %Y-%m-%d %H:%M %Z")
+            parts.append(f"Local time: {local_str}")
+        except (ZoneInfoNotFoundError, ValueError, AttributeError):
+            pass
 
     session_age = packet.get("session_age_seconds")
     if session_age is not None:

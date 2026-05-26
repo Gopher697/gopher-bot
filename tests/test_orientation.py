@@ -314,7 +314,7 @@ class TestContextHelpers:
             "time_since_last_autonomous_activity": 120,
         }
         result = _operational_context(packet, _now())
-        assert "Current time: 2026-05-25T22:22:00+00:00" in result
+        assert "Current time (UTC): 2026-05-25T22:22:00+00:00" in result
 
     def test_operational_context_omits_current_time_when_absent(self):
         packet = {
@@ -323,7 +323,7 @@ class TestContextHelpers:
             "time_since_last_autonomous_activity": 120,
         }
         result = _operational_context(packet, _now())
-        assert "Current time:" not in result
+        assert "Current time (UTC):" not in result
 
     def test_operational_context_returns_string(self):
         result = _operational_context({}, _now())

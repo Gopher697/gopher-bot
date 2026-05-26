@@ -67,12 +67,16 @@ IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif", 
 AUDIO_EXTENSIONS = {".ogg", ".mp3", ".wav", ".m4a", ".flac", ".webm", ".opus"}
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".avi", ".mkv", ".wmv"}
 WEBM_AUDIO_MAX_BYTES = 10 * 1024 * 1024
+PROACTIVE_CHECK_INTERVAL = 10          # seconds between polls
+PROACTIVE_RATE_LIMIT_SECONDS = 60      # minimum gap between proactive Discord sends
 
 
 # ── Internal state ─────────────────────────────────────────────────────────
 
 _rate_state: dict[str, dict] = {}
 _process_lock: asyncio.Lock | None = None   # created inside the event loop
+_last_proactive_at: float = 0.0
+_last_proactive_message_id: int = 0
 
 
 def _get_process_lock() -> asyncio.Lock:
@@ -80,6 +84,77 @@ def _get_process_lock() -> asyncio.Lock:
     if _process_lock is None:
         _process_lock = asyncio.Lock()
     return _process_lock
+
+
+async def _proactive_loop() -> None:
+    """
+    Poll server.py's proactive message endpoint and forward new messages.
+
+    BrainLoop already handles reminder firing and bid draining in server.py.
+    This bridge only polls GET /proactive-messages?since=<id>; it does not
+    touch the bid queue or Neo4j.
+    """
+    import json as _json
+    import time as _time
+    import urllib.request as _urllib_request
+
+    global _last_proactive_at, _last_proactive_message_id
+
+    await client.wait_until_ready()
+
+    target_channel = None
+    for ch in client.get_all_channels():
+        if getattr(ch, "name", "") == DISCORD_CHANNEL:
+            target_channel = ch
+            break
+
+    if target_channel is None:
+        print(
+            f"[discord] Proactive loop: channel #{DISCORD_CHANNEL} not found -- "
+            "proactive messages disabled"
+        )
+        return
+
+    print(f"[discord] Proactive loop started (channel: #{DISCORD_CHANNEL})")
+
+    while not client.is_closed():
+        await asyncio.sleep(PROACTIVE_CHECK_INTERVAL)
+        try:
+            now = _time.time()
+            if now - _last_proactive_at < PROACTIVE_RATE_LIMIT_SECONDS:
+                continue
+
+            url = (
+                "http://localhost:5000/proactive-messages"
+                f"?since={_last_proactive_message_id}"
+            )
+
+            def _fetch() -> dict:
+                with _urllib_request.urlopen(url, timeout=5) as resp:
+                    return _json.loads(resp.read())
+
+            payload = await asyncio.to_thread(_fetch)
+            messages = payload.get("messages") or []
+
+            for msg in messages:
+                msg_id = int(msg.get("id") or 0)
+                text = str(msg.get("text") or "").strip()
+                if not text:
+                    _last_proactive_message_id = max(
+                        _last_proactive_message_id,
+                        msg_id,
+                    )
+                    continue
+
+                for chunk in _split_reply(text):
+                    await target_channel.send(chunk)
+
+                _last_proactive_message_id = msg_id
+                _last_proactive_at = now
+                break
+
+        except Exception as exc:
+            print(f"[discord] Proactive loop error: {exc}")
 
 
 # ── Utilities ──────────────────────────────────────────────────────────────
@@ -389,6 +464,7 @@ client = discord.Client(intents=intents)
 async def on_ready() -> None:
     print(f"[discord] Gopher-bot bridge online as {client.user}")
     print(f"[discord] Listening on channel: #{DISCORD_CHANNEL}")
+    asyncio.create_task(_proactive_loop())
 
 
 @client.event

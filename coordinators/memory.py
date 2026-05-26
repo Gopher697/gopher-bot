@@ -662,6 +662,10 @@ def _format_observation(observation: dict[str, Any], entity_names: list[str] | N
         return ""
 
     details = []
+    source_type = str(observation.get("source_type") or "observed")
+    if source_type != "observed":
+        # Tag non-observed sources so Reason can weight them against live data.
+        details.append(f"source:{source_type}")
     confidence = observation.get("confidence")
     if confidence is not None:
         details.append(f"confidence {confidence}")

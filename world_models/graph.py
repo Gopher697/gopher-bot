@@ -11,7 +11,7 @@ from world_models import config
 
 
 MEDIA_TYPES = {"image", "screenshot", "document", "audio"}
-VALID_SOURCE_TYPES = {"observed", "inferred", "proposed", "external_content"}
+VALID_SOURCE_TYPES = {"observed", "inferred", "proposed", "external_content", "perceived"}
 VALID_EPISODE_TYPES = {"utterance", "reasoning", "action", "observation_group"}
 VALID_CURATION_LABELS = {"keep", "skip", "review"}
 DEFAULT_EDGE_WEIGHT: float = 1.0

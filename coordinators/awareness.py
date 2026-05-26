@@ -65,21 +65,74 @@ _activity_graph_disabled_until = 0.0
 
 def _parse_reminder_trigger(message: str, now: float) -> float | None:
     """
-    Parse "in X minutes/hours/days" from message and return a Unix timestamp.
+    Parse a time phrase from message and return a Unix trigger timestamp.
 
-    Returns None if no parseable duration is found.
+    Handles:
+      - Relative: "in X seconds/minutes/hours/days"
+      - Absolute: "at HH:MM [am/pm]", "at H [am/pm]"
+
+    Returns None if no parseable time phrase is found.
+    The absolute parser uses USER_TIMEZONE from config when available; falls
+    back to UTC. If the target time has already passed today, it targets
+    the same time tomorrow.
     """
+    # --- Relative ---
     m = _re.search(
         r"\bin (\d+)\s*(second|minute|hour|day)s?\b",
         message,
         _re.IGNORECASE,
     )
-    if not m:
-        return None
-    amount = int(m.group(1))
-    unit = m.group(2).lower()
-    multipliers = {"second": 1, "minute": 60, "hour": 3600, "day": 86400}
-    return now + amount * multipliers.get(unit, 60)
+    if m:
+        amount = int(m.group(1))
+        unit = m.group(2).lower()
+        multipliers = {"second": 1, "minute": 60, "hour": 3600, "day": 86400}
+        return now + amount * multipliers.get(unit, 60)
+
+    # --- Absolute: "at HH:MM [am/pm]" or "at H [am/pm]" ---
+    m = _re.search(
+        r"\bat (\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b",
+        message,
+        _re.IGNORECASE,
+    )
+    if m:
+        import datetime as _dt
+
+        hour = int(m.group(1))
+        minute = int(m.group(2) or 0)
+        meridiem = (m.group(3) or "").lower()
+
+        if meridiem == "pm" and hour != 12:
+            hour += 12
+        elif meridiem == "am" and hour == 12:
+            hour = 0
+
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            return None
+
+        tz: _dt.tzinfo = _dt.timezone.utc
+        try:
+            from world_models.config import USER_TIMEZONE
+            from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+            try:
+                tz = ZoneInfo(USER_TIMEZONE)
+            except (ZoneInfoNotFoundError, KeyError):
+                pass
+        except Exception:
+            pass
+
+        now_dt = _dt.datetime.fromtimestamp(now, tz=tz)
+        try:
+            target = now_dt.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        except ValueError:
+            return None
+
+        if target <= now_dt:
+            target += _dt.timedelta(days=1)
+
+        return target.timestamp()
+
+    return None
 
 
 def _activity_name(activity_type: str, context_key: str, now: float) -> str:

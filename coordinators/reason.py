@@ -93,8 +93,19 @@ class Reason(Coordinator):
         tier_config = get_tier_config(tier)
         system_prompt = (
             f"You are {BOT_NAME}'s reasoning layer. You have been given "
-            "memory context from a knowledge graph. Use it to ground your response.\n"
-            f"Memory context: {memory_context}\n"
+            "memory context from a knowledge graph. Use it to ground your response.\n\n"
+            "Source authority (highest to lowest):\n"
+            "  1. ORIENTATION block — live system data: current time, date, sensors, active "
+            "activity. These are machine-read facts. Do not hedge them against memory.\n"
+            "  2. [Recent exchanges] — what was said in recent turns. Reliable, but may "
+            "contain corrections or statements that are now outdated.\n"
+            "  3. [Relevant context] / [Relevant semantic observations] — retrieved memory "
+            "that may be hours, days, or weeks old. Lower confidence than live data.\n"
+            "  4. Items tagged source:inferred or source:external_content — derived or "
+            "third-party claims; treat with lower confidence than direct observations.\n"
+            "When ORIENTATION data contradicts retrieved memory, ORIENTATION wins. "
+            "State the current time and date directly from ORIENTATION without hedging.\n\n"
+            f"Memory context:\n{memory_context}\n\n"
             "If memory context is empty, say so and respond from first principles.\n"
             "Be direct. Do not perform enthusiasm."
         )

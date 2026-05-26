@@ -76,6 +76,9 @@ class Reason(Coordinator):
             return packet
 
         packet["reason_output"] = response
+        _act = packet.get("current_activity")
+        if isinstance(_act, dict) and _act.get("type") in ("game", "learning"):
+            self._record_activity_skills(_act)
         self.memory.store(_exchange_observation(message, response))
         return packet
 
@@ -113,6 +116,64 @@ class Reason(Coordinator):
         else:
             response = _call_anthropic_reasoner(message, system_prompt, tier_config)
         return _extract_text(response)
+
+    def _record_activity_skills(self, activity: dict) -> None:
+        """
+        Record one practice event for each skill domain in the current activity.
+
+        Failures are non-fatal because skill practice recording should not block
+        the foreground reasoning turn.
+        """
+        import json as _j
+
+        skill_domains = activity.get("skill_domains") or []
+        if isinstance(skill_domains, str):
+            try:
+                skill_domains = _j.loads(skill_domains)
+            except (TypeError, ValueError):
+                skill_domains = []
+        if not skill_domains:
+            return
+
+        environment = "global"
+        for domain in skill_domains:
+            domain = str(domain).strip()
+            if not domain:
+                continue
+            try:
+                from world_models import graph as _g
+
+                driver = _g.connect()
+                try:
+                    existing = _g.get_skills_for_coordinator(
+                        driver,
+                        "reason",
+                        environment,
+                    )
+                    match = next(
+                        (s for s in existing if s.get("domain") == domain),
+                        None,
+                    )
+                    if match:
+                        skill_id = match["skill_id"]
+                    else:
+                        skill_id = _g.create_skill(
+                            driver,
+                            coordinator="reason",
+                            skill_name=domain,
+                            domain=domain,
+                            environment=environment,
+                        )
+                    _g.record_skill_practice(
+                        driver,
+                        skill_id,
+                        environment,
+                        success=True,
+                    )
+                finally:
+                    _g.close(driver)
+            except Exception:
+                pass
 
 
 def _exchange_observation(message: str, response: str) -> str:

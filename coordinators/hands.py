@@ -104,6 +104,8 @@ class Hands(Coordinator):
             self._submit_bid(decision, result)
 
         packet["action_result"] = result
+        if result.get("status") == "executed":
+            self._update_activity_state(packet, {"last_action": action_type})
         return packet
 
     async def background_tick(self, bid_queue: BidQueue) -> None:
@@ -239,6 +241,36 @@ class Hands(Coordinator):
                     timestamp=self.time_fn(),
                 )
             )
+        except Exception:
+            pass
+
+    def _update_activity_state(self, packet: dict, state_patch: dict) -> None:
+        """
+        Shallow-merge state_patch into the current Activity node in Neo4j.
+
+        Silent no-op if no current activity, no activity_id, or graph unavailable.
+        """
+        activity = packet.get("current_activity")
+        if not isinstance(activity, dict):
+            return
+        activity_id = activity.get("activity_id")
+        if not activity_id:
+            return
+
+        try:
+            from world_models import graph as _g
+
+            driver = _g.connect()
+            try:
+                _g.update_activity_state(
+                    driver,
+                    activity_id,
+                    "global",
+                    state_patch,
+                    self.time_fn(),
+                )
+            finally:
+                _g.close(driver)
         except Exception:
             pass
 

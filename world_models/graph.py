@@ -180,6 +180,8 @@ VALID_SKILL_DOMAINS = {
     "introspection",      # self-state accuracy (Mirror-Self, Mirror-User)
     "research",           # gap detection and knowledge synthesis (Curiosity, Archivist)
     "tool_use",           # Hands action success rate
+    "chess",              # activity-domain skill for chess games
+    "computer_use",       # activity-domain skill for desktop task execution
 }
 
 VALID_ACTIVITY_TYPES = {

@@ -176,7 +176,22 @@ class Memory(Coordinator):
         self.embedder = embedder or Embedder()
 
     def process(self, packet: dict) -> dict:
-        keywords = packet.get("keywords") or []
+        keywords = list(packet.get("keywords") or [])
+        _act = packet.get("current_activity")
+        if isinstance(_act, dict):
+            import json as _j
+
+            skill_domains = _act.get("skill_domains") or []
+            if isinstance(skill_domains, str):
+                try:
+                    skill_domains = _j.loads(skill_domains)
+                except (TypeError, ValueError):
+                    skill_domains = []
+            for domain in skill_domains:
+                domain = str(domain).strip()
+                if domain and domain not in keywords:
+                    keywords.append(domain)
+
         packet["memory_context"] = self.retrieve(keywords)
 
         # Ingest user-provided content into the graph for future retrieval.

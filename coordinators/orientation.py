@@ -450,7 +450,7 @@ def _build_digest(
         if float(g.get("priority", 0.0)) >= ORIENTATION_HIGH_PRIORITY_THRESHOLD
     ]
 
-    return {
+    digest = {
         "thread_context":            _thread_context(packet),
         "operational_context":       _operational_context(packet, now_ts),
         "active_goal_focus":         (
@@ -475,6 +475,9 @@ def _build_digest(
             scored_active, promotable, packet
         ),
     }
+    if "current_activity" in packet:
+        digest["current_activity"] = packet.get("current_activity")
+    return digest
 
 
 def _format_orientation_context(orientation: dict) -> str:
@@ -493,6 +496,26 @@ def _format_orientation_context(orientation: dict) -> str:
     operational = orientation.get("operational_context")
     if operational:
         lines.append(f"Operational: {operational}")
+
+    activity = orientation.get("current_activity")
+    if (
+        isinstance(activity, dict)
+        and activity.get("type")
+        and activity["type"] != "conversation"
+    ):
+        act_type = activity["type"]
+        context_key = activity.get("context_key", "")
+        skill_domains = activity.get("skill_domains") or []
+        state = activity.get("state") or {}
+
+        act_lines = [f"Activity: {act_type} [{context_key}]"]
+        if act_type == "game" and state.get("fen"):
+            act_lines.append(f"  Board: {state['fen']}")
+        if skill_domains:
+            act_lines.append(f"  Skills: {', '.join(skill_domains)}")
+        if act_type == "reminder" and state.get("message"):
+            act_lines.append(f"  Pending: {state['message']}")
+        lines.append("\n".join(act_lines))
 
     focus = orientation.get("active_goal_focus")
     if focus:

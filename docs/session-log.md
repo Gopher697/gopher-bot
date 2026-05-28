@@ -214,6 +214,34 @@ to gopher-bot, added to backlog:
 
 ---
 
+## Session: 2026-05-27 — Research Mining + INFLUENCES.md
+
+**Resumed from:** P-001 complete (commits 361da83 + 78b2dbb). 1076 tests.
+
+### Hermes Agent (NousResearch/hermes-agent) research
+
+Reviewed Hermes Agent (168k stars, formerly OpenClaw). Confirmed it is architecturally
+different enough that using it as a base is the wrong move — flat file memory, no graph,
+no multi-coordinator brain, Windows early beta. Strategic decision: steal ideas, not the
+base. Four ideas added to backlog:
+
+1. **Skill self-improvement** — skills update based on execution outcomes; compounds
+   rather than staying static. Depends on SkillNode procedure storage.
+2. **FTS5 session search** — third retrieval lane (exact match) alongside recent episodic
+   and vector semantic. No extra dependencies.
+3. **Dialectic user modeling** — Archivist proposes hypothesis Claims flagged unverified;
+   verified/contradicted through follow-up exchanges. Honcho pattern.
+4. **Knowledge persistence nudges** — Awareness fires Archivist bid on high-value
+   mid-conversation claims rather than batching to Dream NREM.
+
+### docs/INFLUENCES.md created
+
+New file tracking all research sources mined: H-MEM paper (arXiv 2605.15701), Voyager
+(MineDojo), Hermes Agent (NousResearch). Each entry documents what was taken, what was
+validated, and what was consciously left behind and why.
+
+---
+
 ## Session: 2026-05-21 (earlier today)
 
 **Resumed from:** Task chain T1-T52 complete.

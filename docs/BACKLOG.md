@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-26 (Cognition fixes committed 361da83; P-001 decay in-progress; Voyager-inspired items added)
+**Last updated:** 2026-05-27 (Hermes Agent research — FTS5 retrieval, dialectic user model, skill self-improvement, knowledge nudges added)
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -88,6 +88,10 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 | ⬜ Drive instance sharing | BrainLoop and Awareness currently run separate Drive instances. Should share one to prevent budget tracking drift. |
 | ⬜ SkillNode practice recording | Auto-wired by Activity model Part B for game/learning activities. Manual wiring for other coordinators deferred. |
 | ⬜ SkillNode procedure storage | Extend SkillNode from label-only to storing executable procedure content. When bot succeeds at a verified multi-step Hands task, encode the procedure with a docstring. Retrieval via vector search. Reuse without re-reasoning from scratch. Voyager skill library pattern for desktop automation. Depends on: Hands self-verification loop (needs verified success signal). |
+| ⬜ Skill self-improvement | When a stored SkillNode procedure executes, capture the outcome and update the procedure content based on what worked or failed. Skills compound rather than staying static. Hermes Agent pattern. Depends on: SkillNode procedure storage. |
+| ⬜ FTS5 session search (third retrieval lane) | Add SQLite FTS5 full-text search as a third Memory retrieval lane alongside recent episodic and vector semantic. Catches exact phrases, names, and quoted text that vector search misses. No extra dependencies — SQLite is already present. Hermes Agent pattern. |
+| ⬜ Dialectic user modeling | Archivist proposes hypothesis Claim nodes flagged as `status=unverified` ("user prefers concise answers"). Verified or contradicted through follow-up exchanges rather than passive extraction. More rigorous than current one-way claim extraction. Honcho/Hermes pattern. Depends on: Archivist claim extraction (done). |
+| ⬜ Knowledge persistence nudges | Awareness fires an Archivist bid when a high-value claim surfaces mid-conversation (corrections, deadlines, explicit self-disclosure) rather than waiting for Dream NREM. Time-sensitive facts shouldn't wait 6 hours. Hermes Agent pattern. |
 
 ---
 

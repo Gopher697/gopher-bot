@@ -1,7 +1,7 @@
 # Gopher-bot Backlog
 
 **Maintained by:** Claude (Director)  
-**Last updated:** 2026-05-27 (Hermes Agent research added; FTS5 entry corrected to Neo4j Lucene full-text indexing)
+**Last updated:** 2026-05-30 (Two-Advisor Metabolizer — Phase 2 Metabolic Architecture section added; VISION.md §G, COORDINATOR_REGISTRY Advisor Grouping, AGENT_CHARTER v0.8)
 **Rule:** Task numbers are retired. All items use descriptive names. Numbers caused duplicate collisions in Phase 2 and are not recoverable cleanly.
 
 ---
@@ -108,13 +108,27 @@ All T1–T67 complete. 683 tests passing. Formal closure doc: `docs/PHASE1_CLOSU
 These are required before deep Phase 2 sensor work or the bid queue will degrade under load.
 
 | Item | Notes |
-|---|---|
+|------|-------|
 | ⬜ P0–P4 bid priority tier system | P0=SAFETY (bypass queue), P1=CAPTURE (mobile/user input, preempts Dream), P2=HEALTH (Drive warnings), P3=INSIGHT (Pattern Monitor, Wisdom, Mirror-Self), P4=AMBIENT (Curiosity, Feeling probes, rate-limited, oldest-bid eviction). |
 | ⬜ Dream checkpointing (interruptible) | Refactor Dream into TRIAGE → CONSOLIDATE → AUDIT as checkpointed stages. Yield + check for P1+ bids between stages. Resume from checkpoint rather than restart. Prevents long consolidation runs blocking mobile capture. |
 | ⬜ Curiosity queue depth cap | Max 3 Curiosity bids in queue. Oldest evicted when cap reached. Stale questions are worse than no questions. |
 | ⬜ Directed curriculum (Curiosity upgrade) | Replace undirected Curiosity bids with a curriculum agent that inspects SkillNode gaps and proposes targeted practice goals. "Attempted chess 5 times but mastery untracked — propose self-assessment" rather than random topic exploration. Voyager automatic curriculum pattern. Depends on: SkillNode procedure storage, P0–P4 bid tier system. |
 | ⬜ Queue depth as health signal | Awareness surfaces P3/P4 backlog depth to coordinator dashboard. Drive factors persistent P4 backlog into tier decisions. |
 | ⬜ Mobile capture inbox queue | Mobile input → provisional PortableCapture struct → inbox (not yet promoted to Source). Awareness surfaces inbox items at next desktop interaction for confirm/discard. On confirm: promoted to Source → Archivist pipeline. |
+
+---
+
+## Phase 2 — Metabolic Architecture (Two-Advisor Metabolizer)
+
+The dual-synthesis architecture (whitepaper §11.9, §13.10; VISION.md §G) organizes the coordinator fabric into two opposed camps whose pre-digested positions are weighed by Reason. Implementation is a pipeline extension to Awareness, not a new coordinator.
+
+| Item | Notes |
+|------|-------|
+| ⬜ Stage 1 — Bid classification in Awareness | Route each incoming bid by coordinator identity to Conservative or Disruptor bucket. Tier 0 — pure Python switch on coordinator identity. Accumulate over configurable batch window (~3 foreground turns or 30s idle). Existing coordinators unchanged. |
+| ⬜ Stage 2 — Per-camp Tier 1 synthesis | When a bucket fires (batch limit or timeout), Awareness triggers a compact Tier 1 local-model inference per camp. Model receives all bid texts from that camp; produces 2-3 sentence position statement. Must not draft responses or make decisions — only compress evidence. |
+| ⬜ Stage 3 — Dual-position delivery to Reason | Awareness prepends "ADVISOR A:" and "ADVISOR B:" position statements to packet before Reason. Feeling affect state delivered alongside as third dimension. No pipeline changes to Reason itself. |
+| ⬜ Stage 4 — Uncertainty branch tracking (Phase 2+) | When advisors diverge, Pattern Monitor records the branch: coordinators that disagreed, topic, evidence weight per side, which position won when resolved. Training signal for metabolic-level self-correction. |
+| ⬜ Silent-camp handling | If one camp produced no bids in the batch window, Awareness notes this explicitly as "No signal" rather than fabricating a position. Ensures silence is different from consensus in the audit trail. |
 
 ---
 

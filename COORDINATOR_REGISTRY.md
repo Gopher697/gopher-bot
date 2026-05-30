@@ -409,6 +409,32 @@ built. Each inherits full charter obligations from the moment it completes start
 
 ---
 
+## Advisor Grouping — Metabolic Architecture
+
+The coordinator fabric naturally splits into two synthesis camps whose pre-digested positions are presented to Reason as structured alternatives rather than raw bid noise. This grouping is not a coordinator-identity change — it is a routing and pre-digestion layer on top of the existing bid mechanism, implemented in Awareness. See whitepaper §11.9, §13.10 and VISION.md §G for full design.
+
+**Advisor A — Conservative (Integration)**
+Memory, Ethos, Wisdom, Keeper, Mirror-Self, Orientation
+→ Aggregates precedent, commitments, identity continuity, and trusted history.
+→ Orientating question: "What does our accumulated experience and ratified obligation suggest we should do?"
+
+**Advisor B — Disruptor (Novelty)**
+Curiosity, Pattern Monitor, Archivist, Mirror-User, Neuromodulation, Dream
+→ Surfaces anomalies, gaps, new intake, external perspective, and risk signals.
+→ Orientating question: "What has changed, what don't we know, and what might we be wrong about?"
+
+**Awareness** (hub) — routes bids by coordinator identity to the correct camp bucket; triggers Tier 1 per-camp synthesis on batch limit or timeout; delivers both position statements to Reason alongside Feeling's affect state.
+
+**Reason** (final arbiter) — chooses between or synthesizes across the two pre-digested positions. Not an advisor itself; the downstream consumer of the metabolic pipeline.
+
+**Design invariants:**
+- Awareness does not favor one advisor over the other — both buckets accumulate neutrally.
+- Synthesis compresses evidence only — it does not draft responses or make decisions.
+- Silent camps (no bids in the batch window) are noted explicitly rather than fabricated.
+- Tier cost: routing is $0 (pure Python); synthesis is ~one cheap local Tier 1 inference per camp per batch window.
+
+---
+
 ## Interaction Architecture
 
 This section defines how Gopher interacts with the system and how the system interacts with Gopher. These are architectural decisions, not coordinator-level rules — they govern the whole system.

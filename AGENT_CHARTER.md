@@ -406,7 +406,6 @@ Do not infer or reconstruct missing authority from session context alone.
 |---|---|---|
 | `gopher-workbench` | Skeleton — enforces allowed actions, routes agents, holds SOPs | Workbench-wide, subordinate to this charter |
 | `GopherVault` | Long-term memory — world models, project notes, accumulated knowledge | Storage layer; no independent authority |
-| `GameAgentCore` | Game-interaction limb — autonomy levels, session doctrine | Gaming domain only; Article III still applies |
 | Per-game agent workspaces | Environment frames — scoped world model namespaces | Own environment only; no cross-environment import |
 | Vaultbot | Legacy ambient interface — being absorbed into Memory coordinator | No ratification authority; proposals only |
 | Named coordinators (web interface) | Coordinator roles defined in `COORDINATOR_REGISTRY.md`; communicate via self-hosted web interface (not Discord) | Coordinator class; full startup required per coordinator; runtime session role required |
@@ -428,3 +427,4 @@ charter wins. When two subordinate systems conflict, Article IV applies.
 | 2026-05-18 | 0.5 | Moved coordinator roster to COORDINATOR_REGISTRY.md; replaced organ/tool with agent/tool in schemas; replaced ratified_at with decision_timestamp; updated Article X | Not ratified |
 | 2026-05-18 | 0.6 | Removed coordinator names from Article X (now references registry only); narrowed Tier 3 screenshot permission to exclude private/restricted visible content | Gopher (Gopher) |
 | 2026-05-19 | 0.7 | BUG-001: Added `session_role` declaration requirement (build vs runtime); Article VII rewritten to deny runtime coordinator authority to build sessions; separate log paths (logs/build/ vs logs/actions/); runtime marker written to SystemState graph node by BrainLoop on launch; Article VIII updated with session_role field; Article X updated to web interface; Discord coordinator row replaced | Gopher (Gopher) |
+| 2026-05-30 | 0.8 | GameAgentCore row removed from Article X (project archived, absorbed into gopher-bot); `config/projects.yaml` updated accordingly | Gopher (Gopher) |

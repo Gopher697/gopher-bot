@@ -243,6 +243,26 @@ Before Phase 2 commits deeply to Neo4j-specific features (native vector index, a
 
 This is not a recommendation to migrate — it is a recommendation to make the decision explicitly rather than by default.
 
+### G: Two-Advisor Metabolizer Pipeline
+
+The dual-synthesis architecture (whitepaper §11.9, §13.10) organizes the coordinator fabric into two naturally-opposed camps whose pre-digested positions are presented to Reason as structured alternatives rather than raw bid noise.
+
+**Advisor A — Conservative (Integration):** Memory, Ethos, Wisdom, Keeper, Mirror-Self, Orientation — aggregates precedent, commitments, identity continuity.
+**Advisor B — Disruptor (Novelty):** Curiosity, Pattern Monitor, Archivist, Mirror-User, Neuromodulation, Dream — surfaces anomalies, gaps, risk, and unassimilated intake.
+
+**Implementation stages (Phase 2):**
+
+| Stage | What | Tier | Priority |
+|-------|------|------|----------|
+| 1 | Awareness routes bids by coordinator identity to Conservative or Disruptor bucket | 0 | Phase 2 entry |
+| 2 | Per-camp Tier 1 synthesis: local model summarizes bucket into 2-3 sentence position | 1 | Phase 2 medium |
+| 3 | Prepend both positions to packet before Reason; Feeling state delivered alongside | 0 | Phase 2 entry |
+| 4 | Pattern Monitor records advisor divergence branches for later Wisdom self-correction | 0/1 | Phase 2+ |
+
+**Design rule:** Awareness does not favor either advisor, synthesis compresses only (no decisions), silent camps are noted explicitly rather than fabricated. Total tier cost: $0 for routing, ~one cheap local inference per camp per batch window.
+
+**Why it fits Phase 2's philosophy:** Phase 2 gives Gopher-bot a body and senses. The metabolizer gives it structured internal deliberation — a cognitive skeleton to match the physical one. The pipeline extends Awareness without requiring a new coordinator or adding architectural weight.
+
 ---
 
 ## Phase 3: Governed MCP Unification
